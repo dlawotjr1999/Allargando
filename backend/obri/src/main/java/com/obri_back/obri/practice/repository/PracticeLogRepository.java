@@ -11,4 +11,5 @@ import com.obri_back.obri.practice.entity.PracticeLog;
  */
 public interface PracticeLogRepository extends JpaRepository<PracticeLog, Long> {
     Page<PracticeLog> findByUserId(Long userId, Pageable pageable); // 유저가 작성한 연습 일지
+    void deleteByUserId(Long userId);                               // 회원 탈퇴 시 연습 일지 전부 정리용
 }

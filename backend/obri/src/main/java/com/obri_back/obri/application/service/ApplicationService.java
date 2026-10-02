@@ -17,6 +17,7 @@ import com.obri_back.obri.post.entity.Post;
 import com.obri_back.obri.post.entity.PostStatus;
 import com.obri_back.obri.post.repository.PostRepository;
 import com.obri_back.obri.user.entity.User;
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.user.service.UserService;
 
 import com.obri_back.obri.user.dto.CareerDTO;
@@ -24,6 +25,7 @@ import com.obri_back.obri.user.dto.CareerDTO;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -241,6 +243,18 @@ public class ApplicationService {
         List<String> acceptedTokens = applicationRepository.findApplicantFcmTokens(postId, List.of(ApplicationStatus.ACCEPTED));
         applicationRepository.deleteByPostId(postId);
         eventPublisher.publishEvent(new PostDeletedNotificationEvent(acceptedTokens, postId, title));
+    }
+
+    // 회원 탈퇴 시 이 유저가 낸 지원서 정리 — UserService가 발행한 UserWithdrawalEvent를 같은 트랜잭션에서 처리
+    // (유저 행 삭제보다 먼저 실행돼야 FK 위반이 없다). 수락된 지원은 revoke()와 같이 악기 확정 인원을 되돌려
+    // 자리를 다시 열고, 그 뒤 상태와 무관하게 전부 삭제한다. 이 유저가 작성한 모집글의 지원서는 PostService가
+    // handlePostDeletion으로 처리한다(본인 글엔 지원할 수 없으므로 두 범위가 겹치지 않는다).
+    @EventListener
+    @Transactional
+    public void onUserWithdrawal(UserWithdrawalEvent event) {
+        applicationRepository.findByUserIdAndStatus(event.userId(), ApplicationStatus.ACCEPTED)
+                .forEach(application -> application.getPost().revokeInstrument(application.getInstrument()));
+        applicationRepository.deleteByUserId(event.userId());
     }
 
     // 모집글 단건 조회(applicationCount)용 — Post 도메인에서 호출

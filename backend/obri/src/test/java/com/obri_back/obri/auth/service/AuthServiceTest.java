@@ -1,5 +1,7 @@
 package com.obri_back.obri.auth.service;
 
+import com.google.firebase.auth.AuthErrorCode;
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
@@ -25,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -375,5 +378,32 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.updatePhoneNumber(user, "valid-token"))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("유저를 찾을 수 없습니다");
+    }
+
+    // 회원 탈퇴 — DB 삭제 커밋 후 Firebase 계정을 지운다
+    @Test
+    void onUserWithdrawn_deletesFirebaseAccount() throws Exception {
+        authService.onUserWithdrawn(new UserWithdrawalEvent(1L, "test-uid"));
+
+        verify(firebaseAuth).deleteUser("test-uid");
+    }
+
+    // 탈퇴는 이미 끝났으므로 Firebase 삭제 실패가 호출자에게 예외로 번지면 안 된다(고아 계정은 로그로 추적)
+    @Test
+    void onUserWithdrawn_doesNotThrowWhenFirebaseDeletionFails() throws Exception {
+        willThrow(mock(FirebaseAuthException.class)).given(firebaseAuth).deleteUser("test-uid");
+
+        assertThatCode(() -> authService.onUserWithdrawn(new UserWithdrawalEvent(1L, "test-uid")))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void onUserWithdrawn_ignoresAccountThatAlreadyDoesNotExist() throws Exception {
+        FirebaseAuthException notFound = mock(FirebaseAuthException.class);
+        given(notFound.getAuthErrorCode()).willReturn(AuthErrorCode.USER_NOT_FOUND);
+        willThrow(notFound).given(firebaseAuth).deleteUser("test-uid");
+
+        assertThatCode(() -> authService.onUserWithdrawn(new UserWithdrawalEvent(1L, "test-uid")))
+                .doesNotThrowAnyException();
     }
 }

@@ -8,9 +8,11 @@ import com.obri_back.obri.user.dto.UserResponseDTO;
 import com.obri_back.obri.user.dto.UserUpdateRequestDTO;
 import com.obri_back.obri.user.entity.Career;
 import com.obri_back.obri.user.entity.User;
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.user.repository.CareerRepository;
 import com.obri_back.obri.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final CareerRepository careerRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /*
      * 내 정보 조회
@@ -105,14 +108,17 @@ public class UserService {
     }
 
     /*
-     * 회원 탈퇴
-     * MySQL 유저 삭제 (Firebase 계정 삭제는 클라이언트에서 처리)
+     * 회원 탈퇴 — 유저가 남긴 데이터를 전부 삭제
+     * 다른 도메인의 데이터(모집글·지원서·연습일지)는 UserWithdrawalEvent로 각 도메인이 같은 트랜잭션 안에서 정리하고
+     * (유저 행보다 먼저 지워야 FK 위반이 나지 않으므로 이벤트 발행 후에 유저를 삭제), Firebase 계정은 커밋 후
+     * auth가 삭제한다. 하나라도 실패하면 트랜잭션이 롤백돼 아무것도 지워지지 않는다.
      *
      * @param user 현재 로그인한 유저(detached일 수 있음 — 내부에서 managed 재조회)
      */
     @Transactional
     public void deleteUser(User user) {
         User managedUser = getManagedUserById(user.getId());
+        eventPublisher.publishEvent(new UserWithdrawalEvent(managedUser.getId(), managedUser.getFirebaseUid()));
         userRepository.delete(managedUser);
     }
 

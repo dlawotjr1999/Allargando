@@ -1,5 +1,6 @@
 package com.obri_back.obri.application.service;
 
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.application.dto.AppRequestDTO;
 import com.obri_back.obri.application.dto.AppResponseDTO;
 import com.obri_back.obri.application.entity.Application;
@@ -366,5 +367,32 @@ class ApplicationServiceTest {
         inOrder.verify(applicationRepository).deleteByPostId(10L);
         inOrder.verify(eventPublisher).publishEvent(
                 new PostDeletedNotificationEvent(java.util.List.of("accepted-token"), 10L, "현악 앙상블 단원 모집"));
+    }
+
+    // 회원 탈퇴 — 수락된 지원은 악기 확정 인원을 되돌려 자리를 다시 연 뒤, 이 유저의 지원서를 전부 삭제한다
+    @Test
+    void onUserWithdrawal_revokesAcceptedSlotsThenDeletesAllApplicationsOfUser() {
+        Post acceptedPost = mock(Post.class);
+        Application accepted = mock(Application.class);
+        given(accepted.getPost()).willReturn(acceptedPost);
+        given(accepted.getInstrument()).willReturn("바이올린");
+        given(applicationRepository.findByUserIdAndStatus(1L, ApplicationStatus.ACCEPTED))
+                .willReturn(List.of(accepted));
+
+        applicationService.onUserWithdrawal(new UserWithdrawalEvent(1L, "applicant-uid"));
+
+        org.mockito.InOrder inOrder = inOrder(acceptedPost, applicationRepository);
+        inOrder.verify(acceptedPost).revokeInstrument("바이올린");
+        inOrder.verify(applicationRepository).deleteByUserId(1L);
+    }
+
+    @Test
+    void onUserWithdrawal_justDeletesWhenNoAcceptedApplications() {
+        given(applicationRepository.findByUserIdAndStatus(1L, ApplicationStatus.ACCEPTED))
+                .willReturn(List.of());
+
+        applicationService.onUserWithdrawal(new UserWithdrawalEvent(1L, "applicant-uid"));
+
+        verify(applicationRepository).deleteByUserId(1L);
     }
 }

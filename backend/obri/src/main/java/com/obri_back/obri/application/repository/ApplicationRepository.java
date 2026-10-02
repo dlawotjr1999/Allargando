@@ -34,4 +34,10 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     boolean existsByPostIdAndUserId(Long postId, Long userId);
     long countByPostId(Long postId);
     void deleteByPostId(Long postId);
+
+    // 회원 탈퇴 시 이 유저가 낸 지원서 정리용 — 수락된 지원은 모집글 악기 확정 인원을 되돌려야 하므로
+    // post를 함께 로딩해 상태별로 먼저 조회한 뒤 삭제한다
+    @EntityGraph(attributePaths = {"post"})
+    List<Application> findByUserIdAndStatus(Long userId, ApplicationStatus status);
+    void deleteByUserId(Long userId);
 }
