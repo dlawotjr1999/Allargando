@@ -42,8 +42,6 @@ async function main() {
       nickname: "테스트유저",
       phoneNumber: "010-0000-0000",
       instrument: "바이올린",
-      school: "테스트대학교",
-      isGraduate: false,
       careers: [],
     }),
   });

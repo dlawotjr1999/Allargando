@@ -1,10 +1,67 @@
+# ── 워크플로우 이름 ────────────────────────────────────────────
 name: Mobile CI
 
+# ── 트리거 설정 ────────────────────────────────────────────────
 on:
+  push:
+    branches:
+      - main
+      - "feat/**" # feature 브랜치도 포함
+    paths:
+      - "Frontend/**"
+      - ".github/workflows/mobile.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "Frontend/**"
+      - ".github/workflows/mobile.yml"
   workflow_dispatch:
 
+# ── 잡 정의 ───────────────────────────────────────────────────
 jobs:
-  noop:
+  check:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: Frontend/ObriApp
+
     steps:
-      - run: echo "Mobile CI is not configured yet"
+      # 1. 코드 체크아웃
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      # 2. Node 설정 (npm 캐시로 의존성 설치 속도 향상)
+      - name: Node 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Frontend/ObriApp/package-lock.json
+
+      # 3. 의존성 설치 (lock 파일 그대로 — 버전 변동 없음)
+      - name: 의존성 설치
+        run: npm ci
+
+      # 4. 라우트 타입 생성
+      # expo-router의 typedRoutes 타입(.expo/types)은 gitignore 대상이라 CI에는 없고, tsc가 router.push 경로를
+      # 검증하려면 필요하다. expo start가 기동하면서 만들어주므로 파일이 생길 때까지만 띄웠다가 내린다.
+      - name: 라우트 타입 생성
+        run: |
+          npx expo start --offline --port 8099 > /dev/null 2>&1 &
+          server_pid=$!
+          for i in $(seq 1 60); do
+            [ -f .expo/types/router.d.ts ] && break
+            sleep 2
+          done
+          kill $server_pid || true
+          test -f .expo/types/router.d.ts
+
+      # 5. 타입 검사
+      - name: 타입 검사
+        run: npx tsc --noEmit
+
+      # 6. 린트 (경고는 허용, 에러만 실패 처리)
+      - name: 린트
+        run: npx expo lint

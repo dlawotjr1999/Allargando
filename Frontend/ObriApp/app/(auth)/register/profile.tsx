@@ -17,7 +17,7 @@ import StepIndicator from "@/components/common/StepIndicator";
 import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
 import ChipSelect from "@/components/common/ChipSelect";
-import ToggleField from "@/components/common/ToggleField";
+import { isNicknameDuplicated } from "@/api/user";
 
 const INSTRUMENTS = ["피아노", "바이올린", "첼로", "플루트", "성악", "기타"];
 
@@ -25,9 +25,19 @@ export default function RegisterStep2() {
   const router = useRouter();
   const { form, updateForm } = useRegisterForm();
 
-  const handleCheckNickname = () => {
-    // TODO: GET /api/users/check/{nickname}
-    Alert.alert("닉네임 확인", "사용 가능한 닉네임입니다.");
+  // 닉네임 중복 확인 (GET /api/users/check/{nickname}, 인증 불필요)
+  const handleCheckNickname = async () => {
+    const nickname = form.nickname.trim();
+    if (!nickname) {
+      Alert.alert("닉네임 확인", "닉네임을 입력해주세요.");
+      return;
+    }
+    try {
+      const duplicated = await isNicknameDuplicated(nickname);
+      Alert.alert("닉네임 확인", duplicated ? "이미 사용 중인 닉네임입니다." : "사용 가능한 닉네임입니다.");
+    } catch {
+      Alert.alert("닉네임 확인", "확인에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
   };
 
   const handleNext = () => {
@@ -80,20 +90,6 @@ export default function RegisterStep2() {
           options={INSTRUMENTS}
           selected={form.instrument}
           onSelect={(v) => updateForm({ instrument: v })}
-        />
-
-        <ThemedInput
-          label="학교"
-          icon="school-outline"
-          placeholder="학교명 입력"
-          value={form.school}
-          onChangeText={(v) => updateForm({ school: v })}
-        />
-
-        <ToggleField
-          label="졸업 여부"
-          value={form.isGraduate}
-          onToggle={(v) => updateForm({ isGraduate: v })}
         />
 
         <View style={styles.bottom}>

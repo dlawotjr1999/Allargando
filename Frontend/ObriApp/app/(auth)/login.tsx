@@ -16,11 +16,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import Logo from "@/components/common/Logo";
 import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
-import DividerWithText from "@/components/common/DividerWithText";
-import SocialLoginButtons from "@/components/auth/SocialLoginButtons";
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,6 +34,22 @@ export default function LoginScreen() {
       Alert.alert("로그인 실패", "이메일 또는 비밀번호를 확인해주세요.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // 비밀번호 재설정 메일 발송 — 위 이메일 입력칸 값을 그대로 쓴다.
+  // 가입 여부를 노출하지 않도록 성공 안내는 "가입된 이메일이라면"으로 통일한다.
+  const handleForgotPassword = async () => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      Alert.alert("이메일 입력", "비밀번호를 재설정할 이메일을 먼저 입력해주세요.");
+      return;
+    }
+    try {
+      await resetPassword(trimmed);
+      Alert.alert("메일을 보냈어요", "가입된 이메일이라면 비밀번호 재설정 메일이 도착합니다.");
+    } catch {
+      Alert.alert("발송 실패", "이메일 형식을 확인하거나 잠시 후 다시 시도해주세요.");
     }
   };
 
@@ -83,18 +97,11 @@ export default function LoginScreen() {
             }
           />
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
             <Text style={styles.forgotPasswordText}>비밀번호를 잊으셨나요?</Text>
           </TouchableOpacity>
 
           <ThemedButton title="로그인" onPress={handleLogin} loading={isSubmitting} />
-
-          <DividerWithText text="또는" />
-
-          <SocialLoginButtons
-            onGooglePress={() => {}}
-            onApplePress={() => {}}
-          />
         </View>
 
         <View style={styles.signupRow}>

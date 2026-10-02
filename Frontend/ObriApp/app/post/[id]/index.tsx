@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -6,16 +6,18 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
-import { getPost } from "@/api/post";
+import { closePost, deletePost, getPost } from "@/api/post";
 import { submitApplication } from "@/api/application";
 import { ApiError } from "@/lib/apiClient";
+import { useAuth } from "@/contexts/AuthContext";
 import { PostDetail } from "@/types/post";
-import { MOCK_USER } from "@/mocks/user";
 import { formatEventDateTime } from "@/utils/datetime";
 import ScreenHeader from "@/components/common/ScreenHeader";
 import EmptyState from "@/components/common/EmptyState";
@@ -23,6 +25,7 @@ import IconText from "@/components/common/IconText";
 import Tag from "@/components/common/Tag";
 import ThemedButton from "@/components/common/ThemedButton";
 import ApplicationSubmitModal from "@/components/application/ApplicationSubmitModal";
+import PostActionMenu from "@/components/post/PostActionMenu";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -37,6 +40,7 @@ export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { profile } = useAuth();
 
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,11 +48,13 @@ export default function PostDetailScreen() {
 
   const [applyModalVisible, setApplyModalVisible] = useState(false);
   const [submittingApplication, setSubmittingApplication] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   // 단건 조회. id가 잘못됐거나(404) 이미 삭제된 글이면 백엔드가 NotFoundException(404)을 던지므로
   // 그 경우도 "찾을 수 없음" EmptyState로 자연스럽게 합류시킨다(별도 404 분기 불필요).
+  // 로딩 스피너는 첫 조회에만 보이고(초기 state가 true), 이후 재조회(지원·마감 직후, 수정·지원자 화면에서
+  // 돌아왔을 때)는 화면을 비우지 않고 조용히 값만 갱신한다.
   const loadPost = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const result = await getPost(Number(id));
@@ -60,9 +66,12 @@ export default function PostDetailScreen() {
     }
   }, [id]);
 
-  useEffect(() => {
-    loadPost();
-  }, [loadPost]);
+  // 포커스될 때마다 재조회 — 수정 화면·지원자 관리 화면에서 돌아오면 바뀐 내용·지원자 수가 바로 반영된다
+  useFocusEffect(
+    useCallback(() => {
+      loadPost();
+    }, [loadPost])
+  );
 
   if (loading) {
     return (
@@ -94,7 +103,7 @@ export default function PostDetailScreen() {
 
   // 지원 대상 악기는 선택형이 아니라 내 프로필 악기(user.getInstrument())로 서버가 자동 판정한다
   // (AppRequestDTO엔 postId/additionalInfo뿐, 악기 필드 없음 — 별도 선택 UI 불필요)
-  const myInstrumentSlot = post.instruments.find((it) => it.instrument === MOCK_USER.instrument);
+  const myInstrumentSlot = post.instruments.find((it) => it.instrument === profile?.instrument);
   // closed는 서버가 confirmed>=people로 이미 계산해 내려주는 값 — 프론트에서 다시 비교하지 않는다.
   const instrumentClosed = !!myInstrumentSlot && myInstrumentSlot.closed;
 
@@ -144,10 +153,61 @@ export default function PostDetailScreen() {
     }
   };
 
+  // 모집 마감 (작성자만). 마감하면 더 이상 지원을 받을 수 없어 되돌리는 UI가 없으므로 확인을 거친다.
+  const handleClosePost = () => {
+    Alert.alert("모집 마감", "마감하면 더 이상 지원을 받을 수 없어요. 마감할까요?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "마감",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await closePost(post.id);
+            await loadPost();
+          } catch (err) {
+            Alert.alert("마감 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
+          }
+        },
+      },
+    ]);
+  };
+
+  // 모집글 삭제 (작성자만). 지원 내역도 서버에서 함께 정리되고 되돌릴 수 없어 확인을 거친다.
+  // 성공하면 이 글은 더 없으므로 이전 화면으로 돌아간다.
+  const handleDeletePost = () => {
+    Alert.alert("모집글 삭제", "삭제하면 지원 내역도 함께 사라지고 되돌릴 수 없어요. 삭제할까요?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deletePost(post.id);
+            router.back();
+          } catch (err) {
+            Alert.alert("삭제 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.headerArea}>
-        <ScreenHeader />
+        <ScreenHeader
+          right={
+            isMyPost ? (
+              <TouchableOpacity
+                onPress={() => setMenuVisible(true)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityLabel="모집글 관리 메뉴"
+              >
+                <Ionicons name="ellipsis-horizontal" size={22} color={colors.primary} />
+              </TouchableOpacity>
+            ) : undefined
+          }
+        />
       </View>
 
       <ScrollView
@@ -191,7 +251,7 @@ export default function PostDetailScreen() {
               <Tag
                 key={it.instrument}
                 label={`${it.instrument} ${it.confirmed}/${it.people}`}
-                variant={it.instrument === MOCK_USER.instrument ? "filled" : "outline"}
+                variant={it.instrument === profile?.instrument ? "filled" : "outline"}
               />
             ))}
           </View>
@@ -236,6 +296,17 @@ export default function PostDetailScreen() {
         submitting={submittingApplication}
         onSubmit={handleSubmitApplication}
         onClose={() => setApplyModalVisible(false)}
+      />
+
+      <PostActionMenu
+        visible={menuVisible}
+        canClose={!isClosed}
+        onEdit={() =>
+          router.push({ pathname: "/post/[id]/edit", params: { id: String(post.id) } })
+        }
+        onCloseRecruit={handleClosePost}
+        onDelete={handleDeletePost}
+        onDismiss={() => setMenuVisible(false)}
       />
     </SafeAreaView>
   );

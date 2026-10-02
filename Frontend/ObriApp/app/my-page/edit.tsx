@@ -11,26 +11,37 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
-import { MOCK_USER } from "@/mocks/user";
-import { CareerEntry } from "@/types/user";
+import { isNicknameDuplicated, updateMyInfo } from "@/api/user";
+import { ApiError } from "@/lib/apiClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { CareerEntry, UserProfile } from "@/types/user";
+import LoadingScreen from "@/components/common/LoadingScreen";
 import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
 import ChipSelect from "@/components/common/ChipSelect";
-import ToggleField from "@/components/common/ToggleField";
 import CareerFormItem from "@/components/auth/CareerFormItem";
 
 const INSTRUMENTS = ["피아노", "바이올린", "첼로", "플루트", "성악", "기타"];
 
+// 프로필 수정 화면. 프로필은 마이페이지에서 이미 불러온 AuthContext 값이라 보통 곧바로 있지만,
+// 없을 때(조회 전·실패)는 폼을 만들 수 없어 로딩 화면으로 둔다 — 폼은 초기값을 state로 복사하므로
+// 프로필이 확정된 뒤에만 마운트해야 한다.
 export default function EditProfileScreen() {
-  const router = useRouter();
+  const { profile } = useAuth();
+  if (!profile) return <LoadingScreen />;
+  return <EditProfileForm profile={profile} />;
+}
 
-  const [nickname, setNickname] = useState(MOCK_USER.nickname);
-  const [instrument, setInstrument] = useState(MOCK_USER.instrument);
-  const [school, setSchool] = useState(MOCK_USER.school);
-  const [isGraduate, setIsGraduate] = useState(MOCK_USER.isGraduate);
+function EditProfileForm({ profile }: { profile: UserProfile }) {
+  const router = useRouter();
+  const { setProfile } = useAuth();
+
+  const [nickname, setNickname] = useState(profile.nickname);
+  const [instrument, setInstrument] = useState(profile.instrument);
   const [careers, setCareers] = useState<CareerEntry[]>(
-    MOCK_USER.careers.map(({ organization, contexts }) => ({ organization, contexts }))
+    profile.careers.map(({ organization, contexts }) => ({ organization, contexts }))
   );
+  const [saving, setSaving] = useState(false);
 
   // 배열 index는 항목 삭제 시 뒤 요소가 앞으로 당겨져 재사용되므로,
   // React key로 쓰기 위한 항목별 안정적인 로컬 id를 별도로 관리한다.
@@ -39,9 +50,23 @@ export default function EditProfileScreen() {
     careers.map(() => keyCounter.current++)
   );
 
-  const handleCheckNickname = () => {
-    // TODO: GET /api/users/check/{nickname}
-    Alert.alert("닉네임 확인", "사용 가능한 닉네임입니다.");
+  // 닉네임 중복 확인. 내 현재 닉네임은 서버 기준으로 "사용 중"이라 중복으로 나오므로 먼저 걸러낸다.
+  const handleCheckNickname = async () => {
+    const value = nickname.trim();
+    if (!value) {
+      Alert.alert("닉네임 확인", "닉네임을 입력해주세요.");
+      return;
+    }
+    if (value === profile.nickname) {
+      Alert.alert("닉네임 확인", "현재 사용 중인 닉네임입니다.");
+      return;
+    }
+    try {
+      const duplicated = await isNicknameDuplicated(value);
+      Alert.alert("닉네임 확인", duplicated ? "이미 사용 중인 닉네임입니다." : "사용 가능한 닉네임입니다.");
+    } catch {
+      Alert.alert("닉네임 확인", "확인에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
   };
 
   const handleCareerChange = (index: number, entry: CareerEntry) => {
@@ -60,15 +85,34 @@ export default function EditProfileScreen() {
     setCareerKeys((prev) => [...prev, keyCounter.current++]);
   };
 
-  const handleSave = () => {
-    // TODO: PATCH /api/users/me 연동 후 router.back()
-    router.back();
+  // 프로필 저장 (PUT /api/users/me). 경력은 전체 교체라 항상 전체 목록을 보내며, 단체명이 빈 항목은 제외한다.
+  // 응답이 곧 최신 프로필이라 재조회 없이 AuthContext에 바로 반영한다. 실패하면 이 화면에 남아 재시도할 수 있다.
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const updated = await updateMyInfo({
+        nickname: nickname.trim(),
+        instrument,
+        careers: careers.filter((c) => c.organization.trim()),
+      });
+      setProfile(updated);
+      router.back();
+    } catch (err) {
+      Alert.alert("저장 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+          accessibilityLabel="뒤로 가기"
+        >
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>프로필 수정</Text>
@@ -103,16 +147,6 @@ export default function EditProfileScreen() {
           onSelect={setInstrument}
         />
 
-        <ThemedInput
-          label="학교"
-          icon="school-outline"
-          placeholder="학교명 입력"
-          value={school}
-          onChangeText={setSchool}
-        />
-
-        <ToggleField label="졸업 여부" value={isGraduate} onToggle={setIsGraduate} />
-
         <Text style={styles.sectionLabel}>경력</Text>
         {careers.map((career, index) => (
           <CareerFormItem
@@ -130,7 +164,7 @@ export default function EditProfileScreen() {
         </TouchableOpacity>
 
         <View style={styles.bottom}>
-          <ThemedButton title="저장" onPress={handleSave} />
+          <ThemedButton title="저장" onPress={handleSave} loading={saving} />
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -27,9 +27,7 @@ export default function ProfileSection({
         </View>
         <View style={styles.profileInfo}>
           <Text style={styles.nickname}>{user.nickname}</Text>
-          <Text style={styles.profileMeta}>
-            {user.instrument} · {user.school} · {user.isGraduate ? "졸업생" : "재학생"}
-          </Text>
+          <Text style={styles.profileMeta}>{user.instrument}</Text>
         </View>
         <TouchableOpacity style={styles.editButton} onPress={onEditPress} activeOpacity={0.7}>
           <Ionicons name="pencil-outline" size={16} color={colors.textSecondary} />
