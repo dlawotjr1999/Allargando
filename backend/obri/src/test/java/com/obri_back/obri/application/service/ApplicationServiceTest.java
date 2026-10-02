@@ -6,6 +6,7 @@ import com.obri_back.obri.application.dto.AppResponseDTO;
 import com.obri_back.obri.application.entity.Application;
 import com.obri_back.obri.application.entity.ApplicationStatus;
 import com.obri_back.obri.application.repository.ApplicationRepository;
+import com.obri_back.obri.block.service.BlockService;
 import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.global.exception.ForbiddenException;
 import com.obri_back.obri.global.exception.NotFoundException;
@@ -50,6 +51,7 @@ class ApplicationServiceTest {
     @Mock UserService userService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock ApplicationAccessPolicy accessPolicy;
+    @Mock BlockService blockService;
 
     @InjectMocks ApplicationService applicationService;
 
@@ -394,5 +396,21 @@ class ApplicationServiceTest {
         applicationService.onUserWithdrawal(new UserWithdrawalEvent(1L, "applicant-uid"));
 
         verify(applicationRepository).deleteByUserId(1L);
+    }
+
+    // 모집자가 차단한 유저는 지원할 수 없다 — 차단 사실을 드러내지 않는 일반 메시지로 403
+    @Test
+    void submitApplication_throwsForbiddenWhenRecruiterBlockedApplicant() {
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+        given(post.getStatus()).willReturn(PostStatus.OPEN);
+        given(post.getEventAt()).willReturn(LocalDateTime.now().plusDays(1));
+        given(post.getUser()).willReturn(recruiter);
+        given(blockService.isBlocked(recruiter.getId(), applicant.getId())).willReturn(true);
+
+        assertThatThrownBy(() -> applicationService.submitApplication(applicant, AppRequestDTO.from(10L, "지원합니다")))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("지원할 수 없는 모집글입니다");
+
+        verify(applicationRepository, never()).save(any(Application.class));
     }
 }

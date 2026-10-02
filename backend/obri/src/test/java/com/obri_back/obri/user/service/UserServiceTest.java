@@ -208,4 +208,21 @@ class UserServiceTest {
 
         assertThat(result).isEmpty();
     }
+
+    // 신고·차단처럼 닉네임만 아는 쪽이 대상 유저를 찾을 때 쓰는 진입점
+    @Test
+    void getManagedUserByNickname_returnsUserWhenExists() {
+        given(userRepository.findByNickname("tester")).willReturn(Optional.of(mockUser));
+
+        assertThat(userService.getManagedUserByNickname("tester")).isEqualTo(mockUser);
+    }
+
+    @Test
+    void getManagedUserByNickname_throwsNotFoundWhenMissing() {
+        given(userRepository.findByNickname("ghost")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getManagedUserByNickname("ghost"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("유저를 찾을 수 없습니다");
+    }
 }

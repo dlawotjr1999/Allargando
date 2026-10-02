@@ -245,7 +245,7 @@ class PostServiceTest {
         when(postRepository.findAll(ArgumentMatchers.<Specification<Post>>any(), any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(post), PageRequest.of(0, 10), 1));
 
-        var result = postService.getPosts(null, null, null, null, null, PageRequest.of(0, 10));
+        var result = postService.getPosts(1L, null, null, null, null, null, PageRequest.of(0, 10));
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getTitle()).isEqualTo("현악 앙상블 단원 모집");

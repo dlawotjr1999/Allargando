@@ -6,6 +6,7 @@ import { colors } from "@/constants/theme";
 interface SettingsSectionProps {
   notifEnabled: boolean;
   onToggleNotif: (value: boolean) => void;
+  onBlocksPress: () => void;
   onLogout: () => void;
   onWithdraw: () => void;
 }
@@ -13,6 +14,7 @@ interface SettingsSectionProps {
 export default function SettingsSection({
   notifEnabled,
   onToggleNotif,
+  onBlocksPress,
   onLogout,
   onWithdraw,
 }: SettingsSectionProps) {
@@ -33,6 +35,15 @@ export default function SettingsSection({
           thumbColor={notifEnabled ? colors.primary : colors.placeholder}
         />
       </View>
+      <View style={styles.divider} />
+
+      <TouchableOpacity style={styles.settingsRow} onPress={onBlocksPress} activeOpacity={0.7}>
+        <View style={styles.settingsLeft}>
+          <Ionicons name="ban-outline" size={16} color={colors.textSecondary} />
+          <Text style={styles.settingsText}>차단 관리</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      </TouchableOpacity>
       <View style={styles.divider} />
 
       <TouchableOpacity style={styles.settingsRow} onPress={handleComingSoon} activeOpacity={0.7}>

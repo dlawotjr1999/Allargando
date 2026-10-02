@@ -168,7 +168,7 @@ class PostControllerTest {
                 .status(PostStatus.OPEN)
                 .build();
 
-        when(postService.getPosts(any(), any(), any(), any(), any(), any()))
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(summary), PageRequest.of(0, 10), 1));
 
         mockMvc.perform(get("/api/posts")

@@ -2,27 +2,23 @@ import React from "react";
 import { View, Text, TouchableOpacity, Pressable, StyleSheet } from "react-native";
 import { colors } from "@/constants/theme";
 
-interface PostActionMenuProps {
+export interface ActionMenuItem {
+  label: string;
+  onPress: () => void;
+  // 삭제·차단처럼 되돌리기 어려운 동작은 빨간색으로 표시
+  destructive?: boolean;
+}
+
+interface ActionMenuProps {
   visible: boolean;
-  // 이미 마감된 글이면 "모집 마감"을 숨긴다
-  canClose: boolean;
-  onEdit: () => void;
-  onCloseRecruit: () => void;
-  onDelete: () => void;
+  items: ActionMenuItem[];
   onDismiss: () => void;
 }
 
-// 내 모집글 상세의 더보기(⋯) 메뉴 — 수정 / 모집 마감 / 삭제. Modal을 쓰지 않고 화면 위에 겹쳐 그리는 팝오버라
-// 항목을 누른 직후 확인 Alert을 바로 띄워도 iOS에서 Modal 닫힘과 겹쳐 무시되는 문제가 없다.
+// 화면 오른쪽 위 더보기(⋯) 버튼에서 여는 팝오버 메뉴. Modal을 쓰지 않고 화면 위에 겹쳐 그리므로
+// 항목을 누른 직후 확인 Alert이나 다른 Modal을 바로 띄워도 겹침 문제가 없다.
 // 부모(상대 위치 컨테이너)의 오른쪽 위에 붙는다.
-export default function PostActionMenu({
-  visible,
-  canClose,
-  onEdit,
-  onCloseRecruit,
-  onDelete,
-  onDismiss,
-}: PostActionMenuProps) {
+export default function ActionMenu({ visible, items, onDismiss }: ActionMenuProps) {
   if (!visible) return null;
 
   // 항목을 누르면 메뉴를 먼저 닫고 해당 동작을 실행
@@ -35,17 +31,16 @@ export default function PostActionMenu({
     <>
       <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} accessibilityLabel="메뉴 닫기" />
       <View style={styles.menu}>
-        <TouchableOpacity style={styles.item} onPress={run(onEdit)} activeOpacity={0.7}>
-          <Text style={styles.itemText}>수정</Text>
-        </TouchableOpacity>
-        {canClose && (
-          <TouchableOpacity style={styles.item} onPress={run(onCloseRecruit)} activeOpacity={0.7}>
-            <Text style={styles.itemText}>모집 마감</Text>
+        {items.map((item) => (
+          <TouchableOpacity
+            key={item.label}
+            style={styles.item}
+            onPress={run(item.onPress)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.itemText, item.destructive && styles.danger]}>{item.label}</Text>
           </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.item} onPress={run(onDelete)} activeOpacity={0.7}>
-          <Text style={[styles.itemText, styles.danger]}>삭제</Text>
-        </TouchableOpacity>
+        ))}
       </View>
     </>
   );
@@ -56,7 +51,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 44,
     right: 24,
-    minWidth: 130,
+    minWidth: 140,
     backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,

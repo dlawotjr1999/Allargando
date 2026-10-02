@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useState } from "react";
 import { View, FlatList, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "@/constants/theme";
 import { getPosts } from "@/api/post";
 import { ApiError } from "@/lib/apiClient";
+import { consumePostListStale } from "@/lib/postListRefresh";
 import { PostSummary } from "@/types/post";
 import { PostFilter, DEFAULT_FILTER } from "@/types/filter";
 import AppHeader from "@/components/common/AppHeader";
@@ -52,6 +54,14 @@ export default function ObriScreen() {
   useEffect(() => {
     loadFirstPage();
   }, [loadFirstPage]);
+
+  // 다른 화면에서 모집글을 등록·수정·삭제하거나 유저를 차단·해제했다면(lib/postListRefresh) 돌아왔을 때 다시 조회.
+  // 변경이 없을 땐 아무것도 하지 않아 스크롤 위치가 유지된다
+  useFocusEffect(
+    useCallback(() => {
+      if (consumePostListStale()) loadFirstPage();
+    }, [loadFirstPage])
+  );
 
   // 무한스크롤 — 다음 페이지를 이어붙임
   const loadNextPage = async () => {

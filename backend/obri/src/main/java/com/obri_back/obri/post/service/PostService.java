@@ -59,10 +59,12 @@ public class PostService {
 
     // 모집글 전체 조회 — Specification 동적 필터 적용 후 요약 DTO로 반환
     // status 필터 없음(BACKLOG.md #35) — PostSpecification이 항상 OPEN·PARTIALLY_CLOSED만 노출
+    // viewerId(조회하는 유저)가 차단한 작성자의 글은 목록에서 제외된다
     @Transactional(readOnly = true)
-    public Page<PostSummaryResponseDTO> getPosts(List<String> categories, List<String> instruments,
+    public Page<PostSummaryResponseDTO> getPosts(Long viewerId, List<String> categories, List<String> instruments,
             List<String> regions, LocalDate startDate, LocalDate endDate, Pageable pageable) {
-        Specification<Post> spec = PostSpecification.filter(categories, instruments, regions, startDate, endDate);
+        Specification<Post> spec = PostSpecification.filter(
+                viewerId, categories, instruments, regions, startDate, endDate);
         return postRepository.findAll(spec, pageable).map(PostSummaryResponseDTO::from);
     }
 

@@ -157,6 +157,7 @@ export default function MyPageScreen() {
         <SettingsSection
           notifEnabled={notifEnabled}
           onToggleNotif={setNotifEnabled}
+          onBlocksPress={() => router.push("/my-page/blocks")}
           onLogout={handleLogout}
           onWithdraw={handleWithdraw}
         />

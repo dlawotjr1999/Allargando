@@ -1,5 +1,6 @@
 package com.obri_back.obri.post.repository;
 
+import com.obri_back.obri.block.entity.UserBlock;
 import com.obri_back.obri.post.entity.Post;
 import com.obri_back.obri.post.entity.PostInfo;
 import com.obri_back.obri.post.entity.PostInstrument;
@@ -69,7 +70,7 @@ class PostSpecificationTest {
         persistPost("경기", "경기 성남시 OO홀");
 
         List<Post> result = postRepository.findAll(
-                PostSpecification.filter(null, null, List.of("서울"), null, null));
+                PostSpecification.filter(null, null, null, List.of("서울"), null, null));
 
         assertThat(result).extracting(Post::getRegion).containsExactly("서울");
     }
@@ -80,7 +81,7 @@ class PostSpecificationTest {
         persistPost("경기", "서울 접경 경기 광주시 OO홀");
 
         List<Post> result = postRepository.findAll(
-                PostSpecification.filter(null, null, List.of("서울"), null, null));
+                PostSpecification.filter(null, null, null, List.of("서울"), null, null));
 
         assertThat(result).isEmpty();
     }
@@ -92,7 +93,7 @@ class PostSpecificationTest {
         persistPost("부산", "부산 해운대구 OO홀");
 
         List<Post> result = postRepository.findAll(
-                PostSpecification.filter(null, null, List.of("서울", "경기"), null, null));
+                PostSpecification.filter(null, null, null, List.of("서울", "경기"), null, null));
 
         assertThat(result).extracting(Post::getRegion).containsExactlyInAnyOrder("서울", "경기");
     }
@@ -102,8 +103,65 @@ class PostSpecificationTest {
         persistPost("서울", "서울 강남구 OO홀");
         persistPost("경기", "경기 성남시 OO홀");
 
-        List<Post> result = postRepository.findAll(PostSpecification.filter(null, null, null, null, null));
+        List<Post> result = postRepository.findAll(PostSpecification.filter(null, null, null, null, null, null));
 
         assertThat(result).hasSize(2);
+    }
+
+    // 조회하는 유저가 차단한 작성자의 글은 목록에서 빠지고, 다른 작성자의 글과 차단하지 않은 유저의 시점은 영향받지 않는다
+    @Test
+    void filter_excludesPostsOfAuthorsBlockedByViewer() {
+        User blockedAuthor = User.builder()
+                .firebaseUid("blocked-uid").phoneNumber("010-1111-1111").nickname("blocked").instrument("첼로").build();
+        entityManager.persist(blockedAuthor);
+        User viewer = User.builder()
+                .firebaseUid("viewer-uid").phoneNumber("010-2222-2222").nickname("viewer").instrument("피아노").build();
+        entityManager.persist(viewer);
+        User bystander = User.builder()
+                .firebaseUid("bystander-uid").phoneNumber("010-3333-3333").nickname("bystander").instrument("플루트").build();
+        entityManager.persist(bystander);
+
+        persistPostBy(owner, "정상 글");
+        persistPostBy(blockedAuthor, "차단당한 사람의 글");
+        entityManager.persist(UserBlock.of(viewer, blockedAuthor));
+        entityManager.flush();
+
+        List<Post> seenByViewer = postRepository.findAll(
+                PostSpecification.filter(viewer.getId(), null, null, null, null, null));
+        List<Post> seenByBystander = postRepository.findAll(
+                PostSpecification.filter(bystander.getId(), null, null, null, null, null));
+
+        assertThat(seenByViewer).extracting(Post::getTitle).containsExactly("정상 글");
+        assertThat(seenByBystander).extracting(Post::getTitle)
+                .containsExactlyInAnyOrder("정상 글", "차단당한 사람의 글");
+    }
+
+    // 차단은 방향이 있다 — 내가 상대를 차단했다고 상대 시점에서 내 글이 사라지지는 않는다
+    @Test
+    void filter_blockIsDirectional() {
+        User blocker = User.builder()
+                .firebaseUid("blocker-uid").phoneNumber("010-4444-4444").nickname("blocker").instrument("첼로").build();
+        entityManager.persist(blocker);
+        persistPostBy(blocker, "차단한 사람의 글");
+        entityManager.persist(UserBlock.of(blocker, owner));
+        entityManager.flush();
+
+        List<Post> seenByBlocked = postRepository.findAll(
+                PostSpecification.filter(owner.getId(), null, null, null, null, null));
+
+        assertThat(seenByBlocked).extracting(Post::getTitle).containsExactly("차단한 사람의 글");
+    }
+
+    private void persistPostBy(User author, String title) {
+        Post post = Post.create(author, PostInfo.builder()
+                .category("앙상블")
+                .title(title)
+                .eventAt(LocalDateTime.now().plusDays(7))
+                .location("서울 강남구")
+                .region("서울")
+                .timetable("13:00")
+                .build());
+        post.addInstrument(PostInstrument.of(post, "바이올린", 1));
+        entityManager.persist(post);
     }
 }

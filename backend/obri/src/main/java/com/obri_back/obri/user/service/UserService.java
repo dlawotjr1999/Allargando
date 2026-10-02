@@ -60,6 +60,19 @@ public class UserService {
     }
 
     /*
+     * 닉네임으로 managed User 조회 — 닉네임(UNIQUE)만 아는 화면에서 신고·차단 대상을 지정할 때 쓰는 진입점.
+     * 다른 도메인이 UserRepository를 직접 찌르지 않도록 이 메서드를 경유시킨다.
+     *
+     * @param nickname 조회할 유저의 닉네임
+     * @return managed 상태의 User 엔티티
+     */
+    @Transactional(readOnly = true)
+    public User getManagedUserByNickname(String nickname) {
+        return userRepository.findByNickname(nickname)
+                .orElseThrow(() -> new NotFoundException("유저를 찾을 수 없습니다"));
+    }
+
+    /*
      * 타인 프로필 조회
      * 공개 프로필이므로 email·phoneNumber는 노출하지 않음
      *

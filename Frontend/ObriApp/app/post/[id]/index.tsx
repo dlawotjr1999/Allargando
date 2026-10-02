@@ -18,6 +18,9 @@ import { submitApplication } from "@/api/application";
 import { ApiError } from "@/lib/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { PostDetail } from "@/types/post";
+import { ReportTarget } from "@/types/safety";
+import { markPostListStale } from "@/lib/postListRefresh";
+import { confirmBlockUser } from "@/lib/safety";
 import { formatEventDateTime } from "@/utils/datetime";
 import ScreenHeader from "@/components/common/ScreenHeader";
 import EmptyState from "@/components/common/EmptyState";
@@ -25,7 +28,8 @@ import IconText from "@/components/common/IconText";
 import Tag from "@/components/common/Tag";
 import ThemedButton from "@/components/common/ThemedButton";
 import ApplicationSubmitModal from "@/components/application/ApplicationSubmitModal";
-import PostActionMenu from "@/components/post/PostActionMenu";
+import ActionMenu, { ActionMenuItem } from "@/components/common/ActionMenu";
+import ReportDialog from "@/components/report/ReportDialog";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -49,6 +53,8 @@ export default function PostDetailScreen() {
   const [applyModalVisible, setApplyModalVisible] = useState(false);
   const [submittingApplication, setSubmittingApplication] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  // 신고 중인 대상(null이면 신고 창 닫힘)
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
   // 단건 조회. id가 잘못됐거나(404) 이미 삭제된 글이면 백엔드가 NotFoundException(404)을 던지므로
   // 그 경우도 "찾을 수 없음" EmptyState로 자연스럽게 합류시킨다(별도 404 분기 불필요).
@@ -183,6 +189,7 @@ export default function PostDetailScreen() {
         onPress: async () => {
           try {
             await deletePost(post.id);
+            markPostListStale();
             router.back();
           } catch (err) {
             Alert.alert("삭제 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
@@ -192,20 +199,42 @@ export default function PostDetailScreen() {
     ]);
   };
 
+  // 더보기 메뉴 — 내 글은 수정·마감·삭제, 남의 글은 글 신고·작성자 신고·작성자 차단(앱 내 신고·차단 경로)
+  const menuItems: ActionMenuItem[] = isMyPost
+    ? [
+        {
+          label: "수정",
+          onPress: () => router.push({ pathname: "/post/[id]/edit", params: { id: String(post.id) } }),
+        },
+        ...(isClosed ? [] : [{ label: "모집 마감", onPress: handleClosePost }]),
+        { label: "삭제", onPress: handleDeletePost, destructive: true },
+      ]
+    : [
+        { label: "모집글 신고", onPress: () => setReportTarget({ type: "POST", postId: post.id }) },
+        {
+          label: "작성자 신고",
+          onPress: () => setReportTarget({ type: "USER", nickname: post.writer.nickname }),
+        },
+        {
+          // 차단하면 이 글도 목록에서 사라지므로 성공 후 목록으로 돌아간다
+          label: "작성자 차단",
+          onPress: () => confirmBlockUser(post.writer.nickname, () => router.back()),
+          destructive: true,
+        },
+      ];
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.headerArea}>
         <ScreenHeader
           right={
-            isMyPost ? (
-              <TouchableOpacity
-                onPress={() => setMenuVisible(true)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityLabel="모집글 관리 메뉴"
-              >
-                <Ionicons name="ellipsis-horizontal" size={22} color={colors.primary} />
-              </TouchableOpacity>
-            ) : undefined
+            <TouchableOpacity
+              onPress={() => setMenuVisible(true)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel={isMyPost ? "모집글 관리 메뉴" : "신고·차단 메뉴"}
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color={colors.primary} />
+            </TouchableOpacity>
           }
         />
       </View>
@@ -298,16 +327,9 @@ export default function PostDetailScreen() {
         onClose={() => setApplyModalVisible(false)}
       />
 
-      <PostActionMenu
-        visible={menuVisible}
-        canClose={!isClosed}
-        onEdit={() =>
-          router.push({ pathname: "/post/[id]/edit", params: { id: String(post.id) } })
-        }
-        onCloseRecruit={handleClosePost}
-        onDelete={handleDeletePost}
-        onDismiss={() => setMenuVisible(false)}
-      />
+      <ActionMenu visible={menuVisible} items={menuItems} onDismiss={() => setMenuVisible(false)} />
+
+      <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
     </SafeAreaView>
   );
 }

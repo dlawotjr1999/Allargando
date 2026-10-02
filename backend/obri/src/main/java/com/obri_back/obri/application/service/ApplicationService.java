@@ -5,6 +5,7 @@ import com.obri_back.obri.application.dto.AppResponseDTO;
 import com.obri_back.obri.application.entity.Application;
 import com.obri_back.obri.application.entity.ApplicationStatus;
 import com.obri_back.obri.application.repository.ApplicationRepository;
+import com.obri_back.obri.block.service.BlockService;
 import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.global.exception.ConflictException;
 import com.obri_back.obri.global.exception.ForbiddenException;
@@ -58,6 +59,7 @@ public class ApplicationService {
     private final UserService userService;
     private final ApplicationEventPublisher eventPublisher;
     private final ApplicationAccessPolicy accessPolicy;
+    private final BlockService blockService;
 
     // 지원서 제출
     @Transactional
@@ -83,6 +85,11 @@ public class ApplicationService {
         // 본인 글 지원 체크
         if (post.getUser().getId().equals(user.getId())) {
             throw new ForbiddenException("본인 모집글에는 지원할 수 없습니다");
+        }
+
+        // 모집자가 차단한 유저는 지원 불가 — 차단 사실을 알려주지 않도록 사유를 구체적으로 밝히지 않는다
+        if (blockService.isBlocked(post.getUser().getId(), user.getId())) {
+            throw new ForbiddenException("지원할 수 없는 모집글입니다");
         }
 
         // 중복 지원 체크 (DB UNIQUE 제약의 사전 방어선)

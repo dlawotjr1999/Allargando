@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { colors } from "@/constants/theme";
 import { getPost, updatePost } from "@/api/post";
 import { ApiError } from "@/lib/apiClient";
+import { markPostListStale } from "@/lib/postListRefresh";
 import { PostCreateRequest, PostDetail } from "@/types/post";
 import EmptyState from "@/components/common/EmptyState";
 import LoadingScreen from "@/components/common/LoadingScreen";
@@ -70,6 +71,7 @@ export default function PostEditScreen() {
       initial={toFormValues(post)}
       onSubmit={async (payload) => {
         await updatePost(post.id, payload);
+        markPostListStale();
         router.back();
       }}
     />
