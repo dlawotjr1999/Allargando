@@ -36,7 +36,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 // SecurityConfig가 /api/concerts를 화이트리스트에 두지 않아(anyRequest().authenticated()) 전 엔드포인트가
 // 로그인을 요구한다 — 컨트롤러 메서드가 User를 직접 쓰지 않아도 인증 자체는 필요(PracticeLogControllerTest와 동일 패턴)
-@WebMvcTest(ConcertController.class)
+// 수동 동기화 트리거는 기본값이 꺼짐(운영)이라, 켜진 상태의 동작을 검증하려고 이 클래스에서만 켠다
+@WebMvcTest(controllers = ConcertController.class, properties = "kopis.sync.manual-trigger-enabled=true")
 @Import(SecurityConfig.class)
 class ConcertControllerTest {
 

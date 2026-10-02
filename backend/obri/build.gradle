@@ -62,3 +62,8 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// 실행 불가능한 plain jar를 만들지 않음 — build/libs에 bootJar 하나만 남아 Dockerfile이 버전과 무관하게 집을 수 있다
+tasks.named('jar') {
+	enabled = false
+}

@@ -18,3 +18,9 @@ app.cors.allowed-origins=http://localhost:8081
 kopis.service-key=발급받은키로교체
 # 로컬에서 동기화를 바로 확인하고 싶을 때만 짧은 주기로 오버라이드(예: 매분 0초)
 # kopis.sync.cron=0 * * * * *
+# 동기화 수동 트리거(POST /api/concerts/sync) — 운영 기본값은 꺼짐
+kopis.sync.manual-trigger-enabled=true
+
+# Swagger(/swagger-ui/index.html) — 운영 기본값은 꺼짐
+springdoc.api-docs.enabled=true
+springdoc.swagger-ui.enabled=true
