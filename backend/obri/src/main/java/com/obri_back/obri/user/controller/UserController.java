@@ -83,7 +83,8 @@ public class UserController {
 
     /**
      * 유저 프로필 조회
-     * /me 보다 우선순위가 높아야 함 (충돌 방지)
+     * 리터럴 경로(/me, /check/{nickname})가 변수 경로(/{nickname})보다 먼저 매칭되므로 충돌하지 않는다
+     * (닉네임 me는 NicknamePolicy가 예약어로 막는다)
      */
     @GetMapping("/{nickname}")
     public ResponseEntity<APIResponse<UserPublicProfileDTO>> getUserProfile(

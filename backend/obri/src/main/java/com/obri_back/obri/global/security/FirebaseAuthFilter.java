@@ -32,7 +32,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     /**
      * 요청마다 실행되는 필터 메서드
      * Authorization 헤더에서 Bearer 토큰을 추출해 Firebase로 검증하고
-     * 검증 성공 시 firebase_uid로 MySQL 유저를 조회해 SecurityContext에 저장
+     * 검증 성공 시 firebase_uid로 DB 유저를 조회해 SecurityContext에 저장
      * 검증 실패 또는 토큰 없는 경우 SecurityContext를 비운 채 다음 필터로 진행
      */
     @Override
@@ -64,7 +64,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             FirebaseToken decodedToken = firebaseAuth.verifyIdToken(idToken);
             String firebaseUid = decodedToken.getUid();
 
-            // firebase_uid로 MySQL 유저 조회
+            // firebase_uid로 DB 유저 조회
             userRepository.findByFirebaseUid(firebaseUid).ifPresent(user -> {
                 UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(

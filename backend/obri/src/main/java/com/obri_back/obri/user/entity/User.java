@@ -49,6 +49,8 @@ public class User {
     @Column(name = "phone_number", nullable = false, unique = true)
     private String phoneNumber;
 
+    // 대소문자 무시 UNIQUE는 함수 인덱스라 JPA로 표현할 수 없다 — Flyway V7의 UK_user_nickname_lower(lower(nickname)).
+    // 형식·예약어 규칙은 NicknamePolicy(D3)
     @Column(name = "nickname", nullable = false)
     private String nickname;
 
@@ -81,9 +83,10 @@ public class User {
         this.phoneNumber = phoneNumber;
     }
 
-    // 내 정보 수정: null이 아닌 필드만 선택적으로 반영 (phoneNumber는 전용 인증 엔드포인트로 이관되어 여기서 다루지 않음)
+    // 내 정보 수정: 닉네임·악기를 그대로 반영 (둘 다 필수 입력이라 호출 전에 요청 검증이 끝난 값이다.
+    // phoneNumber는 전용 인증 엔드포인트로 이관되어 여기서 다루지 않음)
     public void updateInfo(String nickname, String instrument) {
-        if (nickname != null) this.nickname = nickname;
-        if (instrument != null) this.instrument = instrument;
+        this.nickname = nickname;
+        this.instrument = instrument;
     }
 }

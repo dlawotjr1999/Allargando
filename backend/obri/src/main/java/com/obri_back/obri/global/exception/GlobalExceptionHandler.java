@@ -155,18 +155,6 @@ public class GlobalExceptionHandler {
 
     /*
      * 500 Internal Server Error
-     * 회원가입 중 MySQL 저장 실패 — 원인을 구분할 수 있도록 전용 메시지 유지(#37)
-     */
-    @ExceptionHandler(RegistrationFailedException.class)
-    public ResponseEntity<APIResponse<Void>> handleRegistrationFailedException(
-            RegistrationFailedException e) {
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(APIResponse.error(500, e.getMessage()));
-    }
-
-    /*
-     * 500 Internal Server Error
      * 예상치 못한 서버 에러
      */
     @ExceptionHandler(Exception.class)

@@ -10,27 +10,30 @@ import com.obri_back.obri.auth.dto.RegisterResponseDTO;
 import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.global.exception.ConflictGuard;
 import com.obri_back.obri.global.exception.NotFoundException;
-import com.obri_back.obri.global.exception.RegistrationFailedException;
 import com.obri_back.obri.global.exception.UnauthorizedException;
+import com.obri_back.obri.user.dto.CareerDTO;
 import com.obri_back.obri.user.entity.Career;
 import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.user.entity.User;
 import com.obri_back.obri.user.repository.CareerRepository;
 import com.obri_back.obri.user.repository.UserRepository;
+import com.obri_back.obri.user.service.NicknamePolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 /*
  * 인증 관련 비즈니스 로직 처리
- * Firebase Authentication과 MySQL 유저 정보를 연동
- * 회원가입 시 Firebase UID로 유저를 식별하고 MySQL에 저장
+ * Firebase Authentication과 DB 유저 정보를 연동
+ * 회원가입 시 Firebase UID로 유저를 식별하고 DB에 저장
  */
 @Slf4j
 @Service
@@ -40,18 +43,23 @@ public class AuthService {
     private final FirebaseAuth firebaseAuth;
     private final UserRepository userRepository;
     private final CareerRepository careerRepository;
+    private final TransactionTemplate transactionTemplate;
 
     /*
-     * 회원가입
-     * Firebase ID Token에서 UID와 이메일을 추출해 MySQL에 유저 정보 저장
-     * 이미 가입된 firebase_uid면 409 Conflict
-     * MySQL 저장 실패 시 Firebase 계정 롤백
+     * 회원가입 (멱등, D6)
+     * Firebase ID Token에서 UID·이메일·전화번호를 추출해 유저와 경력을 한 트랜잭션으로 저장
+     * 이미 가입된 firebase_uid면 409 대신 기존 행의 결과를 그대로 반환(요청 바디는 무시)
+     * → 더블탭·네트워크 재시도에도 안전하고, 실패 시 클라이언트는 같은 토큰으로 재시도하면 된다
+     * Firebase 계정은 지우지 않는다(보상 삭제 없음) — 지우면 동시 요청의 정상 가입 계정까지 사라진다
+     *
+     * 메서드 전체에 @Transactional을 걸지 않는다: UNIQUE 위반이 난 트랜잭션은 롤백 대상이라
+     * 그 세션으로는 같은 uid 행을 다시 조회할 수 없다. 저장(유저+경력)만 TransactionTemplate으로 묶고
+     * 위반 시 트랜잭션 밖에서 재조회해 "같은 uid의 동시 가입(성공)"과 "다른 필드 중복(409)"을 가른다.
      *
      * @param idToken Firebase ID Token (Authorization 헤더에서 추출)
      * @param request 회원가입 요청 DTO
      * @return 가입 시각(createdAt)만 포함한 응답
      */
-    @Transactional
     public RegisterResponseDTO register(String idToken, RegisterRequestDTO request) {
         FirebaseToken decodedToken = verifyToken(idToken);
 
@@ -59,8 +67,49 @@ public class AuthService {
         String email = decodedToken.getEmail();
         String phoneNumber = resolvePhoneNumber(decodedToken, request);
 
-        ConflictGuard.requireUnique(
-                userRepository.existsByFirebaseUid(firebaseUid), "이미 가입된 계정입니다");
+        // 멱등: 이미 가입된 uid면 기존 결과 반환
+        Optional<User> existing = userRepository.findByFirebaseUid(firebaseUid);
+        if (existing.isPresent()) {
+            return RegisterResponseDTO.from(existing.get());
+        }
+        // 닉네임은 정규화·형식 검증(D3) 후 그 값으로 중복 검사·저장한다
+        String nickname = NicknamePolicy.normalizeAndValidate(request.getNickname());
+        requireNoDuplicateFields(email, phoneNumber, nickname);
+
+        User user = User.builder()
+                .firebaseUid(firebaseUid)
+                .email(email)
+                .nickname(nickname)
+                .phoneNumber(phoneNumber)
+                .instrument(request.getInstrument())
+                .build();
+
+        try {
+            User saved = transactionTemplate.execute(status -> saveUserWithCareers(user, request));
+            return RegisterResponseDTO.from(saved);
+        } catch (DataIntegrityViolationException e) {
+            // 사전 체크를 둘 다 통과한 동시 요청의 UNIQUE 경쟁 — 트랜잭션 밖에서 원인을 구분한다
+            Optional<User> concurrent = userRepository.findByFirebaseUid(firebaseUid);
+            if (concurrent.isPresent()) {
+                return RegisterResponseDTO.from(concurrent.get());
+            }
+            requireNoDuplicateFields(email, phoneNumber, nickname);
+            throw e; // 중복이 아닌 제약 위반(길이 등)은 그대로 올려 GlobalExceptionHandler에 맡긴다
+        }
+    }
+
+    // 유저와 경력을 한 트랜잭션으로 저장 — 둘 중 하나라도 실패하면 함께 롤백된다
+    private User saveUserWithCareers(User user, RegisterRequestDTO request) {
+        User saved = userRepository.save(user);
+        List<Career> careers = CareerDTO.toEntities(saved, request.getCareers());
+        if (!careers.isEmpty()) {
+            careerRepository.saveAll(careers);
+        }
+        return saved;
+    }
+
+    // email·전화번호·닉네임 중복 검사 — 사전 체크와 UNIQUE 경쟁 후 원인 구분에 같이 쓴다
+    private void requireNoDuplicateFields(String email, String phoneNumber, String nickname) {
         // email은 선택 필드(§3.1) — null이면 existsByEmail(null)이 SQL상 항상 false로 무력화되므로 의미 없는 호출을 스킵
         if (email != null) {
             ConflictGuard.requireUnique(
@@ -70,41 +119,7 @@ public class AuthService {
         ConflictGuard.requireUnique(
                 userRepository.existsByPhoneNumber(phoneNumber), "이미 가입된 전화번호입니다");
         ConflictGuard.requireUnique(
-                userRepository.existsByNickname(request.getNickname()), "이미 사용 중인 닉네임입니다");
-
-        // User 엔티티 생성 및 저장
-        User user = User.builder()
-                .firebaseUid(firebaseUid)
-                .email(email)
-                .nickname(request.getNickname())
-                .phoneNumber(phoneNumber)
-                .instrument(request.getInstrument())
-                .build();
-
-        try {
-            // saveAndFlush로 즉시 flush시켜 UNIQUE 제약 위반을 이 catch 블록 안에서 잡는다.
-            // save()만 쓰면 flush가 트랜잭션 커밋 시점(메서드 반환 후)까지 미뤄져 예외가
-            // 이 try-catch 밖에서 터지고, 아래 Firebase 보상 롤백이 아예 실행되지 않는다.
-            userRepository.saveAndFlush(user);
-        } catch (Exception e) {
-            // MySQL 저장 실패 시 Firebase 계정 롤백
-            try {
-                firebaseAuth.deleteUser(firebaseUid);
-            } catch (FirebaseAuthException ex) {
-                log.error("Firebase 계정 롤백 실패 — 고아 계정 발생 가능 (firebaseUid={})", firebaseUid, ex);
-            }
-            throw new RegistrationFailedException("회원가입 중 오류가 발생했습니다");
-        }
-
-        // 경력 저장
-        if (request.getCareers() != null && !request.getCareers().isEmpty()) {
-            List<Career> careers = request.getCareers().stream()
-                    .map(dto -> Career.of(user, dto.getOrganization(), dto.getContexts()))
-                    .collect(Collectors.toList());
-            careerRepository.saveAll(careers);
-        }
-
-        return RegisterResponseDTO.from(user);
+                userRepository.existsByNicknameIgnoreCase(nickname), "이미 사용 중인 닉네임입니다");
     }
 
     /*
@@ -152,6 +167,8 @@ public class AuthService {
      * 회원 탈퇴 후 Firebase 계정 삭제 — DB 삭제가 커밋된 뒤에만 실행(AFTER_COMMIT)
      * 롤백되면 이벤트가 버려져 DB엔 유저가 남았는데 Firebase 계정만 사라지는 일이 없다.
      * 삭제에 실패해도 탈퇴 자체는 이미 끝났으므로 예외를 던지지 않고 로그로만 남긴다(고아 계정 추적용).
+     * Firebase 예외뿐 아니라 RuntimeException도 같은 방식으로 처리한다 — 호출자에게 전파되는지는 Spring 동작에 달려 있어
+     * (H2 재현에서는 전파되지 않았다) 코드로 약속을 지킨다.
      * 이미 없는 계정(USER_NOT_FOUND)은 목적이 달성된 상태라 조용히 넘어간다.
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -163,15 +180,21 @@ public class AuthService {
                 return;
             }
             log.error("탈퇴 후 Firebase 계정 삭제 실패 — 고아 계정 발생 (firebaseUid={})", event.firebaseUid(), e);
+        } catch (RuntimeException e) {
+            // Firebase 앱 미초기화·네트워크 등 예상 밖의 실패도 탈퇴(이미 커밋됨)와 분리하고 같은 방식으로 추적한다
+            log.error("탈퇴 후 Firebase 계정 삭제 중 예상치 못한 오류 — 고아 계정 발생 (firebaseUid={})", event.firebaseUid(), e);
         }
     }
 
-    // Firebase 토큰 검증 및 디코딩
+    // Firebase 토큰 검증 및 디코딩 — register·updatePhoneNumber 전용(요청마다 도는 필터와 달리 드물게 호출됨)
+    // checkRevoked(true): 서명이 유효해도 폐기된 토큰·삭제/비활성화된 계정은 거절한다. 끄면 탈퇴 직후 최대 1시간 동안
+    // 삭제된 계정의 토큰으로 register가 유령 계정(로그인 불가한 DB 행)을 만들 수 있다. Firebase 삭제가 실패해 아직
+    // 살아 있는 계정은 DB 행이 없어도 통과하므로 재가입은 허용된다(D14).
     // IllegalArgumentException까지 잡는 이유: verifyIdToken은 토큰이 비어 있으면 FirebaseAuthException이
     // 아니라 IllegalArgumentException을 던진다. 놓치면 401이어야 할 요청이 500으로 새어 나간다.
     private FirebaseToken verifyToken(String idToken) {
         try {
-            return firebaseAuth.verifyIdToken(idToken);
+            return firebaseAuth.verifyIdToken(idToken, true);
         } catch (FirebaseAuthException | IllegalArgumentException e) {
             throw new UnauthorizedException("유효하지 않은 Firebase 토큰입니다");
         }

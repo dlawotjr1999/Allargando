@@ -1,5 +1,6 @@
 package com.obri_back.obri.user.service;
 
+import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.global.exception.ConflictException;
 import com.obri_back.obri.global.exception.NotFoundException;
 import com.obri_back.obri.user.dto.CareerDTO;
@@ -19,6 +20,7 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Map;
@@ -27,6 +29,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -93,7 +96,7 @@ class UserServiceTest {
 
     @Test
     void getUserProfile_returnsUserWhenExists() {
-        given(userRepository.findByNickname("tester")).willReturn(Optional.of(mockUser));
+        given(userRepository.findByNicknameIgnoreCase("tester")).willReturn(Optional.of(mockUser));
 
         UserPublicProfileDTO result = userService.getUserProfile("tester");
 
@@ -102,7 +105,7 @@ class UserServiceTest {
 
     @Test
     void getUserProfile_throwsNotFoundWhenMissing() {
-        given(userRepository.findByNickname("ghost")).willReturn(Optional.empty());
+        given(userRepository.findByNicknameIgnoreCase("ghost")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.getUserProfile("ghost"))
                 .isInstanceOf(NotFoundException.class)
@@ -115,7 +118,7 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn("duplicated");
-        given(userRepository.existsByNickname("duplicated")).willReturn(true);
+        given(userRepository.existsByNicknameIgnoreCase("duplicated")).willReturn(true);
 
         assertThatThrownBy(() -> userService.updateMyInfo(mockUser, request))
                 .isInstanceOf(ConflictException.class)
@@ -141,9 +144,122 @@ class UserServiceTest {
         assertThat(result.getInstrument()).isEqualTo("첼로");
     }
 
+    // 경력은 전체 삭제 후 재삽입하고, 내용이 없는 행은 저장하지 않는다
+    @Test
+    void updateMyInfo_replacesCareersAndSkipsEmptyRows() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
+
+        UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
+        given(request.getNickname()).willReturn("tester");
+        given(request.getInstrument()).willReturn("바이올린");
+        given(request.getCareers()).willReturn(List.of(
+                CareerDTO.builder().organization("").contexts("").build(),
+                CareerDTO.builder().organization("밴드").contexts("").build()));
+
+        userService.updateMyInfo(mockUser, request);
+
+        InOrder inOrder = inOrder(careerRepository);
+        inOrder.verify(careerRepository).deleteByUserId(1L);
+        org.mockito.ArgumentCaptor<Iterable<Career>> captor = org.mockito.ArgumentCaptor.forClass(Iterable.class);
+        inOrder.verify(careerRepository).saveAll(captor.capture());
+        assertThat(captor.getValue()).hasSize(1);
+    }
+
+    // careers가 null이면 경력을 건드리지 않는다("경력 미변경")
+    @Test
+    void updateMyInfo_leavesCareersUntouchedWhenNull() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
+
+        UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
+        given(request.getNickname()).willReturn("tester");
+        given(request.getInstrument()).willReturn("바이올린");
+        given(request.getCareers()).willReturn(null); // Mockito 목은 List를 빈 리스트로 돌려주므로 null을 명시한다
+
+        userService.updateMyInfo(mockUser, request);
+
+        verify(careerRepository, never()).deleteByUserId(any());
+        verify(careerRepository, never()).saveAll(any());
+    }
+
+    // D3: 형식 위반 닉네임은 중복 검사 이전에 400(일반 문구)
+    @Test
+    void updateMyInfo_throwsBadRequestWhenNicknameInvalid() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
+
+        UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
+        given(request.getNickname()).willReturn("a/b");
+
+        assertThatThrownBy(() -> userService.updateMyInfo(mockUser, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("사용할 수 없는 닉네임입니다");
+
+        verify(userRepository, never()).existsByNicknameIgnoreCase(any());
+    }
+
+    // NFD(자모 분리)로 입력된 한글은 NFC로 정규화해 저장한다
+    @Test
+    void updateMyInfo_savesNicknameNormalizedToNfc() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
+        given(userRepository.existsByNicknameIgnoreCase("한글")).willReturn(false);
+
+        UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
+        given(request.getNickname()).willReturn(java.text.Normalizer.normalize("한글", java.text.Normalizer.Form.NFD));
+        given(request.getInstrument()).willReturn("바이올린");
+
+        UserResponseDTO result = userService.updateMyInfo(mockUser, request);
+
+        assertThat(result.getNickname()).isEqualTo("한글");
+    }
+
+    // 대소문자만 바꾸는 변경은 본인 행이라 중복 검사를 하지 않는다(검사하면 본인 닉네임과 충돌해 409가 된다)
+    @Test
+    void updateMyInfo_skipsDuplicateCheckWhenOnlyCaseChanges() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
+
+        UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
+        given(request.getNickname()).willReturn("Tester");
+        given(request.getInstrument()).willReturn("바이올린");
+
+        UserResponseDTO result = userService.updateMyInfo(mockUser, request);
+
+        assertThat(result.getNickname()).isEqualTo("Tester");
+        verify(userRepository, never()).existsByNicknameIgnoreCase(any());
+    }
+
+    // 사전 체크를 둘 다 통과한 동시 요청의 UNIQUE 위반은 일반 409가 아니라 닉네임 409로 알린다
+    @Test
+    void updateMyInfo_throwsNicknameConflictWhenUniqueViolationOnFlush() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
+        given(userRepository.existsByNicknameIgnoreCase("newname")).willReturn(false);
+        willThrow(new DataIntegrityViolationException("uk_user_nickname_lower")).given(userRepository).flush();
+
+        UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
+        given(request.getNickname()).willReturn("newname");
+        given(request.getInstrument()).willReturn("바이올린");
+
+        assertThatThrownBy(() -> userService.updateMyInfo(mockUser, request))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("이미 사용 중인 닉네임입니다");
+    }
+
+    @Test
+    void checkNickname_throwsBadRequestWhenFormatInvalid() {
+        assertThatThrownBy(() -> userService.checkNickname("a b"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("사용할 수 없는 닉네임입니다");
+
+        verify(userRepository, never()).existsByNicknameIgnoreCase(any());
+    }
+
+    @Test
+    void checkNickname_throwsBadRequestWhenReserved() {
+        assertThatThrownBy(() -> userService.checkNickname("Admin"))
+                .isInstanceOf(BadRequestException.class);
+    }
+
     @Test
     void checkNickname_returnsTrueWhenDuplicated() {
-        given(userRepository.existsByNickname("tester")).willReturn(true);
+        given(userRepository.existsByNicknameIgnoreCase("tester")).willReturn(true);
 
         boolean result = userService.checkNickname("tester");
 
@@ -152,7 +268,7 @@ class UserServiceTest {
 
     @Test
     void checkNickname_returnsFalseWhenAvailable() {
-        given(userRepository.existsByNickname("newname")).willReturn(false);
+        given(userRepository.existsByNicknameIgnoreCase("newname")).willReturn(false);
 
         boolean result = userService.checkNickname("newname");
 
@@ -212,14 +328,14 @@ class UserServiceTest {
     // 신고·차단처럼 닉네임만 아는 쪽이 대상 유저를 찾을 때 쓰는 진입점
     @Test
     void getManagedUserByNickname_returnsUserWhenExists() {
-        given(userRepository.findByNickname("tester")).willReturn(Optional.of(mockUser));
+        given(userRepository.findByNicknameIgnoreCase("tester")).willReturn(Optional.of(mockUser));
 
         assertThat(userService.getManagedUserByNickname("tester")).isEqualTo(mockUser);
     }
 
     @Test
     void getManagedUserByNickname_throwsNotFoundWhenMissing() {
-        given(userRepository.findByNickname("ghost")).willReturn(Optional.empty());
+        given(userRepository.findByNicknameIgnoreCase("ghost")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.getManagedUserByNickname("ghost"))
                 .isInstanceOf(NotFoundException.class)

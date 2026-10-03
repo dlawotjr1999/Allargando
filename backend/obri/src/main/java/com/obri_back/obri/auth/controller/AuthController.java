@@ -29,16 +29,16 @@ public class AuthController {
 
     /*
      * 회원가입
-     * Firebase 가입 후 MySQL에 유저 정보 저장
+     * Firebase 가입 후 DB에 유저 정보 저장
      * Authorization 헤더의 Firebase ID Token에서 UID와 이메일 추출
      *
      * @param authorization Firebase ID Token (Bearer {token})
-     * @param request       닉네임, 악기, 학교, 경력 등 추가 정보
+     * @param request       닉네임, 악기, 경력 등 추가 정보
      * @return 가입 시각(createdAt)만 포함한 응답
      */
     @PostMapping("/register")
     public ResponseEntity<APIResponse<RegisterResponseDTO>> register(
-            @RequestHeader("Authorization") String authorization,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody @Valid RegisterRequestDTO request) {
 
         String idToken = extractBearerToken(authorization);
@@ -76,7 +76,7 @@ public class AuthController {
      */
     @PatchMapping("/phone-number")
     public ResponseEntity<APIResponse<Void>> updatePhoneNumber(
-            @RequestHeader("Authorization") String authorization,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
             @AuthenticationPrincipal User user) {
 
         String idToken = extractBearerToken(authorization);
@@ -87,6 +87,7 @@ public class AuthController {
 
     /*
      * Authorization 헤더에서 Bearer 토큰만 추출
+     * 헤더 누락(required=false로 받아 null)·형식 오류·빈 토큰을 모두 401로 통일한다(누락만 400이던 불일치 해소, D18)
      * 형식을 먼저 검증하는 이유: 무조건 substring(7)을 하면 헤더가 7자 미만일 때
      * StringIndexOutOfBoundsException이 나고, register는 permitAll이라 미인증 상태로도 500을 유발할 수 있다
      *

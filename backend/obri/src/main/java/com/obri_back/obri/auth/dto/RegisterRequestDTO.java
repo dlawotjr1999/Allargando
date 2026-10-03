@@ -1,6 +1,7 @@
 package com.obri_back.obri.auth.dto;
 
 import com.obri_back.obri.user.dto.CareerDTO;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -17,8 +18,8 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 public class RegisterRequestDTO {
+    // 형식(한글·영문·숫자·_ 2~20자)·예약어 검증은 NFC 정규화 뒤에 해야 하므로 DTO가 아니라 NicknamePolicy가 한다
     @NotBlank(message = "닉네임을 입력해주세요")
-    @Size(min = 2, max = 20, message = "닉네임은 2~20자 사이여야 합니다")
     private String nickname;
 
     // [임시] 전화번호 — 원래는 검증된 ID Token의 phone_number claim만 신뢰하는 것이 설계(§3.1)이나,
@@ -30,5 +31,7 @@ public class RegisterRequestDTO {
     @NotBlank(message = "악기를 입력해주세요")
     private String instrument;
 
+    @Valid
+    @Size(max = 10, message = "경력은 최대 10개까지 등록할 수 있습니다")
     private List<CareerDTO> careers;
 }

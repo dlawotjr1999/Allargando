@@ -94,15 +94,4 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().getStatus()).isEqualTo(401);
         assertThat(response.getBody().getMessage()).isEqualTo("유효하지 않은 Firebase 토큰입니다");
     }
-
-    @Test
-    void handleRegistrationFailedException_returns500WithOwnMessage() {
-        RegistrationFailedException e = new RegistrationFailedException("회원가입 중 오류가 발생했습니다");
-
-        ResponseEntity<APIResponse<Void>> response = handler.handleRegistrationFailedException(e);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(response.getBody().getStatus()).isEqualTo(500);
-        assertThat(response.getBody().getMessage()).isEqualTo("회원가입 중 오류가 발생했습니다");
-    }
 }

@@ -85,6 +85,9 @@ jobs:
           # 그 결과가 엔티티 매핑과 정확히 일치하는지만 검증 — create-drop이면 Flyway가 만든 스키마를
           # Hibernate가 곧바로 지우고 재생성해버려 마이그레이션 자체가 검증되지 않음
           SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+          # application.properties는 KOPIS 서비스키에 기본값이 없어(누락 시 부팅 실패로 조기 감지) 컨텍스트 로드 테스트가
+          # 이 값 없이는 뜨지 않는다. 테스트는 실제 KOPIS 호출을 하지 않으므로 형식만 갖춘 더미 값으로 충분하다
+          KOPIS_SERVICE_KEY: ci-dummy-key
 
       # 7. 테스트 결과 리포트 업로드 (실패 시에만)
       - name: 테스트 결과 업로드
