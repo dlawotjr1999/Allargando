@@ -22,6 +22,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -32,7 +35,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -151,6 +156,23 @@ class PostControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    // 정렬은 서버가 고정한다 — ?sort=로 임의 속성(연관 엔티티의 개인정보 컬럼 등)을 지정해도 반영되지 않고,
+    // 페이지 크기는 설정한 상한(50)으로 잘린다
+    @Test
+    void getPosts_ignoresClientSortAndCapsPageSize() throws Exception {
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        mockMvc.perform(get("/api/posts?sort=user.phoneNumber,asc&size=100000")
+                        .with(authentication(auth)))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), captor.capture());
+        assertThat(captor.getValue().getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "createdAt"));
+        assertThat(captor.getValue().getPageSize()).isEqualTo(50);
     }
 
     @Test

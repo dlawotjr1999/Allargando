@@ -17,7 +17,8 @@ import org.springframework.web.bind.annotation.*;
  * 인증 관련 API 컨트롤러
  * Firebase Authentication과 연동해 회원가입 및 FCM 토큰 관리
  * POST  /api/auth/register      — 회원가입
- * PATCH /api/auth/fcm-token     — FCM 토큰 갱신
+ * PATCH  /api/auth/fcm-token    — FCM 토큰 갱신
+ * DELETE /api/auth/fcm-token    — FCM 토큰 해제 (로그아웃·알림 끄기)
  * PATCH /api/auth/phone-number  — 전화번호 갱신
  */
 @RestController
@@ -64,6 +65,14 @@ public class AuthController {
         authService.updateFcmToken(user, request);
 
         return ResponseEntity.ok(APIResponse.ok("FCM 토큰이 갱신되었습니다"));
+    }
+
+    // FCM 토큰 해제 — 앱이 로그아웃·탈퇴·알림 끄기 직전에 호출한다
+    @DeleteMapping("/fcm-token")
+    public ResponseEntity<APIResponse<Void>> clearFcmToken(@AuthenticationPrincipal User user) {
+        authService.clearFcmToken(user);
+
+        return ResponseEntity.ok(APIResponse.ok("FCM 토큰이 해제되었습니다"));
     }
 
     /*

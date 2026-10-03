@@ -34,6 +34,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -265,6 +266,13 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("FCM 토큰이 갱신되었습니다"));
+    }
+
+    @Test
+    void clearFcmToken_returns200() throws Exception {
+        mockMvc.perform(delete("/api/auth/fcm-token").with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("FCM 토큰이 해제되었습니다"));
     }
 
     @Test
