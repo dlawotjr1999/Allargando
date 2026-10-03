@@ -34,6 +34,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -223,6 +224,32 @@ class AuthControllerTest {
 
         postRegisterWithCareers("[{\"organization\": \"\", \"contexts\": \"\"}]")
                 .andExpect(status().isOk());
+    }
+
+    // 잘못된 메서드·Content-Type·경로가 500 + ERROR 스택트레이스가 되지 않는다(register는 permitAll이라 비인증으로도 재현됨)
+    @Test
+    void register_returns405WhenMethodNotSupported() throws Exception {
+        mockMvc.perform(get("/api/auth/register"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().string("Allow", "POST"))
+                .andExpect(jsonPath("$.status").value(405));
+    }
+
+    @Test
+    void register_returns415WhenContentTypeNotSupported() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("nickname=tester"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.status").value(415));
+    }
+
+    @Test
+    void unknownPath_returns404WhenAuthenticated() throws Exception {
+        mockMvc.perform(get("/api/does-not-exist").with(authentication(auth)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
     }
 
     @Test
