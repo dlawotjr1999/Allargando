@@ -130,8 +130,9 @@ public class Post {
     // 악기 목록 교체 (글 수정) — 이름이 같은 악기는 확정 인원(confirmed)·마감 상태를 승계하고 정원만 갱신,
     // 새 목록에서 사라진 이름만 제거(orphanRemoval), 새로 등장한 이름만 추가. 전체 clear 후 재삽입하면
     // 이미 수락된 지원자의 확정 카운트가 초기화되는 문제가 있었음(BACKLOG.md #32)
-    // 정원을 수락된 인원 밑으로 줄이는 요청은 400(D12) — 변경을 시작하기 전에 전부 검증해 부분 적용 없이 거부한다
-    public void replaceInstruments(List<PostInstrument> newInstruments) {
+    // 정원을 수락된 인원 밑으로 줄이는 요청과 수락자가 있는 악기를 빼는 요청은 400(D12) — 변경을 시작하기 전에
+    // 전부 검증해 부분 적용 없이 거부한다. 삭제된 악기 이름을 돌려줘 호출부가 그 악기의 대기 지원을 정리할 수 있게 한다
+    public List<String> replaceInstruments(List<PostInstrument> newInstruments) {
         Map<String, PostInstrument> existingByName = this.postInstruments.stream()
                 .collect(Collectors.toMap(PostInstrument::getInstrument, pi -> pi, (a, b) -> a));
         Set<String> newNames = newInstruments.stream()
@@ -144,6 +145,11 @@ public class Post {
                 existing.requireCapacityAtLeastConfirmed(newInstrument.getPeople());
             }
         }
+        List<String> removedNames = this.postInstruments.stream()
+                .filter(pi -> !newNames.contains(pi.getInstrument()))
+                .peek(PostInstrument::requireRemovable)
+                .map(PostInstrument::getInstrument)
+                .collect(Collectors.toList());
 
         this.postInstruments.removeIf(pi -> !newNames.contains(pi.getInstrument()));
 
@@ -157,6 +163,7 @@ public class Post {
         }
 
         recomputeStatus();
+        return removedNames;
     }
 
     // 수동 전체 마감 — 상태를 CLOSED로 전환하고, 이후 악기 상태 변동(철회 등)에 재파생되지 않도록 플래그 고정

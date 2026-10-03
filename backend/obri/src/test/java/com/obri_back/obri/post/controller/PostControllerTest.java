@@ -100,7 +100,7 @@ class PostControllerTest {
                                 {
                                   "category": "앙상블",
                                   "title": "현악 앙상블 단원 모집",
-                                  "eventAt": "2024-05-01T14:00:00",
+                                  "eventAt": "2099-05-01T14:00:00",
                                   "location": "서울 강남구 OO스튜디오",
                                   "region": "서울",
                                   "timetable": "매주 토요일 오후 2시 합주",
@@ -125,7 +125,7 @@ class PostControllerTest {
                         .content("""
                                 {
                                   "category": "앙상블",
-                                  "eventAt": "2024-05-01T14:00:00",
+                                  "eventAt": "2099-05-01T14:00:00",
                                   "location": "서울 강남구 OO스튜디오",
                                   "timetable": "매주 토요일 오후 2시 합주",
                                   "instruments": [{ "instrument": "바이올린", "people": 2 }]
@@ -145,7 +145,7 @@ class PostControllerTest {
                                 {
                                   "category": "앙상블",
                                   "title": "현악 앙상블 단원 모집",
-                                  "eventAt": "2024-05-01T14:00:00",
+                                  "eventAt": "2099-05-01T14:00:00",
                                   "location": "서울 강남구 OO스튜디오",
                                   "region": "서울",
                                   "timetable": "매주 토요일 오후 2시 합주",
@@ -284,7 +284,7 @@ class PostControllerTest {
                                 {
                                   "category": "앙상블",
                                   "title": "수정된 제목",
-                                  "eventAt": "2024-05-01T15:00:00",
+                                  "eventAt": "2099-05-01T15:00:00",
                                   "location": "서울 강남구 OO스튜디오",
                                   "region": "서울",
                                   "timetable": "매주 토요일 오후 3시 합주",
@@ -318,5 +318,41 @@ class PostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("모집글이 삭제되었습니다"));
+    }
+
+    // POST-T3: 요청 검증이 DB 오류(409)가 아니라 400 + 한글 메시지로 먼저 막는다
+    private org.springframework.test.web.servlet.ResultActions postWith(String eventAt, String title, String people)
+            throws Exception {
+        return mockMvc.perform(post("/api/posts")
+                .with(authentication(auth))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "category": "앙상블", "title": "%s", "eventAt": "%s",
+                          "location": "서울", "region": "서울", "timetable": "토요일",
+                          "instruments": [{"instrument": "바이올린", "people": %s}]
+                        }
+                        """.formatted(title, eventAt, people)));
+    }
+
+    @Test
+    void createPost_returns400WhenTitleLongerThan255() throws Exception {
+        postWith("2099-05-01T14:00:00", "가".repeat(256), "2")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("title: 제목은 255자 이내여야 합니다"));
+    }
+
+    @Test
+    void createPost_returns400WhenEventAtInThePast() throws Exception {
+        postWith("2020-05-01T14:00:00", "제목", "2")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("eventAt: 공연 일시는 현재 이후여야 합니다"));
+    }
+
+    @Test
+    void createPost_returns400WhenPeopleOverLimit() throws Exception {
+        postWith("2099-05-01T14:00:00", "제목", "101")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("instruments[0].people: 모집 인원은 100명 이하여야 합니다"));
     }
 }

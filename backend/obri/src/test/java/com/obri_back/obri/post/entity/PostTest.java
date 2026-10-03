@@ -361,4 +361,32 @@ class PostTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("이미 정원이 마감된 악기입니다");
     }
+
+    // D12: 수락자가 있는 악기를 새 목록에서 빼면 400, 아무것도 바뀌지 않는다(첼로 삭제도 함께 취소)
+    @Test
+    void replaceInstruments_throwsWhenRemovingInstrumentWithAcceptedApplicants() {
+        post.confirmInstrument("바이올린"); // 바이올린 confirmed=1
+
+        assertThatThrownBy(() -> post.replaceInstruments(List.of(PostInstrument.of(post, "첼로", 1))))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("바이올린")
+                .hasMessageContaining("삭제할 수 없어요");
+
+        assertThat(post.getPostInstruments()).extracting(PostInstrument::getInstrument)
+                .containsExactlyInAnyOrder("바이올린", "첼로");
+    }
+
+    // 수락자가 없는 악기는 삭제할 수 있고, 삭제된 악기 이름을 돌려준다(호출부가 그 악기의 대기 지원을 거절)
+    @Test
+    void replaceInstruments_returnsNamesOfRemovedInstruments() {
+        List<String> removed = post.replaceInstruments(List.of(PostInstrument.of(post, "바이올린", 2)));
+
+        assertThat(removed).containsExactly("첼로");
+    }
+
+    @Test
+    void replaceInstruments_returnsEmptyWhenNothingRemoved() {
+        assertThat(post.replaceInstruments(List.of(
+                PostInstrument.of(post, "바이올린", 2), PostInstrument.of(post, "첼로", 1)))).isEmpty();
+    }
 }

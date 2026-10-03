@@ -84,6 +84,15 @@ public class PostInstrument {
         this.closed = this.confirmed >= this.people;
     }
 
+    // 수락된 지원자가 있는 악기는 글 수정으로 삭제할 수 없다(400) — 확정된 자리가 조용히 사라지지 않게 한다(D12).
+    // 먼저 지원자를 철회하면 삭제할 수 있다
+    public void requireRemovable() {
+        if (this.confirmed > 0) {
+            throw new BadRequestException("'" + this.instrument + "'에 수락된 지원자가 " + this.confirmed
+                    + "명 있어 악기를 삭제할 수 없어요. 먼저 철회해 주세요");
+        }
+    }
+
     // 새 정원이 확정 인원보다 작으면 400 — 수락된 지원자가 있는 자리를 조용히 없애지 않는다.
     // Post.replaceInstruments가 여러 악기를 바꾸기 전에 먼저 호출해 부분 변경 없이 거부할 수 있도록 공개한다
     public void requireCapacityAtLeastConfirmed(int newPeople) {
