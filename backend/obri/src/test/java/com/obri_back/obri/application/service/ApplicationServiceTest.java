@@ -9,6 +9,7 @@ import com.obri_back.obri.application.repository.ApplicationRepository;
 import com.obri_back.obri.block.service.BlockService;
 import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.global.exception.ForbiddenException;
+import com.obri_back.obri.global.exception.ConflictException;
 import com.obri_back.obri.global.exception.NotFoundException;
 import com.obri_back.obri.notification.event.ApplicationResultNotificationEvent;
 import com.obri_back.obri.notification.event.NewApplicationNotificationEvent;
@@ -68,6 +69,8 @@ class ApplicationServiceTest {
                 .id(2L).nickname("recruiter").firebaseUid("recruiter-uid").build();
 
         post = mock(Post.class);
+        // 수락·철회는 공연일이 지났는지 확인하므로 기본은 아직 열린 공연으로 둔다(필요한 테스트가 다시 지정)
+        lenient().when(post.getEventAt()).thenReturn(LocalDateTime.now().plusDays(1));
     }
 
     // ── 지원서 제출 ──────────────────────────────────
@@ -153,7 +156,7 @@ class ApplicationServiceTest {
         given(postRepository.findById(10L)).willReturn(Optional.of(post));
         given(post.getStatus()).willReturn(PostStatus.PARTIALLY_CLOSED);
         given(post.getEventAt()).willReturn(LocalDateTime.now().plusDays(1));
-        given(post.isInstrumentClosed(any())).willReturn(true);
+        doThrow(new BadRequestException("이미 정원이 마감된 악기입니다")).when(post).requireAcceptingInstrument(any());
 
         AppRequestDTO request = AppRequestDTO.from(10L, null);
 
@@ -412,5 +415,137 @@ class ApplicationServiceTest {
                 .hasMessage("지원할 수 없는 모집글입니다");
 
         verify(applicationRepository, never()).save(any(Application.class));
+    }
+
+    // ── D9 지원 악기 선택·D8 공연일 검증·D13 마스킹·중복·상태 가드 ─────────────────────────
+
+    private void stubOpenPostForSubmit() {
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+        lenient().when(post.getId()).thenReturn(10L);
+        given(post.getStatus()).willReturn(PostStatus.OPEN);
+        lenient().when(post.getUser()).thenReturn(recruiter);
+    }
+
+    @Test
+    void submitApplication_savesRequestedInstrumentTrimmedAndValidatesIt() {
+        stubOpenPostForSubmit();
+        given(applicationRepository.save(any(Application.class))).willAnswer(inv -> inv.getArgument(0));
+        given(userService.getManagedUserById(applicant.getId())).willReturn(applicant);
+
+        applicationService.submitApplication(applicant,
+                AppRequestDTO.builder().postId(10L).instrument(" 첼로 ").build());
+
+        org.mockito.ArgumentCaptor<Application> captor = org.mockito.ArgumentCaptor.forClass(Application.class);
+        verify(applicationRepository).save(captor.capture());
+        assertThat(captor.getValue().getInstrument()).isEqualTo("첼로");
+        verify(post).requireAcceptingInstrument("첼로");
+    }
+
+    // 프론트가 아직 악기를 보내지 않는 동안의 호환 — 프로필 악기로 대신하고 같은 검증을 받는다
+    @Test
+    void submitApplication_fallsBackToProfileInstrumentWhenNotRequested() {
+        User violinist = User.builder().id(1L).nickname("applicant").firebaseUid("u").instrument("바이올린").build();
+        stubOpenPostForSubmit();
+        given(applicationRepository.save(any(Application.class))).willAnswer(inv -> inv.getArgument(0));
+        given(userService.getManagedUserById(1L)).willReturn(violinist);
+
+        applicationService.submitApplication(violinist, AppRequestDTO.from(10L, null));
+
+        verify(post).requireAcceptingInstrument("바이올린");
+    }
+
+    // 모집하지 않는 악기·정원이 찬 악기는 Post가 400으로 거부하고 지원은 저장되지 않는다
+    @Test
+    void submitApplication_propagatesInstrumentRejectionWithoutSaving() {
+        stubOpenPostForSubmit();
+        doThrow(new BadRequestException("이 모집글에서 모집하지 않는 악기입니다"))
+                .when(post).requireAcceptingInstrument("트럼펫");
+
+        assertThatThrownBy(() -> applicationService.submitApplication(applicant,
+                AppRequestDTO.builder().postId(10L).instrument("트럼펫").build()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("이 모집글에서 모집하지 않는 악기입니다");
+
+        verify(applicationRepository, never()).save(any());
+    }
+
+    @Test
+    void submitApplication_throwsConflictWhenAlreadyApplied() {
+        stubOpenPostForSubmit();
+        given(applicationRepository.existsByPostIdAndUserId(10L, applicant.getId())).willReturn(true);
+
+        assertThatThrownBy(() -> applicationService.submitApplication(applicant, AppRequestDTO.from(10L, null)))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("이미 지원한 모집글입니다");
+
+        verify(applicationRepository, never()).save(any());
+    }
+
+    // D8: 공연일이 지난 글의 수락·철회는 400, 알림도 가지 않는다
+    @Test
+    void accept_throwsBadRequestWhenEventAlreadyPassed() {
+        Application app = buildApplication(ApplicationStatus.PENDING);
+        given(applicationRepository.findById(100L)).willReturn(Optional.of(app));
+        given(post.getEventAt()).willReturn(LocalDateTime.now().minusHours(1));
+
+        assertThatThrownBy(() -> applicationService.accept(recruiter, 100L))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(post, never()).confirmInstrument(any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+        assertThat(app.getStatus()).isEqualTo(ApplicationStatus.PENDING);
+    }
+
+    @Test
+    void revoke_throwsBadRequestWhenEventAlreadyPassed() {
+        Application app = buildApplication(ApplicationStatus.ACCEPTED);
+        given(applicationRepository.findById(100L)).willReturn(Optional.of(app));
+        given(post.getEventAt()).willReturn(LocalDateTime.now().minusHours(1));
+
+        assertThatThrownBy(() -> applicationService.revoke(recruiter, 100L))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(post, never()).revokeInstrument(any());
+    }
+
+    // D8: 공연이 끝난 글이라도 거절은 막지 않는다
+    @Test
+    void reject_isAllowedEvenWhenEventAlreadyPassed() {
+        Application app = buildApplication(ApplicationStatus.PENDING);
+        given(applicationRepository.findById(100L)).willReturn(Optional.of(app));
+        lenient().when(post.getEventAt()).thenReturn(LocalDateTime.now().minusDays(3));
+
+        applicationService.reject(recruiter, 100L);
+
+        assertThat(app.getStatus()).isEqualTo(ApplicationStatus.REJECTED);
+    }
+
+    @Test
+    void accept_throwsBadRequestWhenNotPending() {
+        Application app = buildApplication(ApplicationStatus.REJECTED);
+        given(applicationRepository.findById(100L)).willReturn(Optional.of(app));
+
+        assertThatThrownBy(() -> applicationService.accept(recruiter, 100L))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(post, never()).confirmInstrument(any());
+    }
+
+    @Test
+    void accept_throwsNotFoundWhenApplicationMissing() {
+        given(applicationRepository.findById(404L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> applicationService.accept(recruiter, 404L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void cancel_setsCancelledWhenPending() {
+        Application app = buildApplication(ApplicationStatus.PENDING);
+        given(applicationRepository.findById(100L)).willReturn(Optional.of(app));
+
+        applicationService.cancel(applicant, 100L);
+
+        assertThat(app.getStatus()).isEqualTo(ApplicationStatus.CANCELLED);
     }
 }
