@@ -140,13 +140,16 @@ class PostServiceTest {
         Post post = buildPost(owner);
         given(postRepository.findById(10L)).willReturn(Optional.of(post));
         given(applicationService.countApplicationsByPostId(10L)).willReturn(3L);
-        given(applicationService.hasApplied(10L, other.getId())).willReturn(true);
+        given(applicationService.getMyApplicationStatus(10L, other.getId()))
+                .willReturn(com.obri_back.obri.application.entity.ApplicationStatus.CANCELLED);
 
         PostDetailResponseDTO result = postService.getPost(10L, other);
 
         assertThat(result.getApplicationCount()).isEqualTo(3L);
         assertThat(result.getIsMine()).isFalse();
         assertThat(result.getHasApplied()).isTrue();
+        assertThat(result.getMyApplicationStatus())
+                .isEqualTo(com.obri_back.obri.application.entity.ApplicationStatus.CANCELLED);
         assertThat(result.getWriter().getNickname()).isEqualTo("tester");
         assertThat(result.getDescription()).isEqualTo("함께 연습하고 공연할 현악 단원을 모집합니다");
     }
