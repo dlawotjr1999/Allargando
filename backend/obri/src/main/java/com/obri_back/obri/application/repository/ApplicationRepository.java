@@ -2,6 +2,7 @@ package com.obri_back.obri.application.repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,8 +31,9 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
 
     @EntityGraph(attributePaths = {"post", "user"})
     Page<Application> findByPostId(Long postId, Pageable pageable);
-    // DB UNIQUE 제약 전에 애플리케이션 레벨에서 먼저 차단해 409 에러 메시지를 제어
-    boolean existsByPostIdAndUserId(Long postId, Long userId);
+    // DB UNIQUE 제약 전에 애플리케이션 레벨에서 먼저 차단해 409 에러 메시지를 제어(아래 findByPostIdAndUserId로 확인)
+    // 같은 글에 낸 내 지원 — 재지원(취소 복구)·내 지원 상태 조회용
+    Optional<Application> findByPostIdAndUserId(Long postId, Long userId);
     long countByPostId(Long postId);
     void deleteByPostId(Long postId);
 

@@ -472,7 +472,8 @@ class ApplicationServiceTest {
     @Test
     void submitApplication_throwsConflictWhenAlreadyApplied() {
         stubOpenPostForSubmit();
-        given(applicationRepository.existsByPostIdAndUserId(10L, applicant.getId())).willReturn(true);
+        Application existing = buildApplication(ApplicationStatus.PENDING);
+        given(applicationRepository.findByPostIdAndUserId(10L, applicant.getId())).willReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> applicationService.submitApplication(applicant, AppRequestDTO.from(10L, null)))
                 .isInstanceOf(ConflictException.class)
@@ -547,5 +548,51 @@ class ApplicationServiceTest {
         applicationService.cancel(applicant, 100L);
 
         assertThat(app.getStatus()).isEqualTo(ApplicationStatus.CANCELLED);
+    }
+
+    // ── D7 취소한 지원의 재지원 ─────────────────────────────────────────────────────────
+
+    // 취소했던 지원은 새 행 없이 같은 행이 PENDING으로 복구되고, 악기·어필 문구가 새 값으로 바뀌며, 모집자에게 다시 알린다
+    @Test
+    void submitApplication_reappliesCancelledApplicationOnSameRow() {
+        stubOpenPostForSubmit();
+        Application cancelled = buildApplication(ApplicationStatus.CANCELLED);
+        given(applicationRepository.findByPostIdAndUserId(10L, applicant.getId())).willReturn(Optional.of(cancelled));
+        given(userService.getManagedUserById(applicant.getId())).willReturn(applicant);
+
+        applicationService.submitApplication(applicant,
+                AppRequestDTO.builder().postId(10L).instrument("첼로").additionalInfo("다시 지원해요").build());
+
+        assertThat(cancelled.getStatus()).isEqualTo(ApplicationStatus.PENDING);
+        assertThat(cancelled.getInstrument()).isEqualTo("첼로");
+        assertThat(cancelled.getAdditionalInfo()).isEqualTo("다시 지원해요");
+        verify(applicationRepository, never()).save(any());
+        verify(post).requireAcceptingInstrument("첼로");
+        verify(eventPublisher).publishEvent(any(NewApplicationNotificationEvent.class));
+    }
+
+    // 대기·수락·거절·철회된 지원은 다시 지원할 수 없다(취소만 허용)
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = ApplicationStatus.class, names = "CANCELLED",
+            mode = org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE)
+    void submitApplication_throwsConflictUnlessPreviousApplicationWasCancelled(ApplicationStatus previous) {
+        stubOpenPostForSubmit();
+        Application existing = buildApplication(previous);
+        given(applicationRepository.findByPostIdAndUserId(10L, applicant.getId())).willReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> applicationService.submitApplication(applicant, AppRequestDTO.from(10L, null)))
+                .isInstanceOf(ConflictException.class);
+
+        assertThat(existing.getStatus()).isEqualTo(previous);
+    }
+
+    @Test
+    void getMyApplicationStatus_returnsStatusOrNull() {
+        given(applicationRepository.findByPostIdAndUserId(10L, 1L))
+                .willReturn(Optional.of(buildApplication(ApplicationStatus.REJECTED)));
+        given(applicationRepository.findByPostIdAndUserId(10L, 2L)).willReturn(Optional.empty());
+
+        assertThat(applicationService.getMyApplicationStatus(10L, 1L)).isEqualTo(ApplicationStatus.REJECTED);
+        assertThat(applicationService.getMyApplicationStatus(10L, 2L)).isNull();
     }
 }

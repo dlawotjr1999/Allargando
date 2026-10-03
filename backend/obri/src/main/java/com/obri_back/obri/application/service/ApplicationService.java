@@ -35,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /*
@@ -91,21 +92,28 @@ public class ApplicationService {
             throw new ForbiddenException("지원할 수 없는 모집글입니다");
         }
 
-        // 중복 지원 체크 (DB UNIQUE 제약의 사전 방어선)
-        if (applicationRepository.existsByPostIdAndUserId(post.getId(), user.getId())) {
+        // 중복 지원 체크 (DB UNIQUE 제약의 사전 방어선). 취소한 지원만 다시 지원할 수 있고(D7),
+        // 대기·수락·거절·철회된 지원이 있으면 409
+        Optional<Application> previous = applicationRepository.findByPostIdAndUserId(post.getId(), user.getId());
+        if (previous.isPresent() && previous.get().getStatus() != ApplicationStatus.CANCELLED) {
             throw new ConflictException("이미 지원한 모집글입니다");
         }
 
-        // 지원 악기를 저장한다(수락 시 모집 악기 정원과 매칭에 사용)
-        Application application = Application.builder()
-            .user(user)
-            .post(post)
-            .instrument(instrument)
-            .additionalInfo(requestDto.getAdditionalInfo())
-            .status(ApplicationStatus.PENDING)
-            .build();
-
-        applicationRepository.save(application);
+        Application application;
+        if (previous.isPresent()) {
+            // 취소했던 지원 복구 — 같은 행을 PENDING으로 되돌리고 악기·어필 문구를 새 값으로 갱신(변경 감지로 저장)
+            application = previous.get();
+            application.reapply(instrument, requestDto.getAdditionalInfo());
+        } else {
+            // 지원 악기를 저장한다(수락 시 모집 악기 정원과 매칭에 사용)
+            application = applicationRepository.save(Application.builder()
+                .user(user)
+                .post(post)
+                .instrument(instrument)
+                .additionalInfo(requestDto.getAdditionalInfo())
+                .status(ApplicationStatus.PENDING)
+                .build());
+        }
 
         // 지원 도착 → 모집자(글 작성자)에게 단건 push. AFTER_COMMIT 이후 발송 — 이 트랜잭션이
         // 롤백되면(예: 아래 managedUser 재조회 실패) 이벤트 자체가 버려져 유령 알림이 나가지 않는다
@@ -284,9 +292,11 @@ public class ApplicationService {
         return applicationRepository.countByPostId(postId);
     }
 
-    // 모집글 단건 조회(hasApplied)용 — Post 도메인에서 호출
+    // 모집글 단건 조회(myApplicationStatus·hasApplied)용 — Post 도메인에서 호출. 지원한 적이 없으면 null
     @Transactional(readOnly = true)
-    public boolean hasApplied(Long postId, Long userId) {
-        return applicationRepository.existsByPostIdAndUserId(postId, userId);
+    public ApplicationStatus getMyApplicationStatus(Long postId, Long userId) {
+        return applicationRepository.findByPostIdAndUserId(postId, userId)
+                .map(Application::getStatus)
+                .orElse(null);
     }
 }

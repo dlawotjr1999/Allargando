@@ -70,6 +70,14 @@ public class Application {
         this.status = status;
     }
 
+    // 취소했던 지원을 다시 지원으로 되돌린다(D7) — 새 행을 만들지 않고 같은 행을 PENDING으로 복구해
+    // UNIQUE(post_id, user_id)를 건드리지 않는다. 악기·어필 문구는 새로 고른 값으로 갱신한다
+    public void reapply(String instrument, String additionalInfo) {
+        this.instrument = instrument;
+        this.additionalInfo = additionalInfo;
+        this.status = ApplicationStatus.PENDING;
+    }
+
     // 이 지원서의 지원자가 user인지 확인 — 호출부가 getUser().getId().equals(...) 체인을 직접 다루지 않도록 함(CLAUDE.md §8)
     public boolean isApplicant(User user) {
         return this.user.getId().equals(user.getId());
