@@ -1,6 +1,7 @@
 package com.obri_back.obri.concert.controller;
 
 import com.obri_back.obri.concert.dto.ConcertResponseDTO;
+import com.obri_back.obri.concert.kopis.KopisSyncException;
 import com.obri_back.obri.concert.kopis.KopisSyncService;
 import com.obri_back.obri.concert.service.ConcertService;
 import com.obri_back.obri.global.common.APIResponse;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -69,7 +71,13 @@ public class ConcertController {
         if (!manualSyncEnabled) {
             throw new NotFoundException("요청한 리소스를 찾을 수 없습니다");
         }
-        int savedCount = kopisSyncService.sync();
-        return ResponseEntity.ok(APIResponse.ok("KOPIS 동기화 완료", Map.of("savedCount", savedCount)));
+        try {
+            int savedCount = kopisSyncService.sync();
+            return ResponseEntity.ok(APIResponse.ok("KOPIS 동기화 완료", Map.of("savedCount", savedCount)));
+        } catch (KopisSyncException e) {
+            // 외부(KOPIS) 호출 실패 — 잘못된 서비스키·장애를 "정상 0건"이나 원인 불명 500이 아닌 502 + 사유로 알린다.
+            // 메시지에는 서비스키가 들어 있지 않다(KopisClient가 원인 메시지를 싣지 않음)
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(APIResponse.error(502, e.getMessage()));
+        }
     }
 }
