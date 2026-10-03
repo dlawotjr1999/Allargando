@@ -109,7 +109,9 @@ class KopisSyncServiceTest {
         int savedCount = kopisSyncService.sync();
 
         assertThat(savedCount).isZero();
-        verifyNoInteractions(concertRepository);
+        // 저장·조회는 없고, 종료 공연 정리만 호출된다
+        verify(concertRepository, never()).save(any());
+        verify(concertRepository, never()).findByExternalId(anyString());
         verify(client, never()).fetchListDocument(anyString(), anyString(), eq(2), eq(100), anyString());
     }
 
@@ -317,5 +319,24 @@ class KopisSyncServiceTest {
 
         release.countDown();
         firstRun.join(5000);
+    }
+
+    // 종료된 지 90일이 지난 공연을 동기화 때 지운다 — 기준일은 오늘 - 90일(end_date 기준, D18)
+    @Test
+    void sync_purgesConcertsEndedMoreThan90DaysAgo() {
+        stubOnlyClassicalGenreHasItem();
+
+        kopisSyncService.sync();
+
+        verify(concertRepository).deleteByEndDateBefore(LocalDate.now().minusDays(90));
+    }
+
+    // 정리가 실패해도 동기화 결과(신규 건수)는 그대로 반환된다
+    @Test
+    void sync_returnsCountEvenWhenPurgeFails() {
+        stubOnlyClassicalGenreHasItem();
+        when(concertRepository.deleteByEndDateBefore(any())).thenThrow(new RuntimeException("db down"));
+
+        assertThat(kopisSyncService.sync()).isEqualTo(1);
     }
 }
