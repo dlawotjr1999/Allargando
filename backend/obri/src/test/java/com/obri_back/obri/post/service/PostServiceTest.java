@@ -2,6 +2,7 @@ package com.obri_back.obri.post.service;
 
 import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.application.service.ApplicationService;
+import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.global.exception.ForbiddenException;
 import com.obri_back.obri.global.exception.NotFoundException;
 import com.obri_back.obri.notification.event.NewPostNotificationEvent;
@@ -34,6 +35,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -183,6 +186,31 @@ class PostServiceTest {
         assertThat(result.getInstruments()).hasSize(1);
         assertThat(result.getInstruments().get(0).getInstrument()).isEqualTo("플루트");
         verify(applicationService).notifyApplicantsOfPostUpdate(10L, "수정된 제목");
+    }
+
+    // D12: 수락된 인원 밑으로 모집 인원을 줄이는 수정은 400 — 글은 바뀌지 않고 지원자 알림도 가지 않는다
+    @Test
+    void updatePost_throwsBadRequestWhenReducingCapacityBelowConfirmed() {
+        Post post = buildPost(owner);
+        post.confirmInstrument("바이올린");
+        post.confirmInstrument("바이올린"); // 바이올린 2/2 확정
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+
+        PostCreateRequestDTO update = PostCreateRequestDTO.builder()
+                .category("앙상블").title("수정된 제목")
+                .eventAt(LocalDateTime.of(2024, 5, 1, 15, 0))
+                .location("서울 강남구 OO스튜디오").region("서울").timetable("매주 토요일")
+                .instruments(List.of(
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("바이올린").people(1).build(),
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("첼로").people(1).build()))
+                .build();
+
+        assertThatThrownBy(() -> postService.updatePost(10L, owner, update))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(applicationService, never()).notifyApplicantsOfPostUpdate(anyLong(), anyString());
+        assertThat(post.getPostInstruments()).filteredOn(pi -> pi.getInstrument().equals("바이올린"))
+                .singleElement().extracting(PostInstrument::getPeople).isEqualTo(2);
     }
 
     @Test

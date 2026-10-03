@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KopisResponseParserTest {
 
@@ -89,5 +90,56 @@ class KopisResponseParserTest {
         List<KopisPerformanceItem> items = KopisResponseParser.parse(parseXml(MISSING_ID_XML));
 
         assertThat(items).isEmpty();
+    }
+
+    // 날짜 형식이 어긋난 행(KOPIS가 형식을 바꾼 경우)은 그 행만 건너뛰고 나머지는 파싱한다 — 전체 동기화가 중단되지 않게
+    @Test
+    void parse_skipsRowWithMalformedDateAndKeepsOthers() {
+        String xml = """
+                <dbs>
+                <db><mt20id>BAD</mt20id><prfnm>날짜 형식 오류</prfnm><prfpdfrom>2026-12-11</prfpdfrom><prfpdto>2026.12.11</prfpdto></db>
+                <db><mt20id>OK</mt20id><prfnm>정상</prfnm><prfpdfrom>2026.12.11</prfpdfrom><prfpdto>2026.12.11</prfpdto></db>
+                </dbs>
+                """;
+
+        List<KopisPerformanceItem> items = KopisResponseParser.parse(parseXml(xml));
+
+        assertThat(items).extracting(KopisPerformanceItem::externalId).containsExactly("OK");
+    }
+
+    // 필수 태그가 비어도 파서는 null로 돌려준다(저장 단계의 NOT NULL 위반은 KopisSyncService가 행 단위로 격리)
+    @Test
+    void parse_returnsNullFieldsWhenOptionalTagsMissing() {
+        String xml = "<dbs><db><mt20id>PF9</mt20id></db></dbs>";
+
+        List<KopisPerformanceItem> items = KopisResponseParser.parse(parseXml(xml));
+
+        assertThat(items).singleElement().satisfies(item -> {
+            assertThat(item.externalId()).isEqualTo("PF9");
+            assertThat(item.title()).isNull();
+            assertThat(item.startDate()).isNull();
+            assertThat(item.venue()).isNull();
+        });
+    }
+
+    // KOPIS는 오류도 HTTP 200으로 준다(실제 응답) — 빈 목록(=정상 종료)으로 오해하지 않고 실패로 올린다
+    @Test
+    void parse_throwsWhenResponseHasErrorReturnCode() {
+        String xml = """
+                <dbs><db><returncode>02</returncode><errmsg>SERVICE KEY IS NOT REGISTERED ERROR</errmsg></db></dbs>
+                """;
+
+        assertThatThrownBy(() -> KopisResponseParser.parse(parseXml(xml)))
+                .isInstanceOf(KopisSyncException.class)
+                .hasMessageContaining("returncode=02")
+                .hasMessageContaining("SERVICE KEY IS NOT REGISTERED ERROR");
+    }
+
+    // returncode 00은 정상 코드 — 오류로 취급하지 않는다
+    @Test
+    void parse_acceptsNormalReturnCode() {
+        String xml = "<dbs><db><returncode>00</returncode></db></dbs>";
+
+        assertThat(KopisResponseParser.parse(parseXml(xml))).isEmpty();
     }
 }

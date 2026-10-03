@@ -4,6 +4,7 @@ import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
@@ -178,7 +179,7 @@ class PostTest {
     }
 
     @Test
-    void replaceInstruments_reducingCapacityBelowConfirmedClosesInstrument() {
+    void replaceInstruments_reducingCapacityToConfirmedClosesInstrument() {
         post.confirmInstrument("바이올린"); // confirmed=1, people=2 → 아직 미마감
 
         post.replaceInstruments(List.of(
@@ -188,6 +189,87 @@ class PostTest {
 
         assertThat(instrument("바이올린").getClosed()).isTrue();
         assertThat(instrument("바이올린").getConfirmed()).isEqualTo(1);
+    }
+
+    // D12: 정원을 이미 수락된 인원 밑으로 줄이는 수정은 막는다(과거: 허용돼 confirmed > people 상태가 됨)
+    @Test
+    void replaceInstruments_throwsWhenCapacityBelowConfirmed() {
+        post.confirmInstrument("바이올린");
+        post.confirmInstrument("바이올린"); // confirmed=2, people=2
+
+        assertThatThrownBy(() -> post.replaceInstruments(List.of(
+                PostInstrument.of(post, "바이올린", 1), // 확정 2명인데 정원 1
+                PostInstrument.of(post, "첼로", 1))))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("바이올린")
+                .hasMessageContaining("2명");
+    }
+
+    // 거부될 때는 아무것도 바뀌지 않는다 — 앞선 악기의 정원 변경·다른 악기 삭제가 반쯤 적용되지 않게 사전 검증
+    @Test
+    void replaceInstruments_rejectionLeavesEveryInstrumentUntouched() {
+        post.confirmInstrument("바이올린");
+        post.confirmInstrument("바이올린"); // 바이올린 confirmed=2
+
+        assertThatThrownBy(() -> post.replaceInstruments(List.of(
+                PostInstrument.of(post, "바이올린", 1)))) // 첼로 삭제 + 바이올린 축소를 동시에 요청
+                .isInstanceOf(BadRequestException.class);
+
+        assertThat(post.getPostInstruments()).extracting(PostInstrument::getInstrument)
+                .containsExactlyInAnyOrder("바이올린", "첼로"); // 첼로가 삭제되지 않음
+        assertThat(instrument("바이올린").getPeople()).isEqualTo(2);
+        assertThat(instrument("바이올린").getClosed()).isTrue();
+    }
+
+    // 확정 인원과 같은 정원까지는 허용 — 줄여서 바로 마감시키는 용도
+    @Test
+    void updatePeople_allowsCapacityEqualToConfirmedAndClosesInstrument() {
+        post.confirmInstrument("바이올린"); // confirmed=1, people=2
+
+        instrument("바이올린").updatePeople(1);
+
+        assertThat(instrument("바이올린").getPeople()).isEqualTo(1);
+        assertThat(instrument("바이올린").getClosed()).isTrue();
+    }
+
+    @Test
+    void updatePeople_throwsAndKeepsStateWhenBelowConfirmed() {
+        post.confirmInstrument("바이올린");
+        post.confirmInstrument("바이올린"); // confirmed=2, people=2
+
+        assertThatThrownBy(() -> instrument("바이올린").updatePeople(1))
+                .isInstanceOf(BadRequestException.class);
+
+        assertThat(instrument("바이올린").getPeople()).isEqualTo(2);
+        assertThat(instrument("바이올린").getConfirmed()).isEqualTo(2);
+    }
+
+    // revoke 뒤 마감 여부는 confirmed >= people로 재계산한다. 정상 흐름에서는 한 자리가 비어 재오픈되지만,
+    // 과거 버그로 유입된 confirmed > people 데이터에서는 철회 뒤에도 정원이 찬 상태라 마감이 유지돼야 한다(과거: 무조건 재오픈)
+    @Test
+    void revoke_recomputesClosedFromCapacityEvenForLegacyOverbookedData() {
+        PostInstrument violin = instrument("바이올린");
+        ReflectionTestUtils.setField(violin, "people", 1);
+        ReflectionTestUtils.setField(violin, "confirmed", 2);
+        ReflectionTestUtils.setField(violin, "closed", true);
+
+        post.revokeInstrument("바이올린"); // confirmed 2 → 1, people=1이라 여전히 정원이 참
+
+        assertThat(violin.getConfirmed()).isEqualTo(1);
+        assertThat(violin.getClosed()).isTrue();
+        assertThat(violin.getClosed()).isEqualTo(violin.getConfirmed() >= violin.getPeople());
+    }
+
+    @Test
+    void revoke_keepsClosedEqualToConfirmedAtLeastPeopleInNormalFlow() {
+        post.confirmInstrument("바이올린");
+        post.confirmInstrument("바이올린"); // 마감
+
+        post.revokeInstrument("바이올린");
+
+        PostInstrument violin = instrument("바이올린");
+        assertThat(violin.getClosed()).isEqualTo(violin.getConfirmed() >= violin.getPeople());
+        assertThat(violin.getClosed()).isFalse();
     }
 
     @Test

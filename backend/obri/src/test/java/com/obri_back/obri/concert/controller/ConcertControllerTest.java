@@ -1,6 +1,7 @@
 package com.obri_back.obri.concert.controller;
 
 import com.obri_back.obri.concert.dto.ConcertResponseDTO;
+import com.obri_back.obri.concert.kopis.KopisSyncException;
 import com.obri_back.obri.concert.kopis.KopisSyncService;
 import com.obri_back.obri.concert.service.ConcertService;
 import com.obri_back.obri.global.config.SecurityConfig;
@@ -116,6 +117,18 @@ class ConcertControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.data.savedCount").value(3));
+    }
+
+    // 동기화 실패(잘못된 서비스키·KOPIS 장애)는 "정상 0건"이나 원인 불명 500이 아니라 502 + 사유로 알린다
+    @Test
+    void triggerSync_returns502WhenKopisSyncFails() throws Exception {
+        when(kopisSyncService.sync())
+                .thenThrow(new KopisSyncException("KOPIS 오류 응답: returncode=02, errmsg=SERVICE KEY IS NOT REGISTERED ERROR"));
+
+        mockMvc.perform(post("/api/concerts/sync").with(authentication(auth)))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.status").value(502))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("returncode=02")));
     }
 
     @Test

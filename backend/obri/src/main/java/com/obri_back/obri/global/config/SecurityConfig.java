@@ -13,6 +13,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -63,8 +64,9 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 .anyRequest().authenticated()
             )
-            .exceptionHandling(exception ->
-                exception.authenticationEntryPoint(authenticationEntryPoint())
+            .exceptionHandling(exception -> exception
+                .authenticationEntryPoint(authenticationEntryPoint())
+                .accessDeniedHandler(accessDeniedHandler())
             )
             .addFilterBefore(firebaseAuthFilter,
                 UsernamePasswordAuthenticationFilter.class);
@@ -94,13 +96,25 @@ public class SecurityConfig {
      */
     @Bean
     public AuthenticationEntryPoint authenticationEntryPoint() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        return (request, response, authException) -> {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setCharacterEncoding("UTF-8");
-            response.getWriter().write(
-                    objectMapper.writeValueAsString(APIResponse.error(401, "인증이 필요합니다")));
-        };
+        return (request, response, authException) ->
+                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "인증이 필요합니다");
+    }
+
+    /*
+     * 권한 없는 요청 처리
+     * 기본 AccessDeniedHandler(403 + 빈 바디) 대신 APIResponse 형식으로 응답
+     */
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, accessDeniedException) ->
+                writeError(response, HttpServletResponse.SC_FORBIDDEN, "접근 권한이 없습니다");
+    }
+
+    // 필터 단계의 인증·인가 실패는 컨트롤러 밖이라 GlobalExceptionHandler가 못 받으므로 같은 응답 형식으로 직접 쓴다
+    private void writeError(HttpServletResponse response, int status, String message) throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(new ObjectMapper().writeValueAsString(APIResponse.error(status, message)));
     }
 }

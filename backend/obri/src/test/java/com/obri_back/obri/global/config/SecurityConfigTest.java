@@ -6,6 +6,10 @@ import com.obri_back.obri.user.service.UserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +19,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -28,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SecurityConfigTest {
 
     @Autowired MockMvc mockMvc;
+    @Autowired AccessDeniedHandler accessDeniedHandler;
     @MockitoBean UserService userService;
     @MockitoBean FirebaseAuthFilter firebaseAuthFilter;
 
@@ -53,5 +59,18 @@ class SecurityConfigTest {
     void rejectsNonWhitelistedOrigin() throws Exception {
         mockMvc.perform(get("/api/users/check/tester").header("Origin", "https://evil.example.com"))
                 .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
+
+    // 기본 AccessDeniedHandler는 403 + 빈 바디라 클라이언트가 응답을 파싱하지 못한다 — APIResponse 형식으로 응답
+    @Test
+    void accessDeniedHandler_writesForbiddenApiResponse() throws Exception {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        accessDeniedHandler.handle(new MockHttpServletRequest(), response, new AccessDeniedException("denied"));
+
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(response.getContentType()).startsWith("application/json");
+        assertThat(response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+                .contains("\"status\":403").contains("접근 권한이 없습니다");
     }
 }
