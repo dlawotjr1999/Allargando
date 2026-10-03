@@ -15,9 +15,9 @@ const STATUS_LABEL: Record<ApplicationStatus, string> = {
 };
 
 const STATUS_COLOR: Record<ApplicationStatus, string> = {
-  PENDING: "#B8860B",
-  ACCEPTED: "#2E7D32",
-  REJECTED: "#C0392B",
+  PENDING: colors.primaryLight,
+  ACCEPTED: colors.success,
+  REJECTED: colors.danger,
   CANCELLED: colors.textMuted,
   REVOKED: colors.textMuted,
 };

@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   ddayUrgent: {
-    color: "#C0392B",
+    color: colors.danger,
   },
   ddayExpired: {
     color: colors.placeholder,
