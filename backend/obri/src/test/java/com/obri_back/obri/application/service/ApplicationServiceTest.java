@@ -1,10 +1,12 @@
 package com.obri_back.obri.application.service;
 
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.application.dto.AppRequestDTO;
 import com.obri_back.obri.application.dto.AppResponseDTO;
 import com.obri_back.obri.application.entity.Application;
 import com.obri_back.obri.application.entity.ApplicationStatus;
 import com.obri_back.obri.application.repository.ApplicationRepository;
+import com.obri_back.obri.block.service.BlockService;
 import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.global.exception.ForbiddenException;
 import com.obri_back.obri.global.exception.NotFoundException;
@@ -49,6 +51,7 @@ class ApplicationServiceTest {
     @Mock UserService userService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock ApplicationAccessPolicy accessPolicy;
+    @Mock BlockService blockService;
 
     @InjectMocks ApplicationService applicationService;
 
@@ -85,11 +88,11 @@ class ApplicationServiceTest {
         applicationService.submitApplication(applicant, request);
 
         verify(applicationRepository, times(1)).save(any(Application.class));
-        // 지원 도착 시 모집자에게 알림 발송 위임 — BACKLOG.md #15: AFTER_COMMIT까지 미루기 위해 이벤트로 발행
+        // 지원 도착 시 모집자에게 알림 발송 위임 — AFTER_COMMIT까지 미루기 위해 이벤트로 발행
         verify(eventPublisher, times(1)).publishEvent(any(NewApplicationNotificationEvent.class));
     }
 
-    // BACKLOG.md #1: user는 FirebaseAuthFilter가 조회한 detached 엔티티라 careers(LAZY) 접근 시
+    // user는 FirebaseAuthFilter가 조회한 detached 엔티티라 careers(LAZY) 접근 시
     // LazyInitializationException 발생 — 응답 조립 전 UserService를 통해 managed 인스턴스로 재조회하는지 검증
     // (UserRepository를 직접 주입하면 도메인 경계를 깨므로 UserService를 경유)
     @Test
@@ -366,5 +369,48 @@ class ApplicationServiceTest {
         inOrder.verify(applicationRepository).deleteByPostId(10L);
         inOrder.verify(eventPublisher).publishEvent(
                 new PostDeletedNotificationEvent(java.util.List.of("accepted-token"), 10L, "현악 앙상블 단원 모집"));
+    }
+
+    // 회원 탈퇴 — 수락된 지원은 악기 확정 인원을 되돌려 자리를 다시 연 뒤, 이 유저의 지원서를 전부 삭제한다
+    @Test
+    void onUserWithdrawal_revokesAcceptedSlotsThenDeletesAllApplicationsOfUser() {
+        Post acceptedPost = mock(Post.class);
+        Application accepted = mock(Application.class);
+        given(accepted.getPost()).willReturn(acceptedPost);
+        given(accepted.getInstrument()).willReturn("바이올린");
+        given(applicationRepository.findByUserIdAndStatus(1L, ApplicationStatus.ACCEPTED))
+                .willReturn(List.of(accepted));
+
+        applicationService.onUserWithdrawal(new UserWithdrawalEvent(1L, "applicant-uid"));
+
+        org.mockito.InOrder inOrder = inOrder(acceptedPost, applicationRepository);
+        inOrder.verify(acceptedPost).revokeInstrument("바이올린");
+        inOrder.verify(applicationRepository).deleteByUserId(1L);
+    }
+
+    @Test
+    void onUserWithdrawal_justDeletesWhenNoAcceptedApplications() {
+        given(applicationRepository.findByUserIdAndStatus(1L, ApplicationStatus.ACCEPTED))
+                .willReturn(List.of());
+
+        applicationService.onUserWithdrawal(new UserWithdrawalEvent(1L, "applicant-uid"));
+
+        verify(applicationRepository).deleteByUserId(1L);
+    }
+
+    // 모집자가 차단한 유저는 지원할 수 없다 — 차단 사실을 드러내지 않는 일반 메시지로 403
+    @Test
+    void submitApplication_throwsForbiddenWhenRecruiterBlockedApplicant() {
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+        given(post.getStatus()).willReturn(PostStatus.OPEN);
+        given(post.getEventAt()).willReturn(LocalDateTime.now().plusDays(1));
+        given(post.getUser()).willReturn(recruiter);
+        given(blockService.isBlocked(recruiter.getId(), applicant.getId())).willReturn(true);
+
+        assertThatThrownBy(() -> applicationService.submitApplication(applicant, AppRequestDTO.from(10L, "지원합니다")))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("지원할 수 없는 모집글입니다");
+
+        verify(applicationRepository, never()).save(any(Application.class));
     }
 }

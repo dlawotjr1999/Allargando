@@ -1,5 +1,7 @@
 package com.obri_back.obri.post.repository;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,4 +14,5 @@ import com.obri_back.obri.post.entity.Post;
  */
 public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificationExecutor<Post> {
     Page<Post> findByUserId(Long userId, Pageable pageable);      // 유저가 작성한 모집글
+    List<Post> findByUserId(Long userId);                         // 회원 탈퇴 시 작성한 모집글 전부 정리용
 }

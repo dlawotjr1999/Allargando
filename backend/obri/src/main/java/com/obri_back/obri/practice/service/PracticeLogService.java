@@ -8,7 +8,9 @@ import com.obri_back.obri.practice.dto.PracticeLogSummaryResponseDTO;
 import com.obri_back.obri.practice.entity.PracticeLog;
 import com.obri_back.obri.practice.repository.PracticeLogRepository;
 import com.obri_back.obri.user.entity.User;
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -64,6 +66,14 @@ public class PracticeLogService {
         PracticeLog log = findLogOrThrow(logId);
         requireOwner(log, user);
         practiceLogRepository.delete(log);
+    }
+
+    // 회원 탈퇴 시 이 유저의 연습 일지 전부 삭제 — UserService가 발행한 UserWithdrawalEvent를 같은 트랜잭션에서 처리
+    // (유저 행 삭제보다 먼저 실행돼야 FK 위반이 없다)
+    @EventListener
+    @Transactional
+    public void onUserWithdrawal(UserWithdrawalEvent event) {
+        practiceLogRepository.deleteByUserId(event.userId());
     }
 
     // 연습 일지 조회 공통 헬퍼 — 없으면 404

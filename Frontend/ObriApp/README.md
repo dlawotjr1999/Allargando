@@ -1,6 +1,7 @@
-# Obri Frontend (Expo)
+# Poco a Poco Frontend (Expo)
 
-음대생 연주 아르바이트 플랫폼 **Obri**의 모바일 앱. Expo Router 기반.
+악기 취미생이 앙상블·버스킹 멤버를 무보수로 모집하는 서비스 **Poco a Poco**(구 Obri)의 모바일 앱.
+Expo Router 기반. 백엔드 실행 방법은 [`../../backend/README.md`](../../backend/README.md) 참고.
 
 ## 시작하기
 

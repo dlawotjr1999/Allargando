@@ -39,7 +39,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   backgroundImage: {
-    ...StyleSheet.absoluteFill,
+    // RN 0.86의 StyleSheet.absoluteFill은 스프레드할 수 없는 타입이라 속성을 직접 펼쳐 쓴다
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: "100%",
     height: "100%",
     resizeMode: "cover",

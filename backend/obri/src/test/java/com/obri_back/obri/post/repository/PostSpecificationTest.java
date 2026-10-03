@@ -1,5 +1,6 @@
 package com.obri_back.obri.post.repository;
 
+import com.obri_back.obri.block.entity.UserBlock;
 import com.obri_back.obri.post.entity.Post;
 import com.obri_back.obri.post.entity.PostInfo;
 import com.obri_back.obri.post.entity.PostInstrument;
@@ -19,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // PostSpecification의 region 필터는 Criteria API 조건이라 실제 쿼리 실행 없이는 검증 불가 → @DataJpaTest(내장 H2)
 // BACKLOG.md #38: location 자유텍스트 LIKE 매칭 대신 region 전용 컬럼 정확 일치로 전환
 // globally_quoted_identifiers: `user` 테이블명이 H2 예약어(USER)와 충돌해 스키마 생성 자체가 실패하는 문제 회피
-// spring.flyway.enabled=false: Flyway(BACKLOG.md #53)가 MySQL 문법 마이그레이션을 이 H2 스키마에 적용하려 들면
+// spring.flyway.enabled=false: Flyway가 MySQL 문법 마이그레이션을 이 H2 스키마에 적용하려 들면
 // 충돌·실패하므로, 이 테스트는 지금처럼 Hibernate가 H2 스키마를 직접 관리(ddl-auto=create-drop, @DataJpaTest 기본값)하도록 유지
 // ddl-auto=create-drop 명시: @DataJpaTest의 기본값(create-drop)은 application.properties의
 // spring.jpa.hibernate.ddl-auto=validate에 덮여 무력화된다(CI도 동일 값을 환경변수로 주입).
@@ -69,7 +70,7 @@ class PostSpecificationTest {
         persistPost("경기", "경기 성남시 OO홀");
 
         List<Post> result = postRepository.findAll(
-                PostSpecification.filter(null, null, List.of("서울"), null, null));
+                PostSpecification.filter(null, null, null, List.of("서울"), null, null));
 
         assertThat(result).extracting(Post::getRegion).containsExactly("서울");
     }
@@ -80,7 +81,7 @@ class PostSpecificationTest {
         persistPost("경기", "서울 접경 경기 광주시 OO홀");
 
         List<Post> result = postRepository.findAll(
-                PostSpecification.filter(null, null, List.of("서울"), null, null));
+                PostSpecification.filter(null, null, null, List.of("서울"), null, null));
 
         assertThat(result).isEmpty();
     }
@@ -92,7 +93,7 @@ class PostSpecificationTest {
         persistPost("부산", "부산 해운대구 OO홀");
 
         List<Post> result = postRepository.findAll(
-                PostSpecification.filter(null, null, List.of("서울", "경기"), null, null));
+                PostSpecification.filter(null, null, null, List.of("서울", "경기"), null, null));
 
         assertThat(result).extracting(Post::getRegion).containsExactlyInAnyOrder("서울", "경기");
     }
@@ -102,8 +103,65 @@ class PostSpecificationTest {
         persistPost("서울", "서울 강남구 OO홀");
         persistPost("경기", "경기 성남시 OO홀");
 
-        List<Post> result = postRepository.findAll(PostSpecification.filter(null, null, null, null, null));
+        List<Post> result = postRepository.findAll(PostSpecification.filter(null, null, null, null, null, null));
 
         assertThat(result).hasSize(2);
+    }
+
+    // 조회하는 유저가 차단한 작성자의 글은 목록에서 빠지고, 다른 작성자의 글과 차단하지 않은 유저의 시점은 영향받지 않는다
+    @Test
+    void filter_excludesPostsOfAuthorsBlockedByViewer() {
+        User blockedAuthor = User.builder()
+                .firebaseUid("blocked-uid").phoneNumber("010-1111-1111").nickname("blocked").instrument("첼로").build();
+        entityManager.persist(blockedAuthor);
+        User viewer = User.builder()
+                .firebaseUid("viewer-uid").phoneNumber("010-2222-2222").nickname("viewer").instrument("피아노").build();
+        entityManager.persist(viewer);
+        User bystander = User.builder()
+                .firebaseUid("bystander-uid").phoneNumber("010-3333-3333").nickname("bystander").instrument("플루트").build();
+        entityManager.persist(bystander);
+
+        persistPostBy(owner, "정상 글");
+        persistPostBy(blockedAuthor, "차단당한 사람의 글");
+        entityManager.persist(UserBlock.of(viewer, blockedAuthor));
+        entityManager.flush();
+
+        List<Post> seenByViewer = postRepository.findAll(
+                PostSpecification.filter(viewer.getId(), null, null, null, null, null));
+        List<Post> seenByBystander = postRepository.findAll(
+                PostSpecification.filter(bystander.getId(), null, null, null, null, null));
+
+        assertThat(seenByViewer).extracting(Post::getTitle).containsExactly("정상 글");
+        assertThat(seenByBystander).extracting(Post::getTitle)
+                .containsExactlyInAnyOrder("정상 글", "차단당한 사람의 글");
+    }
+
+    // 차단은 방향이 있다 — 내가 상대를 차단했다고 상대 시점에서 내 글이 사라지지는 않는다
+    @Test
+    void filter_blockIsDirectional() {
+        User blocker = User.builder()
+                .firebaseUid("blocker-uid").phoneNumber("010-4444-4444").nickname("blocker").instrument("첼로").build();
+        entityManager.persist(blocker);
+        persistPostBy(blocker, "차단한 사람의 글");
+        entityManager.persist(UserBlock.of(blocker, owner));
+        entityManager.flush();
+
+        List<Post> seenByBlocked = postRepository.findAll(
+                PostSpecification.filter(owner.getId(), null, null, null, null, null));
+
+        assertThat(seenByBlocked).extracting(Post::getTitle).containsExactly("차단한 사람의 글");
+    }
+
+    private void persistPostBy(User author, String title) {
+        Post post = Post.create(author, PostInfo.builder()
+                .category("앙상블")
+                .title(title)
+                .eventAt(LocalDateTime.now().plusDays(7))
+                .location("서울 강남구")
+                .region("서울")
+                .timetable("13:00")
+                .build());
+        post.addInstrument(PostInstrument.of(post, "바이올린", 1));
+        entityManager.persist(post);
     }
 }

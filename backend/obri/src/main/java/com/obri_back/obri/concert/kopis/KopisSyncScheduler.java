@@ -16,7 +16,8 @@ public class KopisSyncScheduler {
 
     private final KopisSyncService kopisSyncService;
 
-    @Scheduled(cron = "${kopis.sync.cron:0 30 3 * * *}")
+    // 서버(컨테이너) 기본 시간대가 UTC여도 한국 시각 기준으로 돌도록 zone을 고정
+    @Scheduled(cron = "${kopis.sync.cron:0 30 3 * * *}", zone = "Asia/Seoul")
     public void runScheduledSync() {
         try {
             kopisSyncService.sync();

@@ -1,5 +1,6 @@
 package com.obri_back.obri.auth.service;
 
+import com.google.firebase.auth.AuthErrorCode;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
@@ -12,6 +13,7 @@ import com.obri_back.obri.global.exception.NotFoundException;
 import com.obri_back.obri.global.exception.RegistrationFailedException;
 import com.obri_back.obri.global.exception.UnauthorizedException;
 import com.obri_back.obri.user.entity.Career;
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.user.entity.User;
 import com.obri_back.obri.user.repository.CareerRepository;
 import com.obri_back.obri.user.repository.UserRepository;
@@ -19,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -142,6 +146,24 @@ public class AuthService {
                 userRepository.existsByPhoneNumber(phoneNumber), "이미 가입된 전화번호입니다");
 
         managedUser.updatePhoneNumber(phoneNumber);
+    }
+
+    /*
+     * 회원 탈퇴 후 Firebase 계정 삭제 — DB 삭제가 커밋된 뒤에만 실행(AFTER_COMMIT)
+     * 롤백되면 이벤트가 버려져 DB엔 유저가 남았는데 Firebase 계정만 사라지는 일이 없다.
+     * 삭제에 실패해도 탈퇴 자체는 이미 끝났으므로 예외를 던지지 않고 로그로만 남긴다(고아 계정 추적용).
+     * 이미 없는 계정(USER_NOT_FOUND)은 목적이 달성된 상태라 조용히 넘어간다.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onUserWithdrawn(UserWithdrawalEvent event) {
+        try {
+            firebaseAuth.deleteUser(event.firebaseUid());
+        } catch (FirebaseAuthException e) {
+            if (e.getAuthErrorCode() == AuthErrorCode.USER_NOT_FOUND) {
+                return;
+            }
+            log.error("탈퇴 후 Firebase 계정 삭제 실패 — 고아 계정 발생 (firebaseUid={})", event.firebaseUid(), e);
+        }
     }
 
     // Firebase 토큰 검증 및 디코딩

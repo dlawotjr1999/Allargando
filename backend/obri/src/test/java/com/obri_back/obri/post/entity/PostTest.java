@@ -157,7 +157,7 @@ class PostTest {
         assertThat(post.getPostInstruments().get(0).getInstrument()).isEqualTo("바이올린");
     }
 
-    // sequence.md 2026-08-17 §3: 악기명 중복 등록 검증이 없던 시절 유입된 레거시 데이터(같은 이름 중복)에서도
+    // 악기명 중복 등록 검증이 없던 시절 유입된 레거시 데이터(같은 이름 중복)에서도
     // replaceInstruments가 Duplicate key IllegalStateException 없이 동작해야 함 (merge function 회귀 방지)
     @Test
     void replaceInstruments_toleratesLegacyDuplicateInstrumentNames() {

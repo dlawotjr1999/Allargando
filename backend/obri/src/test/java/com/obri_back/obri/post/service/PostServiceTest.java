@@ -1,5 +1,6 @@
 package com.obri_back.obri.post.service;
 
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.application.service.ApplicationService;
 import com.obri_back.obri.global.exception.ForbiddenException;
 import com.obri_back.obri.global.exception.NotFoundException;
@@ -215,6 +216,7 @@ class PostServiceTest {
     @Test
     void deletePost_delegatesToApplicationServiceThenDeletesPostWhenOwner() {
         Post post = buildPost(owner);
+        org.springframework.test.util.ReflectionTestUtils.setField(post, "id", 10L);
         given(postRepository.findById(10L)).willReturn(Optional.of(post));
 
         postService.deletePost(10L, owner);
@@ -243,7 +245,7 @@ class PostServiceTest {
         when(postRepository.findAll(ArgumentMatchers.<Specification<Post>>any(), any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(post), PageRequest.of(0, 10), 1));
 
-        var result = postService.getPosts(null, null, null, null, null, PageRequest.of(0, 10));
+        var result = postService.getPosts(1L, null, null, null, null, null, PageRequest.of(0, 10));
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getTitle()).isEqualTo("현악 앙상블 단원 모집");
@@ -259,5 +261,35 @@ class PostServiceTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getTitle()).isEqualTo("현악 앙상블 단원 모집");
+    }
+
+    // 회원 탈퇴 — 작성한 모집글마다 deletePost와 같은 절차(지원서 정리 → 글 삭제)를 밟는다
+    @Test
+    void onUserWithdrawal_deletesEveryPostOfUserAfterApplicationCleanup() {
+        Post first = mock(Post.class);
+        given(first.getId()).willReturn(10L);
+        given(first.getTitle()).willReturn("첫 번째 글");
+        Post second = mock(Post.class);
+        given(second.getId()).willReturn(11L);
+        given(second.getTitle()).willReturn("두 번째 글");
+        given(postRepository.findByUserId(1L)).willReturn(List.of(first, second));
+
+        postService.onUserWithdrawal(new UserWithdrawalEvent(1L, "test-uid"));
+
+        org.mockito.InOrder inOrder = inOrder(applicationService, postRepository);
+        inOrder.verify(applicationService).handlePostDeletion(10L, "첫 번째 글");
+        inOrder.verify(postRepository).delete(first);
+        inOrder.verify(applicationService).handlePostDeletion(11L, "두 번째 글");
+        inOrder.verify(postRepository).delete(second);
+    }
+
+    @Test
+    void onUserWithdrawal_doesNothingWhenUserHasNoPosts() {
+        given(postRepository.findByUserId(1L)).willReturn(List.of());
+
+        postService.onUserWithdrawal(new UserWithdrawalEvent(1L, "test-uid"));
+
+        verifyNoInteractions(applicationService);
+        verify(postRepository, never()).delete(any(Post.class));
     }
 }

@@ -5,6 +5,7 @@ import com.obri_back.obri.application.dto.AppResponseDTO;
 import com.obri_back.obri.application.entity.Application;
 import com.obri_back.obri.application.entity.ApplicationStatus;
 import com.obri_back.obri.application.repository.ApplicationRepository;
+import com.obri_back.obri.block.service.BlockService;
 import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.global.exception.ConflictException;
 import com.obri_back.obri.global.exception.ForbiddenException;
@@ -17,6 +18,7 @@ import com.obri_back.obri.post.entity.Post;
 import com.obri_back.obri.post.entity.PostStatus;
 import com.obri_back.obri.post.repository.PostRepository;
 import com.obri_back.obri.user.entity.User;
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.user.service.UserService;
 
 import com.obri_back.obri.user.dto.CareerDTO;
@@ -24,6 +26,7 @@ import com.obri_back.obri.user.dto.CareerDTO;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +46,7 @@ Application 관련 비즈니스 로직
 - 한 게시글에 대한 지원서 목록 조회(PENDING)
 - 모집글 수정·삭제 시 지원자 알림·정리 처리 (Post 도메인 위임 — BACKLOG.md #12)
 
-알림은 전부 NotificationEventListener를 거쳐 커밋 이후(AFTER_COMMIT)에 발송된다 — BACKLOG.md #15.
+알림은 전부 NotificationEventListener를 거쳐 커밋 이후(AFTER_COMMIT)에 발송된다.
 이 클래스는 NotificationService를 직접 호출하지 않고 ApplicationEventPublisher로 이벤트만 발행한다.
 */
 
@@ -56,6 +59,7 @@ public class ApplicationService {
     private final UserService userService;
     private final ApplicationEventPublisher eventPublisher;
     private final ApplicationAccessPolicy accessPolicy;
+    private final BlockService blockService;
 
     // 지원서 제출
     @Transactional
@@ -83,6 +87,11 @@ public class ApplicationService {
             throw new ForbiddenException("본인 모집글에는 지원할 수 없습니다");
         }
 
+        // 모집자가 차단한 유저는 지원 불가 — 차단 사실을 알려주지 않도록 사유를 구체적으로 밝히지 않는다
+        if (blockService.isBlocked(post.getUser().getId(), user.getId())) {
+            throw new ForbiddenException("지원할 수 없는 모집글입니다");
+        }
+
         // 중복 지원 체크 (DB UNIQUE 제약의 사전 방어선)
         if (applicationRepository.existsByPostIdAndUserId(post.getId(), user.getId())) {
             throw new ConflictException("이미 지원한 모집글입니다");
@@ -99,12 +108,12 @@ public class ApplicationService {
 
         applicationRepository.save(application);
 
-        // 지원 도착 → 모집자(글 작성자)에게 단건 push. AFTER_COMMIT 이후 발송(BACKLOG.md #15) — 이 트랜잭션이
+        // 지원 도착 → 모집자(글 작성자)에게 단건 push. AFTER_COMMIT 이후 발송 — 이 트랜잭션이
         // 롤백되면(예: 아래 managedUser 재조회 실패) 이벤트 자체가 버려져 유령 알림이 나가지 않는다
         eventPublisher.publishEvent(new NewApplicationNotificationEvent(
                 post.getUser().getFcmToken(), post.getId(), post.getTitle()));
 
-        // BACKLOG.md #1: user는 FirebaseAuthFilter가 조회한 detached 엔티티라 careers(LAZY) 접근 시
+        // user는 FirebaseAuthFilter가 조회한 detached 엔티티라 careers(LAZY) 접근 시
         // LazyInitializationException 발생 — UserService를 경유해 managed 인스턴스로 재조회
         // (UserRepository를 직접 주입하면 도메인 경계를 깨므로 서비스 간 호출로 유지)
         User managedUser = userService.getManagedUserById(user.getId());
@@ -165,7 +174,7 @@ public class ApplicationService {
     // ── 상태 전이 (명세 Application §2.4) ────────────────────────────
     // 전이별 행위자·출발 상태가 하나로 고정 → 엔드포인트/메서드 단위로 인가를 명확히 강제
     // 수락/철회 시 해당 악기 확정 인원·마감은 Post 도메인에 위임
-    // 지원 결과(수락/거절)만 지원자에게 단건 push. AFTER_COMMIT 이후 발송(BACKLOG.md #15)
+    // 지원 결과(수락/거절)만 지원자에게 단건 push. AFTER_COMMIT 이후 발송
 
     // 수락 (모집자, PENDING → ACCEPTED)
     @Transactional
@@ -175,7 +184,7 @@ public class ApplicationService {
         requirePending(application);
         application.getPost().confirmInstrument(application.getInstrument());
         application.updateStatus(ApplicationStatus.ACCEPTED);
-        // AFTER_COMMIT 이후 발송(BACKLOG.md #15) — @Version 충돌로 이 트랜잭션이 롤백돼도 유령 "수락" 알림 없음
+        // AFTER_COMMIT 이후 발송 — @Version 충돌로 이 트랜잭션이 롤백돼도 유령 "수락" 알림 없음
         eventPublisher.publishEvent(new ApplicationResultNotificationEvent(application.getUser().getFcmToken(), true));
     }
 
@@ -186,7 +195,7 @@ public class ApplicationService {
         accessPolicy.requireRecruiter(user, application, "모집자만 수락 또는 거절할 수 있습니다");
         requirePending(application);
         application.updateStatus(ApplicationStatus.REJECTED);
-        // AFTER_COMMIT 이후 발송(BACKLOG.md #15)
+        // AFTER_COMMIT 이후 발송
         eventPublisher.publishEvent(new ApplicationResultNotificationEvent(application.getUser().getFcmToken(), false));
     }
 
@@ -241,6 +250,18 @@ public class ApplicationService {
         List<String> acceptedTokens = applicationRepository.findApplicantFcmTokens(postId, List.of(ApplicationStatus.ACCEPTED));
         applicationRepository.deleteByPostId(postId);
         eventPublisher.publishEvent(new PostDeletedNotificationEvent(acceptedTokens, postId, title));
+    }
+
+    // 회원 탈퇴 시 이 유저가 낸 지원서 정리 — UserService가 발행한 UserWithdrawalEvent를 같은 트랜잭션에서 처리
+    // (유저 행 삭제보다 먼저 실행돼야 FK 위반이 없다). 수락된 지원은 revoke()와 같이 악기 확정 인원을 되돌려
+    // 자리를 다시 열고, 그 뒤 상태와 무관하게 전부 삭제한다. 이 유저가 작성한 모집글의 지원서는 PostService가
+    // handlePostDeletion으로 처리한다(본인 글엔 지원할 수 없으므로 두 범위가 겹치지 않는다).
+    @EventListener
+    @Transactional
+    public void onUserWithdrawal(UserWithdrawalEvent event) {
+        applicationRepository.findByUserIdAndStatus(event.userId(), ApplicationStatus.ACCEPTED)
+                .forEach(application -> application.getPost().revokeInstrument(application.getInstrument()));
+        applicationRepository.deleteByUserId(event.userId());
     }
 
     // 모집글 단건 조회(applicationCount)용 — Post 도메인에서 호출

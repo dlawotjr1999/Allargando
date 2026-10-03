@@ -15,7 +15,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 /*
- * BACKLOG.md #15: NotificationEventListener가 실제로 커밋 이후에만 발송하고,
+ * NotificationEventListener가 실제로 커밋 이후에만 발송하고,
  * 롤백되면 아예 발송하지 않는지 — @TransactionalEventListener 배선 자체를 검증
  * (단위 테스트만으로는 이 타이밍 보장을 확인할 수 없어 실제 트랜잭션이 필요)
  */

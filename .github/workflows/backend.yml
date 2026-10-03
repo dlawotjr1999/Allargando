@@ -94,3 +94,15 @@ jobs:
           name: test-results
           path: backend/obri/build/reports/tests/
           retention-days: 7
+
+  # ── 배포 이미지 빌드 검증 ─────────────────────────────────
+  # Dockerfile이 깨지면 배포 시점이 아니라 PR에서 잡히도록 빌드만 해본다(푸시·배포는 하지 않음)
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Docker 이미지 빌드
+        run: docker build -t obri-backend backend/obri

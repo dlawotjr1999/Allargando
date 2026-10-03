@@ -7,7 +7,7 @@ import lombok.Getter;
 
 /*
  * Post 생성/수정에 필요한 값 객체 — 웹 요청 검증(jakarta.validation)과 무관한 내부 전달용
- * PostService가 PostCreateRequestDTO에서 값을 꺼내 조립해 Post.create()/updateInfo()에 넘긴다 (BACKLOG.md #13)
+ * PostService가 PostCreateRequestDTO에서 값을 꺼내 조립해 Post.create()/updateInfo()에 넘긴다
  */
 @Getter
 @Builder

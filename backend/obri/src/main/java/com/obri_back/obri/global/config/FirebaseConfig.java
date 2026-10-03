@@ -5,11 +5,13 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.messaging.FirebaseMessaging;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 /*
  * Firebase 초기화 및 빈 등록 설정 클래스
@@ -18,12 +20,18 @@ import java.io.IOException;
  */
 @Configuration
 public class FirebaseConfig {
+
+    // 서비스 계정 키 위치 — 로컬·CI는 classpath(resources), 운영은 file:로 컨테이너 밖에서 마운트한 경로.
+    // classpath로 고정하면 키가 Docker 이미지 안에 구워지므로 위치를 주입받는다
+    @Value("${firebase.credentials.location}")
+    private Resource credentialsLocation;
+
     /*
      * Firebase 앱 초기화
-     * firebase-service-account.json을 읽어 인증 정보를 설정하고
+     * firebase.credentials.location의 서비스 계정 키를 읽어 인증 정보를 설정하고
      * FirebaseApp 인스턴스를 생성 후 빈으로 등록
      * 이미 초기화된 경우 기존 인스턴스를 반환 (중복 초기화 방지)
-   
+
      * return : 초기화된 FirebaseApp 인스턴스
      */
     @Bean
@@ -32,10 +40,11 @@ public class FirebaseConfig {
             return FirebaseApp.getInstance();
         }
 
-        // resources 폴더의 서비스 계정 키 파일로 인증 정보 생성
-        GoogleCredentials credentials = GoogleCredentials.fromStream(
-            new ClassPathResource("firebase-service-account.json").getInputStream()
-        );
+        // 서비스 계정 키 파일로 인증 정보 생성
+        GoogleCredentials credentials;
+        try (InputStream keyStream = credentialsLocation.getInputStream()) {
+            credentials = GoogleCredentials.fromStream(keyStream);
+        }
 
         // Firebase 옵션 설정
         FirebaseOptions options = FirebaseOptions.builder()

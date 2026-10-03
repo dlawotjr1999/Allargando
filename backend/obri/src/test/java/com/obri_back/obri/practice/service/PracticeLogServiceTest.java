@@ -1,5 +1,6 @@
 package com.obri_back.obri.practice.service;
 
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.global.exception.ForbiddenException;
 import com.obri_back.obri.global.exception.NotFoundException;
 import com.obri_back.obri.practice.dto.PracticeLogCreateRequestDTO;
@@ -172,5 +173,13 @@ class PracticeLogServiceTest {
                 .isInstanceOf(ForbiddenException.class);
 
         verify(practiceLogRepository, never()).delete(any(PracticeLog.class));
+    }
+
+    // 회원 탈퇴 — 이 유저의 연습 일지를 전부 삭제
+    @Test
+    void onUserWithdrawal_deletesAllLogsOfUser() {
+        practiceLogService.onUserWithdrawal(new UserWithdrawalEvent(1L, "test-uid"));
+
+        verify(practiceLogRepository).deleteByUserId(1L);
     }
 }

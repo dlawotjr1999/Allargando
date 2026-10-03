@@ -129,7 +129,7 @@ class PostControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // sequence.md 2026-08-17 §3: 중복 악기명이 등록되면 이후 수정 시 replaceInstruments가
+    // 2026-08-17 발견된 버그 회귀 방지: 중복 악기명이 등록되면 이후 수정 시 replaceInstruments가
     // Duplicate key 예외를 던지던 버그의 유입 경로 차단(등록 시점 400)
     @Test
     void createPost_returns400WhenInstrumentNameDuplicated() throws Exception {
@@ -168,7 +168,7 @@ class PostControllerTest {
                 .status(PostStatus.OPEN)
                 .build();
 
-        when(postService.getPosts(any(), any(), any(), any(), any(), any()))
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(summary), PageRequest.of(0, 10), 1));
 
         mockMvc.perform(get("/api/posts")

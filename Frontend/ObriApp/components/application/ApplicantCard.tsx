@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { ApplicationSummary, ApplicationStatus } from "@/types/application";
 import IconText from "@/components/common/IconText";
@@ -29,6 +30,8 @@ interface ApplicantCardProps {
   onAccept?: () => void;
   onReject?: () => void;
   onRevoke?: () => void;
+  // 신고·차단 같은 부가 동작 진입점(⋯ 버튼). 안 넘기면 버튼이 그려지지 않는다
+  onMore?: () => void;
   // 이 지원서에 대한 수락/거절/철회 요청이 진행 중인 동안 true — 버튼을 잠가 중복 탭을 막는다.
   // (accept/reject/revoke는 PATCH지만 멱등이 아니라 재요청 시 400이 나므로 이 잠금이 중요하다)
   processing?: boolean;
@@ -39,6 +42,7 @@ export default function ApplicantCard({
   onAccept,
   onReject,
   onRevoke,
+  onMore,
   processing = false,
 }: ApplicantCardProps) {
   const { applicant, status, additionalInfo } = application;
@@ -49,10 +53,21 @@ export default function ApplicantCard({
         <Text style={styles.nickname} numberOfLines={1}>
           {applicant.nickname} · {applicant.instrument}
         </Text>
-        <View style={[styles.statusBadge, { borderColor: STATUS_COLOR[status] }]}>
-          <Text style={[styles.statusText, { color: STATUS_COLOR[status] }]}>
-            {STATUS_LABEL[status]}
-          </Text>
+        <View style={styles.headerRight}>
+          <View style={[styles.statusBadge, { borderColor: STATUS_COLOR[status] }]}>
+            <Text style={[styles.statusText, { color: STATUS_COLOR[status] }]}>
+              {STATUS_LABEL[status]}
+            </Text>
+          </View>
+          {onMore && (
+            <TouchableOpacity
+              onPress={onMore}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="지원자 신고·차단 메뉴"
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -110,6 +125,11 @@ export default function ApplicantCard({
 }
 
 const styles = StyleSheet.create({
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 14,

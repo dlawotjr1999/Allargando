@@ -8,8 +8,6 @@ interface RegisterForm {
   nickname: string;
   phoneNumber: string;
   instrument: string;
-  school: string;
-  isGraduate: boolean;
   careers: CareerEntry[];
 }
 
@@ -26,8 +24,6 @@ const initialForm: RegisterForm = {
   nickname: "",
   phoneNumber: "",
   instrument: "",
-  school: "",
-  isGraduate: false,
   careers: [{ organization: "", contexts: "" }],
 };
 

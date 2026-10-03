@@ -47,11 +47,12 @@ public class PostController {
         return ResponseEntity.ok(APIResponse.ok("모집글이 등록되었습니다", response));
     }
 
-    // 모집글 전체 조회 (카테고리·악기·지역·기간 필터 + 무한스크롤)
+    // 모집글 전체 조회 (카테고리·악기·지역·기간 필터 + 무한스크롤, 내가 차단한 유저의 글은 제외)
     // status 필터 파라미터 없음(BACKLOG.md #35) — 공개 목록은 항상 OPEN·PARTIALLY_CLOSED만 노출,
     // CLOSED(마감)된 글은 이 엔드포인트로 조회 불가. 작성자 본인의 마감글은 GET /api/posts/me로 조회
     @GetMapping
     public ResponseEntity<APIResponse<PageResponse<PostSummaryResponseDTO>>> getPosts(
+            @AuthenticationPrincipal User user,
             @RequestParam(required = false) List<String> category,
             @RequestParam(required = false) List<String> instrument,
             @RequestParam(required = false) List<String> region,
@@ -60,7 +61,7 @@ public class PostController {
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         Page<PostSummaryResponseDTO> response =
-                postService.getPosts(category, instrument, region, startDate, endDate, pageable);
+                postService.getPosts(user.getId(), category, instrument, region, startDate, endDate, pageable);
         return ResponseEntity.ok(APIResponse.ok("모집글 목록 조회 성공", PageResponse.from(response)));
     }
 

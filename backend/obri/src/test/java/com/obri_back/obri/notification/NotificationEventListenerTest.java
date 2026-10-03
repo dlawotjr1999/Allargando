@@ -16,7 +16,7 @@ import java.util.List;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-// BACKLOG.md #15: 이벤트 → NotificationService 호출로 정확히 위임되는지만 검증
+// 이벤트 → NotificationService 호출로 정확히 위임되는지만 검증
 // (AFTER_COMMIT 타이밍 자체는 NotificationAfterCommitTest에서 별도 검증)
 @ExtendWith(MockitoExtension.class)
 class NotificationEventListenerTest {

@@ -86,7 +86,7 @@ class ApplicationControllerTest {
                 .andExpect(jsonPath("$.data.status").value("PENDING"));
     }
 
-    // BACKLOG.md #5: postId 누락 시 findById(null) → 500 대신 400으로 사전 차단
+    // postId 누락 시 findById(null) → 500 대신 400으로 사전 차단
     @Test
     void submitApplication_returns400WhenPostIdMissing() throws Exception {
         mockMvc.perform(post("/api/applications/submit")

@@ -1,0 +1,22 @@
+# 시크릿 — 이미지에 절대 포함하지 않는다(실행 시 환경변수·마운트로 주입)
+**/firebase-service-account.json
+**/application-local.properties
+.env
+.env.*
+
+# 빌드 산출물·로컬 캐시 — 이미지 안에서 새로 빌드한다
+build/
+.gradle/
+bin/
+out/
+
+# 이미지에 불필요한 파일
+.git
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+docker-compose.yml
+Dockerfile
+test.sh
+*.md

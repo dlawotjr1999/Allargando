@@ -6,9 +6,12 @@ import { colors } from "@/constants/theme";
 import { getApplicationsByPostId, acceptApplication, rejectApplication, revokeApplication } from "@/api/application";
 import { ApiError } from "@/lib/apiClient";
 import { ApplicationSummary } from "@/types/application";
+import { ReportTarget } from "@/types/safety";
+import { confirmBlockUser } from "@/lib/safety";
 import ScreenHeader from "@/components/common/ScreenHeader";
 import EmptyState from "@/components/common/EmptyState";
 import ApplicantCard from "@/components/application/ApplicantCard";
+import ReportDialog from "@/components/report/ReportDialog";
 
 // 지원자 목록(모집자 전용). GET /api/applications/post/{postId}는 모집자 본인만 200이고
 // 그 외엔 403이 나므로(ApplicationAccessPolicy.requireRecruiter), 별도 프론트 접근 제어 없이
@@ -27,6 +30,8 @@ export default function ApplicantsScreen() {
   // accept/reject/revoke는 PATCH지만 상태 전이가 끝난 지원서에 재호출하면 400이 나는 비멱등 동작이라
   // 이 잠금이 실질적인 중복 요청 방지 장치다.
   const [processingId, setProcessingId] = useState<number | null>(null);
+  // 신고 중인 대상(null이면 신고 창 닫힘)
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
   const loadFirstPage = useCallback(async () => {
     setLoading(true);
@@ -88,6 +93,17 @@ export default function ApplicantsScreen() {
     }
   };
 
+  // 지원자 신고·차단 메뉴. 지원서 추가 정보처럼 글이 아닌 부적절한 내용은 그 지원자를 신고하면 된다.
+  // 이미 들어온 지원은 차단해도 남는다(목록에서 거절하면 됨) — 차단은 이후의 새 지원과 모집글 노출을 막는다
+  const openApplicantMenu = (application: ApplicationSummary) => {
+    const nickname = application.applicant.nickname;
+    Alert.alert(nickname, undefined, [
+      { text: "신고", onPress: () => setReportTarget({ type: "USER", nickname }) },
+      { text: "차단", style: "destructive", onPress: () => confirmBlockUser(nickname) },
+      { text: "취소", style: "cancel" },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.headerArea}>
@@ -114,6 +130,7 @@ export default function ApplicantsScreen() {
             <ApplicantCard
               application={item}
               processing={processingId === item.id}
+              onMore={() => openApplicantMenu(item)}
               onAccept={() =>
                 runAction(item.id, acceptApplication, "ACCEPTED", "수락 실패")
               }
@@ -143,6 +160,8 @@ export default function ApplicantsScreen() {
           }
         />
       )}
+
+      <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
     </SafeAreaView>
   );
 }

@@ -52,7 +52,7 @@ public class PostCreateRequestDTO {
     private List<InstrumentItem> instruments;
 
     // 악기명 중복 등록 차단 — Post.replaceInstruments가 이름을 키로 병합하므로 중복 시
-    // 확정 인원(confirmed)·마감 상태가 뒤섞인다(BACKLOG.md 유입 버그, sequence.md 2026-08-17 §3)
+    // 확정 인원(confirmed)·마감 상태가 뒤섞인다(2026-08-17 발견된 유입 버그)
     @AssertTrue(message = "악기명은 중복될 수 없습니다")
     private boolean isInstrumentsUnique() {
         if (instruments == null) return true;

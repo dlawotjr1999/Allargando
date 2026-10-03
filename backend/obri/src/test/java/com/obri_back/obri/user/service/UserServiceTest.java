@@ -8,14 +8,17 @@ import com.obri_back.obri.user.dto.UserResponseDTO;
 import com.obri_back.obri.user.dto.UserUpdateRequestDTO;
 import com.obri_back.obri.user.entity.Career;
 import com.obri_back.obri.user.entity.User;
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.user.repository.CareerRepository;
 import com.obri_back.obri.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,7 @@ class UserServiceTest {
 
     @Mock UserRepository userRepository;
     @Mock CareerRepository careerRepository;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     @InjectMocks UserService userService;
 
@@ -58,7 +62,7 @@ class UserServiceTest {
         assertThat(result.getEmail()).isEqualTo("test@test.com");
     }
 
-    // BACKLOG.md #1: 다른 도메인 서비스가 detached User(예: 필터에서 온 @AuthenticationPrincipal)를
+    // 다른 도메인 서비스가 detached User(예: 필터에서 온 @AuthenticationPrincipal)를
     // managed 인스턴스로 재조회할 때 쓰는 진입점 — UserRepository 대신 이 메서드를 거치게 해 서비스 경계를 지킴
     @Test
     void getManagedUserById_returnsManagedUserWhenExists() {
@@ -155,13 +159,17 @@ class UserServiceTest {
         assertThat(result).isFalse();
     }
 
+    // 다른 도메인의 데이터(모집글·지원서·연습일지)가 유저를 FK로 참조하므로, 유저 행을 지우기 전에
+    // 탈퇴 이벤트를 먼저 발행해 각 도메인이 자기 데이터를 정리하게 해야 한다
     @Test
-    void deleteUser_deletesWhenExists() {
+    void deleteUser_publishesWithdrawalEventBeforeDeletingUser() {
         given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
 
         userService.deleteUser(mockUser);
 
-        verify(userRepository, times(1)).delete(mockUser);
+        InOrder inOrder = inOrder(eventPublisher, userRepository);
+        inOrder.verify(eventPublisher).publishEvent(new UserWithdrawalEvent(1L, "test-uid"));
+        inOrder.verify(userRepository).delete(mockUser);
     }
 
     @Test
@@ -173,6 +181,7 @@ class UserServiceTest {
         assertThatThrownBy(() -> userService.deleteUser(missingUser))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("유저를 찾을 수 없습니다");
+        verifyNoInteractions(eventPublisher);
     }
 
     // BACKLOG.md #21: application 도메인(지원자 목록)이 여러 유저의 careers를 한 번에 배치 조회할 때 쓰는 진입점
@@ -198,5 +207,22 @@ class UserServiceTest {
         Map<Long, List<CareerDTO>> result = userService.getCareersByUserIds(List.of(99L));
 
         assertThat(result).isEmpty();
+    }
+
+    // 신고·차단처럼 닉네임만 아는 쪽이 대상 유저를 찾을 때 쓰는 진입점
+    @Test
+    void getManagedUserByNickname_returnsUserWhenExists() {
+        given(userRepository.findByNickname("tester")).willReturn(Optional.of(mockUser));
+
+        assertThat(userService.getManagedUserByNickname("tester")).isEqualTo(mockUser);
+    }
+
+    @Test
+    void getManagedUserByNickname_throwsNotFoundWhenMissing() {
+        given(userRepository.findByNickname("ghost")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getManagedUserByNickname("ghost"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("유저를 찾을 수 없습니다");
     }
 }

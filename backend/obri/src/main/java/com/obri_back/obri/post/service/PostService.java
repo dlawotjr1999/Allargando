@@ -14,8 +14,10 @@ import com.obri_back.obri.post.entity.PostInstrument;
 import com.obri_back.obri.post.repository.PostRepository;
 import com.obri_back.obri.post.repository.PostSpecification;
 import com.obri_back.obri.user.entity.User;
+import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -57,10 +59,12 @@ public class PostService {
 
     // 모집글 전체 조회 — Specification 동적 필터 적용 후 요약 DTO로 반환
     // status 필터 없음(BACKLOG.md #35) — PostSpecification이 항상 OPEN·PARTIALLY_CLOSED만 노출
+    // viewerId(조회하는 유저)가 차단한 작성자의 글은 목록에서 제외된다
     @Transactional(readOnly = true)
-    public Page<PostSummaryResponseDTO> getPosts(List<String> categories, List<String> instruments,
+    public Page<PostSummaryResponseDTO> getPosts(Long viewerId, List<String> categories, List<String> instruments,
             List<String> regions, LocalDate startDate, LocalDate endDate, Pageable pageable) {
-        Specification<Post> spec = PostSpecification.filter(categories, instruments, regions, startDate, endDate);
+        Specification<Post> spec = PostSpecification.filter(
+                viewerId, categories, instruments, regions, startDate, endDate);
         return postRepository.findAll(spec, pageable).map(PostSummaryResponseDTO::from);
     }
 
@@ -115,11 +119,24 @@ public class PostService {
         Post post = findPostOrThrow(postId);
         requireOwner(post, user);
 
-        applicationService.handlePostDeletion(postId, post.getTitle());
+        removePost(post);
+    }
+
+    // 회원 탈퇴 시 이 유저가 작성한 모집글 전부 삭제 — UserService가 발행한 UserWithdrawalEvent를 같은 트랜잭션에서
+    // 처리한다(유저 행 삭제보다 먼저 실행돼야 FK 위반이 없다). 글마다 deletePost와 같은 절차로 지원서 정리·삭제 알림까지 한다.
+    @EventListener
+    @Transactional
+    public void onUserWithdrawal(UserWithdrawalEvent event) {
+        postRepository.findByUserId(event.userId()).forEach(this::removePost);
+    }
+
+    // 모집글 삭제 절차 — 지원서 정리·삭제 알림(Application 도메인에 위임)을 먼저 하고 Post를 지운다(FK 순서 보장)
+    private void removePost(Post post) {
+        applicationService.handlePostDeletion(post.getId(), post.getTitle());
         postRepository.delete(post);
     }
 
-    // PostCreateRequestDTO → PostInfo 변환 (BACKLOG.md #13, 엔티티가 웹 DTO를 직접 받지 않도록 분리)
+    // PostCreateRequestDTO → PostInfo 변환 (엔티티가 웹 DTO를 직접 받지 않도록 분리)
     private PostInfo toPostInfo(PostCreateRequestDTO request) {
         return PostInfo.builder()
                 .category(request.getCategory())
