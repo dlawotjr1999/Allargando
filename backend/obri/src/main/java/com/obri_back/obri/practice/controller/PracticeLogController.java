@@ -1,6 +1,7 @@
 package com.obri_back.obri.practice.controller;
 
 import com.obri_back.obri.global.common.APIResponse;
+import com.obri_back.obri.global.common.PageSupport;
 import com.obri_back.obri.global.common.PageResponse;
 import com.obri_back.obri.practice.dto.PracticeLogCreateRequestDTO;
 import com.obri_back.obri.practice.dto.PracticeLogResponseDTO;
@@ -45,8 +46,9 @@ public class PracticeLogController {
     @GetMapping
     public ResponseEntity<APIResponse<PageResponse<PracticeLogSummaryResponseDTO>>> getPracticeLogs(
             @AuthenticationPrincipal User user,
-            @PageableDefault(size = 10, sort = "logDate", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<PracticeLogSummaryResponseDTO> response = practiceLogService.getMyPracticeLogs(user.getId(), pageable);
+            @PageableDefault(size = 10) Pageable pageable) {
+        Page<PracticeLogSummaryResponseDTO> response = practiceLogService.getMyPracticeLogs(
+                user.getId(), PageSupport.withSort(pageable, Sort.by(Sort.Direction.DESC, "logDate")));
         return ResponseEntity.ok(APIResponse.ok("연습 일지 목록 조회 성공", PageResponse.from(response)));
     }
 

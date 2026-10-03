@@ -26,6 +26,11 @@ import java.util.Collections;
 @Component
 @RequiredArgsConstructor
 public class FirebaseAuthFilter extends OncePerRequestFilter {
+
+    // 토큰은 유효한데 DB에 유저가 없을 때(Firebase 계정만 있고 가입 미완료) 요청에 남기는 표식(D18).
+    // 필터는 예외를 던지지 않으므로, 인증 실패 처리기(SecurityConfig)가 이 값으로 401과 404를 가른다
+    public static final String UNREGISTERED_USER_ATTRIBUTE = "obri.unregisteredUser";
+
     private final FirebaseAuth firebaseAuth;
     private final UserRepository userRepository;
 
@@ -65,13 +70,13 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             String firebaseUid = decodedToken.getUid();
 
             // firebase_uid로 DB 유저 조회
-            userRepository.findByFirebaseUid(firebaseUid).ifPresent(user -> {
+            userRepository.findByFirebaseUid(firebaseUid).ifPresentOrElse(user -> {
                 UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
                         user, null, Collections.emptyList()
                     );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            });
+            }, () -> request.setAttribute(UNREGISTERED_USER_ATTRIBUTE, true));
 
         } catch (FirebaseAuthException | IllegalArgumentException e) {
             // 토큰 검증 실패 → SecurityContext 비운 채로 다음 필터로

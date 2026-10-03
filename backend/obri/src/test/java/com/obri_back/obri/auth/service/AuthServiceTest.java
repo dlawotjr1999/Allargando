@@ -391,6 +391,27 @@ class AuthServiceTest {
         authService.updateFcmToken(user, request);
 
         verify(managedUser, times(1)).updateFcmToken("new-fcm-token");
+        // 같은 기기의 이전 계정이 쥔 같은 토큰은 먼저 비운다
+        verify(userRepository).clearFcmTokenOfOthers("new-fcm-token", 1L);
+    }
+
+    @Test
+    void clearFcmToken_setsTokenNull() {
+        User user = User.builder().id(1L).build();
+        User managedUser = mock(User.class);
+        given(userRepository.findById(1L)).willReturn(Optional.of(managedUser));
+
+        authService.clearFcmToken(user);
+
+        verify(managedUser).updateFcmToken(null);
+    }
+
+    @Test
+    void clearFcmToken_throwsNotFoundWhenUserMissing() {
+        given(userRepository.findById(99L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.clearFcmToken(User.builder().id(99L).build()))
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test

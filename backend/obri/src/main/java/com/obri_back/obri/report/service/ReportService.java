@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,11 +73,14 @@ public class ReportService {
                 report.getId(), targetType, targetId, request.getReason(), reporter.getId());
     }
 
-    // 회원 탈퇴 시 이 유저가 한 신고·이 유저를 대상으로 한 신고 삭제 — UserService가 발행한 UserWithdrawalEvent를
+    // 회원 탈퇴 시 이 유저가 한 신고·이 유저를 대상으로 한 신고·이 유저가 쓴 글을 대상으로 한 신고 삭제 — UserService가 발행한 UserWithdrawalEvent를
     // 같은 트랜잭션에서 처리(유저 행 삭제보다 먼저 실행돼야 FK 위반이 없다, CLAUDE.md §3.8)
+    // 글 대상 신고는 탈퇴자의 글 목록으로 찾으므로 PostService의 글 삭제 리스너보다 먼저 실행돼야 한다 — 리스너 순서는
+    // 기본적으로 보장되지 않아 @Order로 고정한다(UserWithdrawalFlowTest가 순서를 검증)
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     @EventListener
     @Transactional
     public void onUserWithdrawal(UserWithdrawalEvent event) {
-        reportRepository.deleteAllInvolving(event.userId(), ReportTargetType.USER);
+        reportRepository.deleteAllInvolving(event.userId(), ReportTargetType.USER, ReportTargetType.POST);
     }
 }

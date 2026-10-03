@@ -2,6 +2,8 @@ package com.obri_back.obri.post.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,30 +26,38 @@ import java.util.List;
 @AllArgsConstructor
 public class PostCreateRequestDTO {
 
-    @NotBlank
+    @NotBlank(message = "카테고리를 선택해 주세요")
+    @Size(max = 255, message = "카테고리는 255자 이내여야 합니다")
     private String category;
 
-    @NotBlank
+    @NotBlank(message = "제목을 입력해 주세요")
+    @Size(max = 255, message = "제목은 255자 이내여야 합니다")
     private String title;
 
-    @NotNull
+    // 과거 공연일로는 등록·수정할 수 없다 — 목록에서 바로 빠지고 지원도 막혀 작성자에게만 보이는 죽은 글이 된다
+    @NotNull(message = "공연 일시를 입력해 주세요")
+    @Future(message = "공연 일시는 현재 이후여야 합니다")
     private LocalDateTime eventAt;
 
-    @NotBlank
+    @NotBlank(message = "장소를 입력해 주세요")
+    @Size(max = 255, message = "장소는 255자 이내여야 합니다")
     private String location;
 
     // 지역 필터 전용 값 (프론트 지역 선택 UI에서 제공) — BACKLOG.md #38
-    @NotBlank
+    @NotBlank(message = "지역을 선택해 주세요")
+    @Size(max = 255, message = "지역은 255자 이내여야 합니다")
     private String region;
 
-    @NotBlank
+    @NotBlank(message = "시간표를 입력해 주세요")
+    @Size(max = 255, message = "시간표는 255자 이내여야 합니다")
     private String timetable;
 
     // 모집글 상세 설명 (선택 입력) — BACKLOG.md #34
+    @Size(max = 2000, message = "설명은 2000자 이내여야 합니다")
     private String description;
 
-    @NotNull
-    @Size(min = 1)
+    @NotNull(message = "모집 악기를 입력해 주세요")
+    @Size(min = 1, message = "모집 악기를 1개 이상 입력해 주세요")
     @Valid
     private List<InstrumentItem> instruments;
 
@@ -69,11 +79,13 @@ public class PostCreateRequestDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class InstrumentItem {
-        @NotBlank
+        @NotBlank(message = "악기를 선택해 주세요")
+        @Size(max = 255, message = "악기는 255자 이내여야 합니다")
         private String instrument;
 
-        @NotNull
-        @Min(1)
+        @NotNull(message = "모집 인원을 입력해 주세요")
+        @Min(value = 1, message = "모집 인원은 1명 이상이어야 합니다")
+        @Max(value = 100, message = "모집 인원은 100명 이하여야 합니다")
         private Integer people;
     }
 }

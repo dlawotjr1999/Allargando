@@ -134,7 +134,21 @@ public class AuthService {
         User managedUser = userRepository.findById(user.getId())
                 .orElseThrow(() -> new NotFoundException("유저를 찾을 수 없습니다"));
 
+        // 같은 기기의 이전 계정이 같은 토큰을 쥐고 있으면 먼저 비운다(NOTI-3, D17 B1)
+        userRepository.clearFcmTokenOfOthers(request.getFcmToken(), user.getId());
         managedUser.updateFcmToken(request.getFcmToken());
+    }
+
+    /*
+     * FCM 토큰 해제 — 로그아웃·알림 끄기 때 앱이 호출한다. 이후 이 계정으로는 푸시가 발송되지 않는다
+     * (토큰이 이미 없어도 성공으로 처리해 재시도에 안전하다)
+     */
+    @Transactional
+    public void clearFcmToken(User user) {
+        User managedUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new NotFoundException("유저를 찾을 수 없습니다"));
+
+        managedUser.updateFcmToken(null);
     }
 
     /*

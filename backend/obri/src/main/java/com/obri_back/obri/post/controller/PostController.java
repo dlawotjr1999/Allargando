@@ -1,6 +1,7 @@
 package com.obri_back.obri.post.controller;
 
 import com.obri_back.obri.global.common.APIResponse;
+import com.obri_back.obri.global.common.PageSupport;
 import com.obri_back.obri.global.common.PageResponse;
 import com.obri_back.obri.post.dto.PostCreateRequestDTO;
 import com.obri_back.obri.post.dto.PostDetailResponseDTO;
@@ -58,10 +59,11 @@ public class PostController {
             @RequestParam(required = false) List<String> region,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
 
         Page<PostSummaryResponseDTO> response =
-                postService.getPosts(user.getId(), category, instrument, region, startDate, endDate, pageable);
+                postService.getPosts(user.getId(), category, instrument, region, startDate, endDate,
+                        PageSupport.withSort(pageable, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(APIResponse.ok("모집글 목록 조회 성공", PageResponse.from(response)));
     }
 
@@ -72,9 +74,9 @@ public class PostController {
     @GetMapping("/me")
     public ResponseEntity<APIResponse<PageResponse<PostSummaryResponseDTO>>> getMyPosts(
             @AuthenticationPrincipal User user,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
 
-        Page<PostSummaryResponseDTO> response = postService.getMyPosts(user.getId(), pageable);
+        Page<PostSummaryResponseDTO> response = postService.getMyPosts(user.getId(), PageSupport.withSort(pageable, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(APIResponse.ok("내 모집글 목록 조회 성공", PageResponse.from(response)));
     }
 

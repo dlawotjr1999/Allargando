@@ -98,7 +98,9 @@ public class PostService {
         List<PostInstrument> newInstruments = request.getInstruments().stream()
                 .map(item -> PostInstrument.of(post, item.getInstrument(), item.getPeople()))
                 .collect(Collectors.toList());
-        post.replaceInstruments(newInstruments);
+        List<String> removedInstruments = post.replaceInstruments(newInstruments);
+        // 삭제된 악기로 들어와 있던 대기 지원은 자동 거절하고 알린다(D12 — 수락자가 있는 악기는 위에서 이미 400)
+        removedInstruments.forEach(name -> applicationService.rejectPendingByInstrument(postId, name));
 
         // 모집글 수정 → 지원자에게 알릴지 여부까지 Application 도메인이 결정 — 명세 시나리오 1.8
         applicationService.notifyApplicantsOfPostUpdate(postId, post.getTitle());

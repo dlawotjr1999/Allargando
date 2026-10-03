@@ -5,6 +5,7 @@ import com.obri_back.obri.concert.kopis.KopisSyncException;
 import com.obri_back.obri.concert.kopis.KopisSyncService;
 import com.obri_back.obri.concert.service.ConcertService;
 import com.obri_back.obri.global.common.APIResponse;
+import com.obri_back.obri.global.common.PageSupport;
 import com.obri_back.obri.global.common.PageResponse;
 import com.obri_back.obri.global.exception.NotFoundException;
 
@@ -42,17 +43,18 @@ public class ConcertController {
     @Value("${kopis.sync.manual-trigger-enabled:false}")
     private boolean manualSyncEnabled;
 
-    // 연주회 전체 조회 (카테고리·지역 필터 + 기간 + 페이지네이션, 기본 정렬은 공연 임박순. ?sort=로 재정의 가능)
+    // 연주회 전체 조회 (카테고리·지역 필터 + 기간 + 페이지네이션, 정렬은 공연 임박순 고정)
     @GetMapping
     public ResponseEntity<APIResponse<PageResponse<ConcertResponseDTO>>> getConcertList(
             @RequestParam(required = false) List<String> category,
             @RequestParam(required = false) List<String> region,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-            @PageableDefault(size = 10, sort = "startDate", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
 
         Page<ConcertResponseDTO> response =
-                concertService.getConcertList(category, region, fromDate, toDate, pageable);
+                concertService.getConcertList(category, region, fromDate, toDate,
+                        PageSupport.withSort(pageable, Sort.by(Sort.Direction.ASC, "startDate")));
         return ResponseEntity.ok(APIResponse.ok("연주회 목록 조회 성공", PageResponse.from(response)));
     }
 

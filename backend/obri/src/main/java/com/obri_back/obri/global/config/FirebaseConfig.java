@@ -26,6 +26,10 @@ public class FirebaseConfig {
     @Value("${firebase.credentials.location}")
     private Resource credentialsLocation;
 
+    // Admin SDK의 HTTP 타임아웃 기본값은 0(무제한)이라 FCM·토큰 검증 호출이 멈추면 스레드가 영원히 묶인다
+    private static final int CONNECT_TIMEOUT_MS = 5_000;
+    private static final int READ_TIMEOUT_MS = 10_000;
+
     /*
      * Firebase 앱 초기화
      * firebase.credentials.location의 서비스 계정 키를 읽어 인증 정보를 설정하고
@@ -49,6 +53,8 @@ public class FirebaseConfig {
         // Firebase 옵션 설정
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(credentials)
+                .setConnectTimeout(CONNECT_TIMEOUT_MS)
+                .setReadTimeout(READ_TIMEOUT_MS)
                 .build();
 
         return FirebaseApp.initializeApp(options);

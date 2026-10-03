@@ -323,4 +323,42 @@ class PostServiceTest {
         verifyNoInteractions(applicationService);
         verify(postRepository, never()).delete(any(Post.class));
     }
+
+    // D12: 글 수정으로 삭제된 악기의 대기 지원은 자동 거절을 요청한다
+    @Test
+    void updatePost_rejectsPendingApplicationsOfRemovedInstruments() {
+        Post post = buildPost(owner);
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+        PostCreateRequestDTO update = PostCreateRequestDTO.builder()
+                .category("앙상블").title("수정").eventAt(LocalDateTime.of(2099, 5, 1, 15, 0))
+                .location("서울").region("서울").timetable("토요일")
+                .instruments(List.of(
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("바이올린").people(2).build()))
+                .build(); // buildPost의 첼로를 뺀 요청
+
+        postService.updatePost(10L, owner, update);
+
+        verify(applicationService).rejectPendingByInstrument(10L, "첼로");
+        verify(applicationService, never()).rejectPendingByInstrument(eq(10L), eq("바이올린"));
+    }
+
+    // 수락자가 있는 악기를 빼려는 수정은 400이고 대기 지원 거절·수정 알림도 일어나지 않는다
+    @Test
+    void updatePost_throwsAndTouchesNoApplicationWhenRemovingAcceptedInstrument() {
+        Post post = buildPost(owner);
+        post.confirmInstrument("바이올린");
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+        PostCreateRequestDTO update = PostCreateRequestDTO.builder()
+                .category("앙상블").title("수정").eventAt(LocalDateTime.of(2099, 5, 1, 15, 0))
+                .location("서울").region("서울").timetable("토요일")
+                .instruments(List.of(
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("첼로").people(1).build()))
+                .build();
+
+        assertThatThrownBy(() -> postService.updatePost(10L, owner, update))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(applicationService, never()).rejectPendingByInstrument(anyLong(), anyString());
+        verify(applicationService, never()).notifyApplicantsOfPostUpdate(anyLong(), anyString());
+    }
 }

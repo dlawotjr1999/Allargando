@@ -34,6 +34,7 @@ class SecurityConfigTest {
 
     @Autowired MockMvc mockMvc;
     @Autowired AccessDeniedHandler accessDeniedHandler;
+    @Autowired org.springframework.security.web.AuthenticationEntryPoint authenticationEntryPoint;
     @MockitoBean UserService userService;
     @MockitoBean FirebaseAuthFilter firebaseAuthFilter;
 
@@ -59,6 +60,31 @@ class SecurityConfigTest {
     void rejectsNonWhitelistedOrigin() throws Exception {
         mockMvc.perform(get("/api/users/check/tester").header("Origin", "https://evil.example.com"))
                 .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
+
+    // 토큰은 유효한데 DB에 유저가 없으면(필터가 표식을 남김) 401이 아니라 404 — 클라이언트가 가입 미완료를 구분한다(D18)
+    @Test
+    void entryPoint_returnsNotFoundWhenTokenValidButUserUnregistered() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute(FirebaseAuthFilter.UNREGISTERED_USER_ATTRIBUTE, true);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        authenticationEntryPoint.commence(request, response,
+                new org.springframework.security.authentication.InsufficientAuthenticationException("x"));
+
+        assertThat(response.getStatus()).isEqualTo(404);
+        assertThat(response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+                .contains("\"status\":404").contains("가입되지 않은 사용자입니다");
+    }
+
+    @Test
+    void entryPoint_returnsUnauthorizedOtherwise() throws Exception {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        authenticationEntryPoint.commence(new MockHttpServletRequest(), response,
+                new org.springframework.security.authentication.InsufficientAuthenticationException("x"));
+
+        assertThat(response.getStatus()).isEqualTo(401);
     }
 
     // 기본 AccessDeniedHandler는 403 + 빈 바디라 클라이언트가 응답을 파싱하지 못한다 — APIResponse 형식으로 응답

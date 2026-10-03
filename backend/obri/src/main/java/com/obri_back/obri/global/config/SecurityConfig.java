@@ -93,11 +93,18 @@ public class SecurityConfig {
     /*
      * 미인증 요청 처리
      * 기본 Http403ForbiddenEntryPoint(403 + 빈 바디) 대신 명세의 401 + APIResponse 형식으로 응답
+     * 단, 토큰은 유효한데 가입된 유저가 없는 경우(필터가 표식을 남김)는 404 — 클라이언트가 "토큰 만료"와
+     * "가입 미완료"를 구분해 가입 화면으로 보낼 수 있게 한다(D18)
      */
     @Bean
     public AuthenticationEntryPoint authenticationEntryPoint() {
-        return (request, response, authException) ->
-                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "인증이 필요합니다");
+        return (request, response, authException) -> {
+            if (request.getAttribute(FirebaseAuthFilter.UNREGISTERED_USER_ATTRIBUTE) != null) {
+                writeError(response, HttpServletResponse.SC_NOT_FOUND, "가입되지 않은 사용자입니다");
+                return;
+            }
+            writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "인증이 필요합니다");
+        };
     }
 
     /*

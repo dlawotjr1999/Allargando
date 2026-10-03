@@ -4,6 +4,7 @@ import com.obri_back.obri.application.dto.AppRequestDTO;
 import com.obri_back.obri.application.dto.AppResponseDTO;
 import com.obri_back.obri.application.service.ApplicationService;
 import com.obri_back.obri.global.common.APIResponse;
+import com.obri_back.obri.global.common.PageSupport;
 import com.obri_back.obri.global.common.PageResponse;
 import com.obri_back.obri.user.entity.User;
 
@@ -53,10 +54,10 @@ public class ApplicationController {
     @GetMapping("/me")
     public ResponseEntity<APIResponse<PageResponse<AppResponseDTO>>> getMyApplications(
         @AuthenticationPrincipal User user,
-        @PageableDefault(size = 10, sort = "createdAt",
-                direction = Sort.Direction.DESC) Pageable pageable
+        @PageableDefault(size = 10) Pageable pageable
     ) {
-        Page<AppResponseDTO> response = applicationService.getApplicationsByUserId(user.getId(), pageable);
+        Page<AppResponseDTO> response = applicationService.getApplicationsByUserId(
+                user.getId(), PageSupport.withSort(pageable, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(APIResponse.ok("내 지원 목록 조회 성공", PageResponse.from(response)));
     }
 
@@ -116,10 +117,10 @@ public class ApplicationController {
     public ResponseEntity<APIResponse<PageResponse<AppResponseDTO>>> getApplicationsByPostId(
         @AuthenticationPrincipal User user,
         @PathVariable Long postId,
-        @PageableDefault(size = 10, sort = "createdAt",
-                direction = Sort.Direction.DESC) Pageable pageable
+        @PageableDefault(size = 10) Pageable pageable
     ) {
-        Page<AppResponseDTO> response = applicationService.getApplicationsByPostId(postId, user, pageable);
+        Page<AppResponseDTO> response = applicationService.getApplicationsByPostId(
+                postId, user, PageSupport.withSort(pageable, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(APIResponse.ok("지원자 목록 조회 성공", PageResponse.from(response)));
     }
 }

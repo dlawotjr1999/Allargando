@@ -24,8 +24,13 @@ USER app
 
 COPY --from=build /app/build/libs/*.jar app.jar
 
-# 컨테이너 기본 시간대는 UTC — createdAt·공연 기간 비교 등 날짜 로직이 한국 시각 기준으로 돌도록 고정
-ENV JAVA_TOOL_OPTIONS="-Duser.timezone=Asia/Seoul"
+# 컨테이너 기본 시간대는 UTC — createdAt·공연 기간 비교 등 날짜 로직이 한국 시각 기준으로 돌도록 고정.
+# 힙은 컨테이너 메모리 한도의 75%까지 쓴다(기본값은 25%라 작은 서버에서 메모리를 놀린다)
+ENV JAVA_TOOL_OPTIONS="-Duser.timezone=Asia/Seoul -XX:MaxRAMPercentage=75"
+
+# 앱이 요청을 받을 수 있는지 확인 — 오케스트레이터가 응답 없는 컨테이너를 되살리는 기준(기동에 시간이 걸려 start-period를 둔다)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+  CMD wget -qO- http://localhost:8080/actuator/health | grep -q UP || exit 1
 
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
