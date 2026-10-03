@@ -42,4 +42,9 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     @EntityGraph(attributePaths = {"post"})
     List<Application> findByUserIdAndStatus(Long userId, ApplicationStatus status);
     void deleteByUserId(Long userId);
+
+    // 같은 글·같은 악기의 특정 상태 지원 — 정원 마감 시 남은 대기(PENDING) 지원을 한꺼번에 거절하는 데 쓴다.
+    // 거절 알림에 지원자의 FCM 토큰이 필요해 user를 함께 로딩한다
+    @EntityGraph(attributePaths = {"user"})
+    List<Application> findByPostIdAndInstrumentAndStatus(Long postId, String instrument, ApplicationStatus status);
 }

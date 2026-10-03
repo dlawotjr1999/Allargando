@@ -200,6 +200,24 @@ public class ApplicationService {
         application.updateStatus(ApplicationStatus.ACCEPTED);
         // AFTER_COMMIT 이후 발송 — @Version 충돌로 이 트랜잭션이 롤백돼도 유령 "수락" 알림 없음
         eventPublisher.publishEvent(new ApplicationResultNotificationEvent(application.getUser().getFcmToken(), true));
+        // 이 수락으로 악기 정원이 차면 같은 악기의 남은 대기 지원은 자동 거절한다(D10, 대기자 유지 없음)
+        Post post = application.getPost();
+        if (post.isInstrumentClosed(application.getInstrument())) {
+            rejectPendingByInstrument(post.getId(), application.getInstrument());
+        }
+    }
+
+    // 같은 글·같은 악기의 대기(PENDING) 지원을 모두 거절(REJECTED)하고 각 지원자에게 거절 알림 이벤트를 발행한다(D10·D12).
+    // 정원 마감(accept)과 수락자 없는 악기 삭제(글 수정)가 같이 쓰도록 한 곳에 둔다. 자동 거절된 지원은 REJECTED라
+    // 재지원이 막히며(D7), 이후 수락이 철회돼 자리가 다시 열려도 복구하지 않는다
+    @Transactional
+    public void rejectPendingByInstrument(Long postId, String instrument) {
+        applicationRepository.findByPostIdAndInstrumentAndStatus(postId, instrument, ApplicationStatus.PENDING)
+                .forEach(pending -> {
+                    pending.updateStatus(ApplicationStatus.REJECTED);
+                    eventPublisher.publishEvent(
+                            new ApplicationResultNotificationEvent(pending.getUser().getFcmToken(), false));
+                });
     }
 
     // 거절 (모집자, PENDING → REJECTED)
