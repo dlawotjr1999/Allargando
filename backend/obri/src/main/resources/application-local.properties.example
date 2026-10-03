@@ -1,6 +1,8 @@
 # cp 후 파일명에서 .example 제거 (application-local.properties), 실제 값으로 채울 것.
 # 이 파일 자체는 application.properties가 optional:classpath:application-local.properties로
 # 불러오는 로컬 전용 오버라이드다 — 운영 값은 여기 쓰지 않는다(환경변수로 주입).
+# bootRun·테스트는 이 파일과 classpath의 Firebase 키를 그대로 쓰지만, bootJar에는 둘 다 들어가지 않는다.
+# 로컬에서 jar로 실행할 때는 FIREBASE_CREDENTIALS_LOCATION=file:/키경로 와 DB_URL·DB_PASSWORD·KOPIS_SERVICE_KEY 환경변수를 지정한다.
 
 spring.datasource.url=jdbc:postgresql://localhost:5432/obri
 spring.datasource.username=postgres
