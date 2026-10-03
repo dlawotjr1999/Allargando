@@ -7,7 +7,6 @@ import com.obri_back.obri.user.dto.CareerDTO;
 import com.obri_back.obri.user.dto.UserPublicProfileDTO;
 import com.obri_back.obri.user.dto.UserResponseDTO;
 import com.obri_back.obri.user.dto.UserUpdateRequestDTO;
-import com.obri_back.obri.user.entity.Career;
 import com.obri_back.obri.user.entity.User;
 import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.user.repository.CareerRepository;
@@ -118,10 +117,7 @@ public class UserService {
         // 경력 전체 삭제 후 새로 insert
         if (request.getCareers() != null) {
             careerRepository.deleteByUserId(managedUser.getId());
-            List<Career> careers = request.getCareers().stream()
-                    .map(dto -> Career.of(managedUser, dto.getOrganization(), dto.getContexts()))
-                    .collect(Collectors.toList());
-            careerRepository.saveAll(careers);
+            careerRepository.saveAll(CareerDTO.toEntities(managedUser, request.getCareers()));
         }
 
         return UserResponseDTO.from(managedUser);

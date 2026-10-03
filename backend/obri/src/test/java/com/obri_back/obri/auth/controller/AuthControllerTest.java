@@ -170,6 +170,39 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    private org.springframework.test.web.servlet.ResultActions postRegisterWithCareers(String careersJson) throws Exception {
+        return mockMvc.perform(post("/api/auth/register")
+                .header("Authorization", "Bearer test-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{ \"nickname\": \"tester\", \"instrument\": \"바이올린\", \"careers\": " + careersJson + " }"));
+    }
+
+    // 가입 요청의 경력도 수정과 같은 검증을 받는다: 255자 초과·11개 초과는 400, 빈 값은 허용
+    @Test
+    void register_returns400WhenCareerTooLong() throws Exception {
+        postRegisterWithCareers("[{\"organization\": \"" + "a".repeat(256) + "\", \"contexts\": \"c\"}]")
+                .andExpect(status().isBadRequest());
+
+        verify(authService, never()).register(any(), any());
+    }
+
+    @Test
+    void register_returns400WhenMoreThanTenCareers() throws Exception {
+        String one = "{\"organization\": \"o\", \"contexts\": \"c\"}";
+
+        postRegisterWithCareers("[" + String.join(",", java.util.Collections.nCopies(11, one)) + "]")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void register_returns200WhenCareerFieldsAreBlank() throws Exception {
+        when(authService.register(any(), any())).thenReturn(
+                RegisterResponseDTO.builder().createdAt(LocalDateTime.of(2024, 1, 1, 0, 0)).build());
+
+        postRegisterWithCareers("[{\"organization\": \"\", \"contexts\": \"\"}]")
+                .andExpect(status().isOk());
+    }
+
     @Test
     void updateFcmToken_returns200() throws Exception {
         mockMvc.perform(patch("/api/auth/fcm-token")

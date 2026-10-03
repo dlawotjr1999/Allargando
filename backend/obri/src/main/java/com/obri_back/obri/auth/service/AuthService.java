@@ -11,6 +11,7 @@ import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.global.exception.ConflictGuard;
 import com.obri_back.obri.global.exception.NotFoundException;
 import com.obri_back.obri.global.exception.UnauthorizedException;
+import com.obri_back.obri.user.dto.CareerDTO;
 import com.obri_back.obri.user.entity.Career;
 import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.user.entity.User;
@@ -28,7 +29,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /*
  * 인증 관련 비즈니스 로직 처리
@@ -101,10 +101,8 @@ public class AuthService {
     // 유저와 경력을 한 트랜잭션으로 저장 — 둘 중 하나라도 실패하면 함께 롤백된다
     private User saveUserWithCareers(User user, RegisterRequestDTO request) {
         User saved = userRepository.save(user);
-        if (request.getCareers() != null && !request.getCareers().isEmpty()) {
-            List<Career> careers = request.getCareers().stream()
-                    .map(dto -> Career.of(saved, dto.getOrganization(), dto.getContexts()))
-                    .collect(Collectors.toList());
+        List<Career> careers = CareerDTO.toEntities(saved, request.getCareers());
+        if (!careers.isEmpty()) {
             careerRepository.saveAll(careers);
         }
         return saved;

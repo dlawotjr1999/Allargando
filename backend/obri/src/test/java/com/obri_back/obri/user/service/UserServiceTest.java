@@ -144,6 +144,39 @@ class UserServiceTest {
         assertThat(result.getInstrument()).isEqualTo("첼로");
     }
 
+    // 경력은 전체 삭제 후 재삽입하고, 내용이 없는 행은 저장하지 않는다
+    @Test
+    void updateMyInfo_replacesCareersAndSkipsEmptyRows() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
+
+        UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
+        given(request.getCareers()).willReturn(List.of(
+                CareerDTO.builder().organization("").contexts("").build(),
+                CareerDTO.builder().organization("밴드").contexts("").build()));
+
+        userService.updateMyInfo(mockUser, request);
+
+        InOrder inOrder = inOrder(careerRepository);
+        inOrder.verify(careerRepository).deleteByUserId(1L);
+        org.mockito.ArgumentCaptor<Iterable<Career>> captor = org.mockito.ArgumentCaptor.forClass(Iterable.class);
+        inOrder.verify(careerRepository).saveAll(captor.capture());
+        assertThat(captor.getValue()).hasSize(1);
+    }
+
+    // careers가 null이면 경력을 건드리지 않는다("경력 미변경")
+    @Test
+    void updateMyInfo_leavesCareersUntouchedWhenNull() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
+
+        UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
+        given(request.getCareers()).willReturn(null); // Mockito 목은 List를 빈 리스트로 돌려주므로 null을 명시한다
+
+        userService.updateMyInfo(mockUser, request);
+
+        verify(careerRepository, never()).deleteByUserId(any());
+        verify(careerRepository, never()).saveAll(any());
+    }
+
     // D3: 형식 위반 닉네임은 중복 검사 이전에 400(일반 문구)
     @Test
     void updateMyInfo_throwsBadRequestWhenNicknameInvalid() {

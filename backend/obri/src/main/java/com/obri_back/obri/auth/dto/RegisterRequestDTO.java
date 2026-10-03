@@ -1,7 +1,9 @@
 package com.obri_back.obri.auth.dto;
 
 import com.obri_back.obri.user.dto.CareerDTO;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -29,5 +31,7 @@ public class RegisterRequestDTO {
     @NotBlank(message = "악기를 입력해주세요")
     private String instrument;
 
+    @Valid
+    @Size(max = 10, message = "경력은 최대 10개까지 등록할 수 있습니다")
     private List<CareerDTO> careers;
 }

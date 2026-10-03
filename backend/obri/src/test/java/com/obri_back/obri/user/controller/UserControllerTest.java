@@ -122,6 +122,70 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.data.phoneNumber").doesNotExist());
     }
 
+    private String careersBody(String careersJson) {
+        return "{ \"nickname\": \"tester\", \"instrument\": \"바이올린\", \"careers\": " + careersJson + " }";
+    }
+
+    private static final String ONE_CAREER = "{\"organization\": \"o\", \"contexts\": \"c\"}";
+
+    private void stubUpdateOk() {
+        when(userService.updateMyInfo(any(User.class), any())).thenReturn(
+                UserResponseDTO.builder().id(1L).nickname("tester").careers(List.of()).build());
+    }
+
+    private org.springframework.test.web.servlet.ResultActions putCareers(String careersJson) throws Exception {
+        return mockMvc.perform(put("/api/users/me")
+                .with(authentication(auth))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(careersBody(careersJson)));
+    }
+
+    // 단체명·설명이 모두 비어 있어도 요청은 통과한다(혼자 연주한 경우를 허용, 빈 행 제거는 서비스가 한다)
+    @Test
+    void updateMyInfo_returns200WhenCareerFieldsAreBlank() throws Exception {
+        stubUpdateOk();
+
+        putCareers("[{\"organization\": \"\", \"contexts\": \"\"}]").andExpect(status().isOk());
+    }
+
+    // 255자 초과는 DB 오류(원인과 무관한 일반 409)가 아니라 입력 검증 400으로 막는다
+    @Test
+    void updateMyInfo_returns400WhenCareerOrganizationTooLong() throws Exception {
+        putCareers("[{\"organization\": \"" + "a".repeat(256) + "\", \"contexts\": \"c\"}]")
+                .andExpect(status().isBadRequest());
+
+        verify(userService, never()).updateMyInfo(any(), any());
+    }
+
+    @Test
+    void updateMyInfo_returns400WhenCareerContextsTooLong() throws Exception {
+        putCareers("[{\"organization\": \"o\", \"contexts\": \"" + "a".repeat(256) + "\"}]")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateMyInfo_returns200WhenCareerLengthIsExactly255() throws Exception {
+        stubUpdateOk();
+
+        putCareers("[{\"organization\": \"" + "a".repeat(255) + "\", \"contexts\": \"c\"}]")
+                .andExpect(status().isOk());
+    }
+
+    // 항목 수 상한: 10개는 통과, 11개는 400
+    @Test
+    void updateMyInfo_returns400WhenMoreThanTenCareers() throws Exception {
+        putCareers("[" + String.join(",", java.util.Collections.nCopies(11, ONE_CAREER)) + "]")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateMyInfo_returns200WhenExactlyTenCareers() throws Exception {
+        stubUpdateOk();
+
+        putCareers("[" + String.join(",", java.util.Collections.nCopies(10, ONE_CAREER)) + "]")
+                .andExpect(status().isOk());
+    }
+
     @Test
     void deleteUser_returns200() throws Exception {
         doNothing().when(userService).deleteUser(any(User.class));
