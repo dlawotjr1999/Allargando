@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { ColorValue, StyleSheet, View } from "react-native";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
@@ -15,7 +15,7 @@ function TabIcon({
   name: React.ComponentProps<typeof Ionicons>["name"];
   focusedName: React.ComponentProps<typeof Ionicons>["name"];
   focused: boolean;
-  color: string;
+  color: ColorValue;
   size: number;
 }) {
   return (
