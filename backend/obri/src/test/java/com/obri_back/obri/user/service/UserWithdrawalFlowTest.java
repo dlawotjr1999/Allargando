@@ -99,6 +99,8 @@ class UserWithdrawalFlowTest {
         UserBlock otherBlocksLeaver = em.persist(UserBlock.of(other, leaver));
         Report reportByLeaver = em.persist(
                 Report.create(leaver, ReportTargetType.POST, recruitersPost.getId(), ReportReason.SPAM, null));
+        Report reportAgainstLeaversPost = em.persist(
+                Report.create(other, ReportTargetType.POST, leaversPost.getId(), ReportReason.INAPPROPRIATE, "신고 설명"));
         Report reportAgainstLeaver = em.persist(
                 Report.create(other, ReportTargetType.USER, leaver.getId(), ReportReason.HARASSMENT, "상세"));
         // 탈퇴자와 무관한 신고·차단은 그대로 남아야 한다
@@ -120,6 +122,7 @@ class UserWithdrawalFlowTest {
         Long otherBlocksLeaverId = otherBlocksLeaver.getId();
         Long reportByLeaverId = reportByLeaver.getId();
         Long reportAgainstLeaverId = reportAgainstLeaver.getId();
+        Long reportAgainstLeaversPostId = reportAgainstLeaversPost.getId();
         Long unrelatedBlockId = unrelatedBlock.getId();
         Long unrelatedReportId = unrelatedReport.getId();
         // 영속성 컨텍스트를 비워, 서비스가 실제 운영처럼 DB에서 새로 로딩하게 한다(경력 컬렉션 cascade 포함)
@@ -140,6 +143,8 @@ class UserWithdrawalFlowTest {
         assertThat(em.find(UserBlock.class, otherBlocksLeaverId)).isNull();
         assertThat(em.find(Report.class, reportByLeaverId)).isNull();
         assertThat(em.find(Report.class, reportAgainstLeaverId)).isNull();
+        // 탈퇴자가 쓴 글을 대상으로 한 신고도 삭제(글보다 먼저 지워져야 글 id를 찾을 수 있다)
+        assertThat(em.find(Report.class, reportAgainstLeaversPostId)).isNull();
 
         // 탈퇴자와 무관한 신고·차단은 그대로
         assertThat(em.find(UserBlock.class, unrelatedBlockId)).isNotNull();

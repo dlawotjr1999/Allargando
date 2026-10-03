@@ -156,6 +156,6 @@ class ReportServiceTest {
     void onUserWithdrawal_deletesReportsMadeByAndAgainstUser() {
         reportService.onUserWithdrawal(new UserWithdrawalEvent(1L, "me-uid"));
 
-        verify(reportRepository).deleteAllInvolving(1L, ReportTargetType.USER);
+        verify(reportRepository).deleteAllInvolving(1L, ReportTargetType.USER, ReportTargetType.POST);
     }
 }
