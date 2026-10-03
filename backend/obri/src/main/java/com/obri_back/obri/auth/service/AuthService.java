@@ -167,6 +167,8 @@ public class AuthService {
      * 회원 탈퇴 후 Firebase 계정 삭제 — DB 삭제가 커밋된 뒤에만 실행(AFTER_COMMIT)
      * 롤백되면 이벤트가 버려져 DB엔 유저가 남았는데 Firebase 계정만 사라지는 일이 없다.
      * 삭제에 실패해도 탈퇴 자체는 이미 끝났으므로 예외를 던지지 않고 로그로만 남긴다(고아 계정 추적용).
+     * Firebase 예외뿐 아니라 RuntimeException도 같은 방식으로 처리한다 — 호출자에게 전파되는지는 Spring 동작에 달려 있어
+     * (H2 재현에서는 전파되지 않았다) 코드로 약속을 지킨다.
      * 이미 없는 계정(USER_NOT_FOUND)은 목적이 달성된 상태라 조용히 넘어간다.
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -178,15 +180,21 @@ public class AuthService {
                 return;
             }
             log.error("탈퇴 후 Firebase 계정 삭제 실패 — 고아 계정 발생 (firebaseUid={})", event.firebaseUid(), e);
+        } catch (RuntimeException e) {
+            // Firebase 앱 미초기화·네트워크 등 예상 밖의 실패도 탈퇴(이미 커밋됨)와 분리하고 같은 방식으로 추적한다
+            log.error("탈퇴 후 Firebase 계정 삭제 중 예상치 못한 오류 — 고아 계정 발생 (firebaseUid={})", event.firebaseUid(), e);
         }
     }
 
-    // Firebase 토큰 검증 및 디코딩
+    // Firebase 토큰 검증 및 디코딩 — register·updatePhoneNumber 전용(요청마다 도는 필터와 달리 드물게 호출됨)
+    // checkRevoked(true): 서명이 유효해도 폐기된 토큰·삭제/비활성화된 계정은 거절한다. 끄면 탈퇴 직후 최대 1시간 동안
+    // 삭제된 계정의 토큰으로 register가 유령 계정(로그인 불가한 DB 행)을 만들 수 있다. Firebase 삭제가 실패해 아직
+    // 살아 있는 계정은 DB 행이 없어도 통과하므로 재가입은 허용된다(D14).
     // IllegalArgumentException까지 잡는 이유: verifyIdToken은 토큰이 비어 있으면 FirebaseAuthException이
     // 아니라 IllegalArgumentException을 던진다. 놓치면 401이어야 할 요청이 500으로 새어 나간다.
     private FirebaseToken verifyToken(String idToken) {
         try {
-            return firebaseAuth.verifyIdToken(idToken);
+            return firebaseAuth.verifyIdToken(idToken, true);
         } catch (FirebaseAuthException | IllegalArgumentException e) {
             throw new UnauthorizedException("유효하지 않은 Firebase 토큰입니다");
         }

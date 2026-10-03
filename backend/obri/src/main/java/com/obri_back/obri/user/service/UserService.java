@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 /**
  * 유저 관련 비즈니스 로직 처리
- * 유저 정보 조회, 수정, 탈퇴 및 내 모집글/지원 목록 조회
+ * 유저 정보 조회, 수정, 탈퇴 (내 모집글/지원 목록은 각 도메인의 /me 엔드포인트가 소유)
  */
 @Service
 @RequiredArgsConstructor

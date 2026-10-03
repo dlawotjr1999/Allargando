@@ -127,6 +127,28 @@ class AuthControllerTest {
         verify(authService, never()).register(any(), any());
     }
 
+    // 헤더 누락도 형식 오류와 같은 401 — 클라이언트가 "인증 정보 문제"를 한 가지로 처리할 수 있다
+    @Test
+    void register_returns401WhenAuthorizationHeaderMissing() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"nickname\": \"tester\", \"instrument\": \"바이올린\" }"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401));
+
+        verify(authService, never()).register(any(), any());
+    }
+
+    @Test
+    void updatePhoneNumber_returns401WhenAuthorizationHeaderMissing() throws Exception {
+        mockMvc.perform(patch("/api/auth/phone-number")
+                        .with(authentication(auth)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401));
+
+        verify(authService, never()).updatePhoneNumber(any(), any());
+    }
+
     @Test
     void register_returns401WhenBearerTokenEmpty() throws Exception {
         mockMvc.perform(post("/api/auth/register")

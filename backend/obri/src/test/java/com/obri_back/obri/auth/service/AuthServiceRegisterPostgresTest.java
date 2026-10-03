@@ -80,7 +80,7 @@ class AuthServiceRegisterPostgresTest {
         when(decoded.getUid()).thenReturn(PREFIX + uid);
         when(decoded.getEmail()).thenReturn(email);
         when(decoded.getClaims()).thenReturn(Map.of("phone_number", phone));
-        when(firebaseAuth.verifyIdToken(token)).thenReturn(decoded);
+        when(firebaseAuth.verifyIdToken(token, true)).thenReturn(decoded);
     }
 
     private RegisterRequestDTO request(String nickname, List<CareerDTO> careers) {

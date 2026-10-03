@@ -65,7 +65,7 @@ class AuthServiceTest {
 
     @Test
     void register_savesUserWhenValid() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
@@ -82,7 +82,7 @@ class AuthServiceTest {
     // 유저와 경력은 같은 트랜잭션 콜백 안에서 저장된다
     @Test
     void register_savesUserAndCareersInSingleTransaction() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
@@ -99,7 +99,7 @@ class AuthServiceTest {
     // D6: 이미 가입된 uid로 다시 호출하면 409가 아니라 기존 결과를 반환하고, 저장·Firebase 삭제는 하지 않는다
     @Test
     void register_returnsExistingResultWhenUidAlreadyRegistered() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.findByFirebaseUid("test-uid"))
                 .willReturn(Optional.of(User.builder().firebaseUid("test-uid").build()));
 
@@ -114,7 +114,7 @@ class AuthServiceTest {
     // 저장 실패 시 Firebase 계정을 지우지 않는다 — 클라이언트가 같은 토큰으로 재시도한다(중복이 아닌 제약 위반은 그대로 전파)
     @Test
     void register_doesNotDeleteFirebaseAccountWhenSaveFails() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.save(any(User.class)))
                 .willThrow(new DataIntegrityViolationException("value too long"));
 
@@ -130,7 +130,7 @@ class AuthServiceTest {
     // 같은 uid의 동시 요청 중 늦은 쪽: UNIQUE 위반 뒤 재조회로 먼저 성공한 행을 찾아 성공으로 응답한다
     @Test
     void register_returnsExistingWhenConcurrentRequestWonUidRace() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.findByFirebaseUid("test-uid"))
                 .willReturn(Optional.empty())
                 .willReturn(Optional.of(User.builder().firebaseUid("test-uid").build()));
@@ -148,7 +148,7 @@ class AuthServiceTest {
     // 다른 uid가 전화번호를 먼저 가져간 경쟁: 사전 체크는 통과했지만 UNIQUE 위반 뒤 재검사에서 구체적인 409
     @Test
     void register_throwsConflictWhenPhoneNumberRaceLoses() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.existsByPhoneNumber("010-1234-5678")).willReturn(false).willReturn(true);
         given(userRepository.save(any(User.class)))
                 .willThrow(new DataIntegrityViolationException("duplicate key"));
@@ -166,7 +166,7 @@ class AuthServiceTest {
     // 닉네임 경쟁도 같은 방식으로 구체적인 409
     @Test
     void register_throwsConflictWhenNicknameRaceLoses() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.existsByNicknameIgnoreCase("tester")).willReturn(false).willReturn(true);
         given(userRepository.save(any(User.class)))
                 .willThrow(new DataIntegrityViolationException("duplicate key"));
@@ -182,7 +182,7 @@ class AuthServiceTest {
     // D3: 형식 위반·예약어 닉네임은 중복 검사·저장 이전에 400
     @Test
     void register_throwsBadRequestWhenNicknameInvalid() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("a/b");
@@ -196,7 +196,7 @@ class AuthServiceTest {
 
     @Test
     void register_throwsBadRequestWhenNicknameIsReserved() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("Admin");
@@ -210,7 +210,7 @@ class AuthServiceTest {
     // 중복 검사와 저장에는 정규화(trim+NFC)된 닉네임을 쓴다
     @Test
     void register_savesNormalizedNickname() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
@@ -225,9 +225,23 @@ class AuthServiceTest {
         verify(userRepository).existsByNicknameIgnoreCase("한글");
     }
 
+    // checkRevoked=true: 폐기·삭제된 계정의 토큰은 거절된다(탈퇴 직후 토큰으로 유령 계정이 생기는 것을 막음)
+    @Test
+    void register_verifiesTokenWithRevocationCheckAndRejectsRevokedToken() throws Exception {
+        given(firebaseAuth.verifyIdToken("revoked-token", true)).willThrow(mock(FirebaseAuthException.class));
+
+        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
+
+        assertThatThrownBy(() -> authService.register("revoked-token", request))
+                .isInstanceOf(UnauthorizedException.class);
+
+        verify(firebaseAuth).verifyIdToken("revoked-token", true);
+        verify(userRepository, never()).save(any());
+    }
+
     @Test
     void register_throwsConflictWhenEmailExists() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.existsByEmail("test@test.com")).willReturn(true);
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
@@ -242,7 +256,7 @@ class AuthServiceTest {
 
     @Test
     void register_throwsUnauthorizedWhenTokenInvalid() throws Exception {
-        given(firebaseAuth.verifyIdToken("invalid-token"))
+        given(firebaseAuth.verifyIdToken("invalid-token", true))
                 .willThrow(mock(FirebaseAuthException.class));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
@@ -257,7 +271,7 @@ class AuthServiceTest {
     @Test
     void register_skipsEmailCheckWhenEmailIsNull() throws Exception {
         given(mockToken.getEmail()).willReturn(null);
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
@@ -272,7 +286,7 @@ class AuthServiceTest {
 
     @Test
     void register_throwsConflictWhenNicknameExists() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("duplicated");
@@ -288,7 +302,7 @@ class AuthServiceTest {
     // claim도 바디도 없으면 저장 이전에 400 — 폴백 도입 후에도 최종 방어선은 유지된다
     @Test
     void register_throwsBadRequestWhenPhoneNumberMissingFromBothClaimAndBody() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(mockToken.getClaims()).willReturn(Map.of());
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
@@ -304,7 +318,7 @@ class AuthServiceTest {
     // [임시] Phone Auth 도입 전까지의 폴백 — claim이 없으면 요청 바디의 전화번호를 사용
     @Test
     void register_fallsBackToRequestPhoneNumberWhenClaimMissing() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(mockToken.getClaims()).willReturn(Map.of());
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
@@ -323,7 +337,7 @@ class AuthServiceTest {
     // claim이 있으면 바디 값보다 우선한다 — Phone Auth 도입 시 코드 수정 없이 전환되도록 보장
     @Test
     void register_prefersClaimOverRequestPhoneNumber() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
@@ -340,7 +354,7 @@ class AuthServiceTest {
     // 빈 토큰은 FirebaseAuthException이 아니라 IllegalArgumentException을 유발한다 — 500이 아닌 401이어야 함
     @Test
     void register_throwsUnauthorizedWhenTokenIsEmpty() throws Exception {
-        given(firebaseAuth.verifyIdToken("")).willThrow(new IllegalArgumentException("ID token must not be null or empty"));
+        given(firebaseAuth.verifyIdToken("", true)).willThrow(new IllegalArgumentException("ID token must not be null or empty"));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
 
@@ -352,7 +366,7 @@ class AuthServiceTest {
 
     @Test
     void register_throwsConflictWhenPhoneNumberExists() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.existsByPhoneNumber("010-1234-5678")).willReturn(true);
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
@@ -393,7 +407,7 @@ class AuthServiceTest {
 
     @Test
     void updatePhoneNumber_updatesWhenValidAndDifferent() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
 
         User user = User.builder().id(1L).build();
         User managedUser = mock(User.class);
@@ -408,7 +422,7 @@ class AuthServiceTest {
 
     @Test
     void updatePhoneNumber_doesNothingWhenSameAsCurrent() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
 
         User user = User.builder().id(1L).build();
         User managedUser = mock(User.class);
@@ -423,7 +437,7 @@ class AuthServiceTest {
 
     @Test
     void updatePhoneNumber_throwsBadRequestWhenClaimMissing() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(mockToken.getClaims()).willReturn(Map.of());
 
         User user = User.builder().id(1L).build();
@@ -437,7 +451,7 @@ class AuthServiceTest {
 
     @Test
     void updatePhoneNumber_throwsConflictWhenPhoneNumberExists() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
 
         User user = User.builder().id(1L).build();
         User managedUser = mock(User.class);
@@ -454,7 +468,7 @@ class AuthServiceTest {
 
     @Test
     void updatePhoneNumber_throwsUnauthorizedWhenTokenInvalid() throws Exception {
-        given(firebaseAuth.verifyIdToken("invalid-token"))
+        given(firebaseAuth.verifyIdToken("invalid-token", true))
                 .willThrow(mock(FirebaseAuthException.class));
 
         User user = User.builder().id(1L).build();
@@ -468,7 +482,7 @@ class AuthServiceTest {
 
     @Test
     void updatePhoneNumber_throwsNotFoundWhenUserMissing() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.findById(99L)).willReturn(Optional.empty());
 
         User user = User.builder().id(99L).build();
@@ -490,6 +504,15 @@ class AuthServiceTest {
     @Test
     void onUserWithdrawn_doesNotThrowWhenFirebaseDeletionFails() throws Exception {
         willThrow(mock(FirebaseAuthException.class)).given(firebaseAuth).deleteUser("test-uid");
+
+        assertThatCode(() -> authService.onUserWithdrawn(new UserWithdrawalEvent(1L, "test-uid")))
+                .doesNotThrowAnyException();
+    }
+
+    // Firebase 예외가 아닌 예상 밖의 실패(앱 미초기화·네트워크 등)도 탈퇴와 분리한다
+    @Test
+    void onUserWithdrawn_doesNotThrowWhenUnexpectedRuntimeExceptionOccurs() throws Exception {
+        willThrow(new IllegalStateException("FirebaseApp is not initialized")).given(firebaseAuth).deleteUser("test-uid");
 
         assertThatCode(() -> authService.onUserWithdrawn(new UserWithdrawalEvent(1L, "test-uid")))
                 .doesNotThrowAnyException();
