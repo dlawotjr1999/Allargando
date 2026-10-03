@@ -21,11 +21,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /*
  * KOPIS 동기화 오케스트레이션 — 오늘부터 SYNC_MONTHS_AHEAD개월 이내, 음악 계열 장르(GENRE_CODES)의
  * 공연을 장르별·페이지 단위로 가져와 신규 저장·기존 갱신을 수행한다. 목록 응답만으로 Concert 저장에
- * 필요한 필드가 전부 채워져(콩쿠르 크롤러와 달리) 상세 조회가 없고, 빈 페이지를 만나면 그 장르는 끝난
+ * 필요한 필드가 전부 채워져 상세 조회가 없고, 빈 페이지를 만나면 그 장르는 끝난
  * 것으로 본다. 조회 실패는 빈 페이지와 구분해 그 장르만 중단·실패로 기록하고, 모든 장르가 실패하면
  * 정상 종료로 보이지 않도록 예외를 던진다.
  * KOPIS API가 장르(shcate) 다중값을 지원하지 않아 장르 하나당 별도로 전체 페이지를 순회한다.
- * 스케줄러·수동 트리거가 공유하는 진입점이라 동시 실행은 AtomicBoolean으로 차단(ConcoursCrawlerService와 동일 패턴)
+ * 스케줄러·수동 트리거가 공유하는 진입점이라 동시 실행은 AtomicBoolean으로 차단
  */
 @Slf4j
 @Service
@@ -34,6 +34,8 @@ public class KopisSyncService {
 
     private static final DateTimeFormatter KOPIS_QUERY_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final int SYNC_MONTHS_AHEAD = 6;
+    // 종료된 지 이 일수가 지난 공연은 동기화 때 삭제한다(D18). 목록 조회는 종료된 공연을 이미 가리므로 노출과 무관한 정리다
+    private static final int RETENTION_DAYS_AFTER_END = 90;
     private static final int ROWS_PER_PAGE = 100;
     // 안전판 — 6개월치 공연이 장르당 5000건(50페이지 x 100건)을 넘길 일은 없다고 봄
     private static final int HARD_CAP_PAGE = 50;
@@ -93,8 +95,22 @@ public class KopisSyncService {
         if (!failedGenres.isEmpty()) {
             log.warn("KOPIS 동기화 일부 실패 — 실패 장르 {}", failedGenres);
         }
+        purgeExpiredConcerts();
         log.info("KOPIS 동기화 완료 — 신규 {}건 저장, 기존 {}건 갱신, 건너뜀 {}건", newCount, updatedCount, skippedCount);
         return newCount;
+    }
+
+    // 종료 90일이 지난 공연 삭제 — end_date 기준이라 일부 장르가 실패한 회차에도 안전하다(syncedAt은 기준으로 쓰지 않는다).
+    // 정리 실패가 동기화 결과를 뒤집지 않도록 예외는 로그로만 남긴다
+    private void purgeExpiredConcerts() {
+        try {
+            int deleted = concertRepository.deleteByEndDateBefore(LocalDate.now().minusDays(RETENTION_DAYS_AFTER_END));
+            if (deleted > 0) {
+                log.info("종료된 지 {}일이 지난 공연 {}건 삭제", RETENTION_DAYS_AFTER_END, deleted);
+            }
+        } catch (RuntimeException e) {
+            log.warn("종료 공연 정리 실패 — 다음 동기화에서 다시 시도", e);
+        }
     }
 
     // failed = 목록 조회 실패(잘못된 키·네트워크·오류 응답)로 중단한 장르. 빈 페이지로 정상 종료한 장르는 false

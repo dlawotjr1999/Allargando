@@ -13,9 +13,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /*
- * 클래식 연주회 엔티티 — KOPIS(공연예술통합전산망) 오픈API 동기화 결과, 조회 전용 데이터.
- * 콩쿠르(Concours)와 달리 "접수 마감" 개념이 없고(이미 일정이 확정된 공연), 대신 공연장·지역·
- * 포스터가 새로 생겼다. externalId(KOPIS mt20id)를 upsert 기준 키로 쓴다.
+ * 연주회 엔티티 — KOPIS(공연예술통합전산망) 오픈API 동기화 결과, 조회 전용 데이터.
+ * 이미 일정이 확정된 공연이라 접수 마감 개념이 없고, 공연장·지역·포스터를 가진다.
+ * externalId(KOPIS mt20id)를 upsert 기준 키로 쓰고, 종료 90일이 지난 행은 동기화 때 삭제된다.
  */
 @Getter
 @NoArgsConstructor
@@ -33,8 +33,7 @@ public class Concert {
     @Column(name = "title", nullable = false)
     private String title;
 
-    // KOPIS 장르명(genrenm). shcate=CCCA(서양음악/클래식)로만 조회하므로 사실상 항상 같은 값이지만,
-    // 추후 장르를 넓힐 가능성을 대비해 원본 값을 그대로 보관
+    // KOPIS 장르명(genrenm) 원본 값 — 서양음악(클래식)·한국음악(국악)·대중음악. 프론트 카테고리 필터와 완전 일치로 비교한다
     @Column(name = "category")
     private String category;
 

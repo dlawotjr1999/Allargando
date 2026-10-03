@@ -19,7 +19,7 @@ import java.util.List;
 
 /*
  * 연주회 관련 비즈니스 로직
- * 조회(전체/단건) 전용 — 데이터는 KopisSyncService가 채움(ConcoursService와 동일 역할)
+ * 조회(전체/단건) 전용 — 데이터는 KopisSyncService가 채움
  */
 @Service
 @RequiredArgsConstructor
