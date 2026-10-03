@@ -1,5 +1,6 @@
 package com.obri_back.obri.user.service;
 
+import com.obri_back.obri.global.exception.ConflictException;
 import com.obri_back.obri.global.exception.ConflictGuard;
 import com.obri_back.obri.global.exception.NotFoundException;
 import com.obri_back.obri.user.dto.CareerDTO;
@@ -13,6 +14,7 @@ import com.obri_back.obri.user.repository.CareerRepository;
 import com.obri_back.obri.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,7 +62,7 @@ public class UserService {
     }
 
     /*
-     * 닉네임으로 managed User 조회 — 닉네임(UNIQUE)만 아는 화면에서 신고·차단 대상을 지정할 때 쓰는 진입점.
+     * 닉네임으로 managed User 조회 — 닉네임(대소문자 무시 UNIQUE)만 아는 화면에서 신고·차단 대상을 지정할 때 쓰는 진입점.
      * 다른 도메인이 UserRepository를 직접 찌르지 않도록 이 메서드를 경유시킨다.
      *
      * @param nickname 조회할 유저의 닉네임
@@ -68,7 +70,7 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public User getManagedUserByNickname(String nickname) {
-        return userRepository.findByNickname(nickname)
+        return userRepository.findByNicknameIgnoreCase(NicknamePolicy.normalize(nickname))
                 .orElseThrow(() -> new NotFoundException("유저를 찾을 수 없습니다"));
     }
 
@@ -81,7 +83,7 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public UserPublicProfileDTO getUserProfile(String nickname) {
-        User user = userRepository.findByNickname(nickname)
+        User user = userRepository.findByNicknameIgnoreCase(NicknamePolicy.normalize(nickname))
                 .orElseThrow(() -> new NotFoundException("유저를 찾을 수 없습니다"));
         return UserPublicProfileDTO.from(user);
     }
@@ -99,14 +101,19 @@ public class UserService {
     public UserResponseDTO updateMyInfo(User user, UserUpdateRequestDTO request) {
         User managedUser = getManagedUserById(user.getId());
 
-        // 닉네임 변경 시 중복 체크
-        if (request.getNickname() != null && !request.getNickname().equals(managedUser.getNickname())) {
+        // 닉네임이 오면 정규화·형식 검증(D3). 대소문자만 바꾸는 변경은 본인 행이라 중복 검사를 건너뛴다
+        String nickname = request.getNickname() == null ? null : NicknamePolicy.normalizeAndValidate(request.getNickname());
+        boolean nicknameChanged = nickname != null && !nickname.equals(managedUser.getNickname());
+        if (nicknameChanged && !nickname.equalsIgnoreCase(managedUser.getNickname())) {
             ConflictGuard.requireUnique(
-                    userRepository.existsByNickname(request.getNickname()), "이미 사용 중인 닉네임입니다");
+                    userRepository.existsByNicknameIgnoreCase(nickname), "이미 사용 중인 닉네임입니다");
         }
 
         // 유저 정보 수정
-        managedUser.updateInfo(request.getNickname(), request.getInstrument());
+        managedUser.updateInfo(nickname, request.getInstrument());
+        if (nicknameChanged) {
+            flushNicknameChange();
+        }
 
         // 경력 전체 삭제 후 새로 insert
         if (request.getCareers() != null) {
@@ -118,6 +125,16 @@ public class UserService {
         }
 
         return UserResponseDTO.from(managedUser);
+    }
+
+    // 닉네임 변경을 즉시 flush해 사전 체크를 둘 다 통과한 동시 요청의 UNIQUE 위반(lower(nickname))을 닉네임 409로 바꾼다
+    // (flush하지 않으면 위반이 커밋 시점에 터져 원인과 무관한 일반 409 메시지가 된다)
+    private void flushNicknameChange() {
+        try {
+            userRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictException("이미 사용 중인 닉네임입니다");
+        }
     }
 
     /*
@@ -152,13 +169,14 @@ public class UserService {
     }
 
     /*
-     * 닉네임 중복 체크
+     * 닉네임 중복 체크 — 가입·수정과 같은 규칙으로 정규화·검증한 뒤(대소문자 무시) 중복을 확인한다
      *
      * @param nickname 중복 확인할 닉네임
      * @return 중복 여부
+     * @throws com.obri_back.obri.global.exception.BadRequestException 형식 위반·예약어(400)
      */
     @Transactional(readOnly = true)
     public boolean checkNickname(String nickname) {
-        return userRepository.existsByNickname(nickname);
+        return userRepository.existsByNicknameIgnoreCase(NicknamePolicy.normalizeAndValidate(nickname));
     }
 }

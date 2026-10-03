@@ -167,7 +167,7 @@ class AuthServiceTest {
     @Test
     void register_throwsConflictWhenNicknameRaceLoses() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
-        given(userRepository.existsByNickname("tester")).willReturn(false).willReturn(true);
+        given(userRepository.existsByNicknameIgnoreCase("tester")).willReturn(false).willReturn(true);
         given(userRepository.save(any(User.class)))
                 .willThrow(new DataIntegrityViolationException("duplicate key"));
 
@@ -177,6 +177,52 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("이미 사용 중인 닉네임입니다");
+    }
+
+    // D3: 형식 위반·예약어 닉네임은 중복 검사·저장 이전에 400
+    @Test
+    void register_throwsBadRequestWhenNicknameInvalid() throws Exception {
+        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+
+        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
+        given(request.getNickname()).willReturn("a/b");
+
+        assertThatThrownBy(() -> authService.register("valid-token", request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("사용할 수 없는 닉네임입니다");
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void register_throwsBadRequestWhenNicknameIsReserved() throws Exception {
+        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+
+        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
+        given(request.getNickname()).willReturn("Admin");
+
+        assertThatThrownBy(() -> authService.register("valid-token", request))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    // 중복 검사와 저장에는 정규화(trim+NFC)된 닉네임을 쓴다
+    @Test
+    void register_savesNormalizedNickname() throws Exception {
+        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+
+        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
+        given(request.getNickname()).willReturn(" " + java.text.Normalizer.normalize("한글", java.text.Normalizer.Form.NFD) + " ");
+        given(request.getCareers()).willReturn(null);
+
+        authService.register("valid-token", request);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertThat(captor.getValue().getNickname()).isEqualTo("한글");
+        verify(userRepository).existsByNicknameIgnoreCase("한글");
     }
 
     @Test
@@ -230,7 +276,7 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("duplicated");
-        given(userRepository.existsByNickname("duplicated")).willReturn(true);
+        given(userRepository.existsByNicknameIgnoreCase("duplicated")).willReturn(true);
 
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(ConflictException.class)
@@ -310,6 +356,7 @@ class AuthServiceTest {
         given(userRepository.existsByPhoneNumber("010-1234-5678")).willReturn(true);
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
+        given(request.getNickname()).willReturn("tester");
 
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(ConflictException.class)

@@ -16,6 +16,7 @@ import com.obri_back.obri.user.event.UserWithdrawalEvent;
 import com.obri_back.obri.user.entity.User;
 import com.obri_back.obri.user.repository.CareerRepository;
 import com.obri_back.obri.user.repository.UserRepository;
+import com.obri_back.obri.user.service.NicknamePolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -71,12 +72,14 @@ public class AuthService {
         if (existing.isPresent()) {
             return RegisterResponseDTO.from(existing.get());
         }
-        requireNoDuplicateFields(email, phoneNumber, request.getNickname());
+        // 닉네임은 정규화·형식 검증(D3) 후 그 값으로 중복 검사·저장한다
+        String nickname = NicknamePolicy.normalizeAndValidate(request.getNickname());
+        requireNoDuplicateFields(email, phoneNumber, nickname);
 
         User user = User.builder()
                 .firebaseUid(firebaseUid)
                 .email(email)
-                .nickname(request.getNickname())
+                .nickname(nickname)
                 .phoneNumber(phoneNumber)
                 .instrument(request.getInstrument())
                 .build();
@@ -90,7 +93,7 @@ public class AuthService {
             if (concurrent.isPresent()) {
                 return RegisterResponseDTO.from(concurrent.get());
             }
-            requireNoDuplicateFields(email, phoneNumber, request.getNickname());
+            requireNoDuplicateFields(email, phoneNumber, nickname);
             throw e; // 중복이 아닌 제약 위반(길이 등)은 그대로 올려 GlobalExceptionHandler에 맡긴다
         }
     }
@@ -118,7 +121,7 @@ public class AuthService {
         ConflictGuard.requireUnique(
                 userRepository.existsByPhoneNumber(phoneNumber), "이미 가입된 전화번호입니다");
         ConflictGuard.requireUnique(
-                userRepository.existsByNickname(nickname), "이미 사용 중인 닉네임입니다");
+                userRepository.existsByNicknameIgnoreCase(nickname), "이미 사용 중인 닉네임입니다");
     }
 
     /*

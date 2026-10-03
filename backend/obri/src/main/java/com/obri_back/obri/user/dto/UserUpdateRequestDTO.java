@@ -1,6 +1,5 @@
 package com.obri_back.obri.user.dto;
 
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -14,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 public class UserUpdateRequestDTO {
 
-    @Size(min = 2, max = 20, message = "닉네임은 2~20자 사이여야 합니다")
+    // 형식(한글·영문·숫자·_ 2~20자)·예약어 검증은 NFC 정규화 뒤에 해야 하므로 DTO가 아니라 NicknamePolicy가 한다
     private String nickname;
 
     private String instrument;
