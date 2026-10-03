@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ObriApp",
+    "name": "Poco a Poco",
     "slug": "ObriApp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,7 +14,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#264174",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png",
@@ -35,9 +35,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#264174",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#264174"
           }
         }
       ],

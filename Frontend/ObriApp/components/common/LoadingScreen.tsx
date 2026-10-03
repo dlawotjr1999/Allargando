@@ -41,7 +41,7 @@ export default function LoadingScreen() {
       {/* 전체를 흰색으로 덮어 채도를 낮추고 파스텔 톤으로 만든다 */}
       <View
         pointerEvents="none"
-        style={[StyleSheet.absoluteFillObject, { backgroundColor: `rgba(255,255,255,${PASTEL_OVERLAY})` }]}
+        style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(255,255,255,${PASTEL_OVERLAY})` }]}
       />
 
       <View style={[styles.content, { paddingTop: screenHeight * 0.1 }]}>

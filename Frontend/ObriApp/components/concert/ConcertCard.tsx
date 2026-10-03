@@ -45,7 +45,7 @@ export default function ConcertCard({ concert, onPress }: ConcertCardProps) {
         </View>
 
         <View style={styles.badgeRow}>
-          <Tag label={concert.category} />
+          <Tag label={concert.category} variant="accent" />
         </View>
 
         <IconText icon="location-outline" text={concert.venue} />

@@ -67,13 +67,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: colors.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    backgroundColor: colors.accent,
   },
   categoryText: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: colors.primary,
     fontWeight: "600",
   },
   statusBadge: {

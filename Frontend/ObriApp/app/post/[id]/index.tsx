@@ -249,7 +249,7 @@ export default function PostDetailScreen() {
             <Ionicons name="musical-note" size={36} color={colors.primaryLight} />
           </View>
           <View style={styles.categoryRow}>
-            <Tag label={post.category} variant="filled" />
+            <Tag label={post.category} variant="accent" />
             {isClosed && <Tag label="마감" />}
           </View>
           <Text style={styles.title}>{post.title}</Text>
