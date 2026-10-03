@@ -186,6 +186,38 @@ class UserControllerTest {
                 .andExpect(status().isOk());
     }
 
+    private org.springframework.test.web.servlet.ResultActions putBody(String body) throws Exception {
+        return mockMvc.perform(put("/api/users/me")
+                .with(authentication(auth))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(body));
+    }
+
+    // 수정도 가입과 같이 닉네임·악기가 필수다(null·빈 문자열·공백은 400)
+    @Test
+    void updateMyInfo_returns400WhenNicknameMissingOrBlank() throws Exception {
+        putBody("{ \"instrument\": \"바이올린\" }").andExpect(status().isBadRequest());
+        putBody("{ \"nickname\": \"   \", \"instrument\": \"바이올린\" }").andExpect(status().isBadRequest());
+
+        verify(userService, never()).updateMyInfo(any(), any());
+    }
+
+    @Test
+    void updateMyInfo_returns400WhenInstrumentMissingOrBlank() throws Exception {
+        putBody("{ \"nickname\": \"tester\" }").andExpect(status().isBadRequest());
+        putBody("{ \"nickname\": \"tester\", \"instrument\": \"\" }").andExpect(status().isBadRequest());
+
+        verify(userService, never()).updateMyInfo(any(), any());
+    }
+
+    // careers를 보내지 않는 것은 허용 — 경력은 미변경(닉네임·악기만 수정)
+    @Test
+    void updateMyInfo_returns200WhenCareersOmitted() throws Exception {
+        stubUpdateOk();
+
+        putBody("{ \"nickname\": \"tester\", \"instrument\": \"첼로\" }").andExpect(status().isOk());
+    }
+
     @Test
     void deleteUser_returns200() throws Exception {
         doNothing().when(userService).deleteUser(any(User.class));

@@ -89,8 +89,8 @@ public class UserService {
 
     /*
      * 내 정보 수정
-     * 수정 요청의 모든 필드를 한 번에 반영 (PUT 방식)
-     * careers는 기존 데이터 전체 삭제 후 새로 insert
+     * 닉네임·악기를 한 번에 반영 (PUT 방식, 둘 다 필수)
+     * careers는 보내면 기존 데이터 전체 삭제 후 새로 insert, null이면 경력만 건드리지 않음
      *
      * @param user    현재 로그인한 유저(필터가 조회한 detached 엔티티일 수 있음 — 내부에서 managed 재조회)
      * @param request 수정 요청 DTO
@@ -100,9 +100,9 @@ public class UserService {
     public UserResponseDTO updateMyInfo(User user, UserUpdateRequestDTO request) {
         User managedUser = getManagedUserById(user.getId());
 
-        // 닉네임이 오면 정규화·형식 검증(D3). 대소문자만 바꾸는 변경은 본인 행이라 중복 검사를 건너뛴다
-        String nickname = request.getNickname() == null ? null : NicknamePolicy.normalizeAndValidate(request.getNickname());
-        boolean nicknameChanged = nickname != null && !nickname.equals(managedUser.getNickname());
+        // 닉네임은 정규화·형식 검증(D3). 대소문자만 바꾸는 변경은 본인 행이라 중복 검사를 건너뛴다
+        String nickname = NicknamePolicy.normalizeAndValidate(request.getNickname());
+        boolean nicknameChanged = !nickname.equals(managedUser.getNickname());
         if (nicknameChanged && !nickname.equalsIgnoreCase(managedUser.getNickname())) {
             ConflictGuard.requireUnique(
                     userRepository.existsByNicknameIgnoreCase(nickname), "이미 사용 중인 닉네임입니다");

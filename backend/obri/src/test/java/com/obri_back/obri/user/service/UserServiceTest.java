@@ -150,6 +150,8 @@ class UserServiceTest {
         given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
+        given(request.getNickname()).willReturn("tester");
+        given(request.getInstrument()).willReturn("바이올린");
         given(request.getCareers()).willReturn(List.of(
                 CareerDTO.builder().organization("").contexts("").build(),
                 CareerDTO.builder().organization("밴드").contexts("").build()));
@@ -169,6 +171,8 @@ class UserServiceTest {
         given(userRepository.findById(1L)).willReturn(Optional.of(mockUser));
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
+        given(request.getNickname()).willReturn("tester");
+        given(request.getInstrument()).willReturn("바이올린");
         given(request.getCareers()).willReturn(null); // Mockito 목은 List를 빈 리스트로 돌려주므로 null을 명시한다
 
         userService.updateMyInfo(mockUser, request);
@@ -200,6 +204,7 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn(java.text.Normalizer.normalize("한글", java.text.Normalizer.Form.NFD));
+        given(request.getInstrument()).willReturn("바이올린");
 
         UserResponseDTO result = userService.updateMyInfo(mockUser, request);
 
@@ -213,6 +218,7 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn("Tester");
+        given(request.getInstrument()).willReturn("바이올린");
 
         UserResponseDTO result = userService.updateMyInfo(mockUser, request);
 
@@ -229,6 +235,7 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn("newname");
+        given(request.getInstrument()).willReturn("바이올린");
 
         assertThatThrownBy(() -> userService.updateMyInfo(mockUser, request))
                 .isInstanceOf(ConflictException.class)
