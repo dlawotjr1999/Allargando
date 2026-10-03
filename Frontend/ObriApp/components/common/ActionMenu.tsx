@@ -72,6 +72,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   danger: {
-    color: "#C0392B",
+    color: colors.danger,
   },
 });

@@ -4,17 +4,14 @@ import { colors } from "@/constants/theme";
 
 interface TagProps {
   label: string;
-  variant?: "filled" | "outline";
+  variant?: "filled" | "outline" | "accent";
 }
 
 // 읽기 전용 라벨 칩. 카테고리 뱃지·악기 표시 등에 재사용.
-// (선택 가능한 칩은 ChipSelect를 사용)
+// accent는 벚꽃 분홍 바탕의 강조 뱃지(카테고리 등). (선택 가능한 칩은 ChipSelect를 사용)
 export default function Tag({ label, variant = "outline" }: TagProps) {
-  const isFilled = variant === "filled";
   return (
-    <Text
-      style={[styles.base, isFilled ? styles.filled : styles.outline]}
-    >
+    <Text style={[styles.base, styles[variant]]}>
       {label}
     </Text>
   );
@@ -37,5 +34,10 @@ const styles = StyleSheet.create({
   filled: {
     backgroundColor: colors.primary,
     color: colors.background,
+  },
+  accent: {
+    backgroundColor: colors.accent,
+    color: colors.primary,
+    fontWeight: "600",
   },
 });

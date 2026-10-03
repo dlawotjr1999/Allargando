@@ -55,7 +55,7 @@ export default function ConcertDetailModal({ concert, onClose }: ConcertDetailMo
               </Text>
 
               <View style={styles.badgeRow}>
-                {concert && <Tag label={concert.category} />}
+                {concert && <Tag label={concert.category} variant="accent" />}
               </View>
 
               <View style={styles.divider} />

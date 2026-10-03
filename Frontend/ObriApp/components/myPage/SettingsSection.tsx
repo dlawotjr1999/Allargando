@@ -93,7 +93,7 @@ export default function SettingsSection({
         activeOpacity={0.7}
       >
         <View style={styles.settingsLeft}>
-          <Ionicons name="person-remove-outline" size={16} color="#C0392B" />
+          <Ionicons name="person-remove-outline" size={16} color={colors.danger} />
           <Text style={[styles.settingsText, styles.settingsDanger]}>회원탈퇴</Text>
         </View>
         <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   settingsDanger: {
-    color: "#C0392B",
+    color: colors.danger,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
