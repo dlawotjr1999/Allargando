@@ -10,12 +10,14 @@ import com.obri_back.obri.auth.dto.RegisterRequestDTO;
 import com.obri_back.obri.global.exception.ConflictException;
 import com.obri_back.obri.global.exception.NotFoundException;
 import com.obri_back.obri.global.exception.BadRequestException;
-import com.obri_back.obri.global.exception.RegistrationFailedException;
 import com.obri_back.obri.global.exception.UnauthorizedException;
+import com.obri_back.obri.user.dto.CareerDTO;
 import com.obri_back.obri.user.entity.User;
 import com.obri_back.obri.user.repository.CareerRepository;
 import com.obri_back.obri.user.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +26,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Map;
 
@@ -42,6 +45,7 @@ class AuthServiceTest {
     @Mock FirebaseAuth firebaseAuth;
     @Mock UserRepository userRepository;
     @Mock CareerRepository careerRepository;
+    @Mock TransactionTemplate transactionTemplate;
 
     @InjectMocks AuthService authService;
 
@@ -54,16 +58,15 @@ class AuthServiceTest {
         lenient().when(mockToken.getEmail()).thenReturn("test@test.com");
         lenient().when(mockToken.getClaims())
                 .thenReturn(Map.of("phone_number", "010-1234-5678"));
+        // TransactionTemplate은 콜백을 그대로 실행하는 것으로 대체(트랜잭션 자체는 통합 테스트 영역)
+        lenient().when(transactionTemplate.execute(any()))
+                .thenAnswer(inv -> inv.<TransactionCallback<?>>getArgument(0).doInTransaction(null));
     }
 
     @Test
     void register_savesUserWhenValid() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
-        given(userRepository.existsByFirebaseUid("test-uid")).willReturn(false);
-        given(userRepository.existsByEmail("test@test.com")).willReturn(false);
-        given(userRepository.existsByPhoneNumber("010-1234-5678")).willReturn(false);
-        given(userRepository.existsByNickname(any())).willReturn(false);
-        given(userRepository.saveAndFlush(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
@@ -72,47 +75,123 @@ class AuthServiceTest {
         authService.register("valid-token", request);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, times(1)).saveAndFlush(captor.capture());
+        verify(userRepository, times(1)).save(captor.capture());
         assertThat(captor.getValue().getPhoneNumber()).isEqualTo("010-1234-5678");
     }
 
+    // 유저와 경력은 같은 트랜잭션 콜백 안에서 저장된다
     @Test
-    void register_rollsBackFirebaseWhenSaveFails() throws Exception {
+    void register_savesUserAndCareersInSingleTransaction() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
-        given(userRepository.existsByFirebaseUid("test-uid")).willReturn(false);
-        given(userRepository.existsByEmail("test@test.com")).willReturn(false);
-        given(userRepository.existsByPhoneNumber("010-1234-5678")).willReturn(false);
-        given(userRepository.existsByNickname(any())).willReturn(false);
-        given(userRepository.saveAndFlush(any(User.class)))
+        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+
+        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
+        given(request.getNickname()).willReturn("tester");
+        given(request.getCareers()).willReturn(List.of(
+                CareerDTO.builder().organization("오케스트라").contexts("바이올린 파트").build()));
+
+        authService.register("valid-token", request);
+
+        verify(transactionTemplate, times(1)).execute(any());
+        verify(careerRepository, times(1)).saveAll(any());
+    }
+
+    // D6: 이미 가입된 uid로 다시 호출하면 409가 아니라 기존 결과를 반환하고, 저장·Firebase 삭제는 하지 않는다
+    @Test
+    void register_returnsExistingResultWhenUidAlreadyRegistered() throws Exception {
+        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(userRepository.findByFirebaseUid("test-uid"))
+                .willReturn(Optional.of(User.builder().firebaseUid("test-uid").build()));
+
+        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
+
+        assertThatCode(() -> authService.register("valid-token", request)).doesNotThrowAnyException();
+
+        verify(userRepository, never()).save(any());
+        verify(firebaseAuth, never()).deleteUser(anyString());
+    }
+
+    // 저장 실패 시 Firebase 계정을 지우지 않는다 — 클라이언트가 같은 토큰으로 재시도한다(중복이 아닌 제약 위반은 그대로 전파)
+    @Test
+    void register_doesNotDeleteFirebaseAccountWhenSaveFails() throws Exception {
+        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(userRepository.save(any(User.class)))
+                .willThrow(new DataIntegrityViolationException("value too long"));
+
+        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
+        given(request.getNickname()).willReturn("tester");
+
+        assertThatThrownBy(() -> authService.register("valid-token", request))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        verify(firebaseAuth, never()).deleteUser(anyString());
+    }
+
+    // 같은 uid의 동시 요청 중 늦은 쪽: UNIQUE 위반 뒤 재조회로 먼저 성공한 행을 찾아 성공으로 응답한다
+    @Test
+    void register_returnsExistingWhenConcurrentRequestWonUidRace() throws Exception {
+        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(userRepository.findByFirebaseUid("test-uid"))
+                .willReturn(Optional.empty())
+                .willReturn(Optional.of(User.builder().firebaseUid("test-uid").build()));
+        given(userRepository.save(any(User.class)))
+                .willThrow(new DataIntegrityViolationException("duplicate key"));
+
+        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
+        given(request.getNickname()).willReturn("tester");
+
+        assertThatCode(() -> authService.register("valid-token", request)).doesNotThrowAnyException();
+
+        verify(firebaseAuth, never()).deleteUser(anyString());
+    }
+
+    // 다른 uid가 전화번호를 먼저 가져간 경쟁: 사전 체크는 통과했지만 UNIQUE 위반 뒤 재검사에서 구체적인 409
+    @Test
+    void register_throwsConflictWhenPhoneNumberRaceLoses() throws Exception {
+        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(userRepository.existsByPhoneNumber("010-1234-5678")).willReturn(false).willReturn(true);
+        given(userRepository.save(any(User.class)))
                 .willThrow(new DataIntegrityViolationException("duplicate key"));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
 
         assertThatThrownBy(() -> authService.register("valid-token", request))
-                .isInstanceOf(RegistrationFailedException.class)
-                .hasMessage("회원가입 중 오류가 발생했습니다");
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("이미 가입된 전화번호입니다");
 
-        verify(firebaseAuth, times(1)).deleteUser("test-uid");
+        verify(firebaseAuth, never()).deleteUser(anyString());
+    }
+
+    // 닉네임 경쟁도 같은 방식으로 구체적인 409
+    @Test
+    void register_throwsConflictWhenNicknameRaceLoses() throws Exception {
+        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
+        given(userRepository.existsByNickname("tester")).willReturn(false).willReturn(true);
+        given(userRepository.save(any(User.class)))
+                .willThrow(new DataIntegrityViolationException("duplicate key"));
+
+        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
+        given(request.getNickname()).willReturn("tester");
+
+        assertThatThrownBy(() -> authService.register("valid-token", request))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("이미 사용 중인 닉네임입니다");
     }
 
     @Test
-    void register_stillThrowsWhenFirebaseRollbackAlsoFails() throws Exception {
+    void register_throwsConflictWhenEmailExists() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
-        given(userRepository.existsByFirebaseUid("test-uid")).willReturn(false);
-        given(userRepository.existsByEmail("test@test.com")).willReturn(false);
-        given(userRepository.existsByPhoneNumber("010-1234-5678")).willReturn(false);
-        given(userRepository.existsByNickname(any())).willReturn(false);
-        given(userRepository.saveAndFlush(any(User.class)))
-                .willThrow(new DataIntegrityViolationException("duplicate key"));
-        willThrow(mock(FirebaseAuthException.class)).given(firebaseAuth).deleteUser("test-uid");
+        given(userRepository.existsByEmail("test@test.com")).willReturn(true);
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
 
         assertThatThrownBy(() -> authService.register("valid-token", request))
-                .isInstanceOf(RegistrationFailedException.class)
-                .hasMessage("회원가입 중 오류가 발생했습니다");
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("이미 가입된 이메일입니다");
+
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -130,27 +209,10 @@ class AuthServiceTest {
     }
 
     @Test
-    void register_throwsConflictWhenUidExists() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
-        given(userRepository.existsByFirebaseUid("test-uid")).willReturn(true);
-
-        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
-
-        assertThatThrownBy(() -> authService.register("valid-token", request))
-                .isInstanceOf(ConflictException.class)
-                .hasMessage("이미 가입된 계정입니다");
-
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
     void register_skipsEmailCheckWhenEmailIsNull() throws Exception {
         given(mockToken.getEmail()).willReturn(null);
         given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
-        given(userRepository.existsByFirebaseUid("test-uid")).willReturn(false);
-        given(userRepository.existsByPhoneNumber("010-1234-5678")).willReturn(false);
-        given(userRepository.existsByNickname(any())).willReturn(false);
-        given(userRepository.saveAndFlush(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
@@ -159,13 +221,12 @@ class AuthServiceTest {
         authService.register("valid-token", request);
 
         verify(userRepository, never()).existsByEmail(any());
-        verify(userRepository, times(1)).saveAndFlush(any(User.class));
+        verify(userRepository, times(1)).save(any(User.class));
     }
 
     @Test
     void register_throwsConflictWhenNicknameExists() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
-        given(userRepository.existsByFirebaseUid("test-uid")).willReturn(false);
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("duplicated");
@@ -199,11 +260,7 @@ class AuthServiceTest {
     void register_fallsBackToRequestPhoneNumberWhenClaimMissing() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
         given(mockToken.getClaims()).willReturn(Map.of());
-        given(userRepository.existsByFirebaseUid("test-uid")).willReturn(false);
-        given(userRepository.existsByEmail("test@test.com")).willReturn(false);
-        given(userRepository.existsByPhoneNumber("010-9999-8888")).willReturn(false);
-        given(userRepository.existsByNickname(any())).willReturn(false);
-        given(userRepository.saveAndFlush(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
@@ -213,7 +270,7 @@ class AuthServiceTest {
         authService.register("valid-token", request);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, times(1)).saveAndFlush(captor.capture());
+        verify(userRepository, times(1)).save(captor.capture());
         assertThat(captor.getValue().getPhoneNumber()).isEqualTo("010-9999-8888");
     }
 
@@ -221,11 +278,7 @@ class AuthServiceTest {
     @Test
     void register_prefersClaimOverRequestPhoneNumber() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
-        given(userRepository.existsByFirebaseUid("test-uid")).willReturn(false);
-        given(userRepository.existsByEmail("test@test.com")).willReturn(false);
-        given(userRepository.existsByPhoneNumber("010-1234-5678")).willReturn(false);
-        given(userRepository.existsByNickname(any())).willReturn(false);
-        given(userRepository.saveAndFlush(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
@@ -234,7 +287,7 @@ class AuthServiceTest {
         authService.register("valid-token", request);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, times(1)).saveAndFlush(captor.capture());
+        verify(userRepository, times(1)).save(captor.capture());
         assertThat(captor.getValue().getPhoneNumber()).isEqualTo("010-1234-5678");
     }
 
@@ -254,8 +307,6 @@ class AuthServiceTest {
     @Test
     void register_throwsConflictWhenPhoneNumberExists() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token")).willReturn(mockToken);
-        given(userRepository.existsByFirebaseUid("test-uid")).willReturn(false);
-        given(userRepository.existsByEmail("test@test.com")).willReturn(false);
         given(userRepository.existsByPhoneNumber("010-1234-5678")).willReturn(true);
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
