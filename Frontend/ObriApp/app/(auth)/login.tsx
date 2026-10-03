@@ -8,14 +8,21 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Image,
 } from "react-native";
 import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
-import Logo from "@/components/common/Logo";
 import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
+
+const logoImg = require("@/assets/images/logo_image.png");
+
+// 번들 에셋의 실제 픽셀 비율로 높이를 계산해 찌그러짐을 막는다
+const { width: srcW, height: srcH } = Image.resolveAssetSource(logoImg);
+const LOGO_WIDTH = 240;
+const LOGO_HEIGHT = LOGO_WIDTH * (srcH / srcW);
 
 export default function LoginScreen() {
   const { signIn, resetPassword } = useAuth();
@@ -61,7 +68,11 @@ export default function LoginScreen() {
         keyboardDismissMode="on-drag"
       >
         <View style={styles.logoArea}>
-          <Logo />
+          <Image
+            source={logoImg}
+            style={{ width: LOGO_WIDTH, height: LOGO_HEIGHT, alignSelf: "center" }}
+            resizeMode="contain"
+          />
         </View>
 
         <View style={styles.form}>

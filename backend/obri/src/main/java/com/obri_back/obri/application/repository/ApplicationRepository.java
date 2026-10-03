@@ -2,6 +2,7 @@ package com.obri_back.obri.application.repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,8 +31,9 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
 
     @EntityGraph(attributePaths = {"post", "user"})
     Page<Application> findByPostId(Long postId, Pageable pageable);
-    // DB UNIQUE 제약 전에 애플리케이션 레벨에서 먼저 차단해 409 에러 메시지를 제어
-    boolean existsByPostIdAndUserId(Long postId, Long userId);
+    // DB UNIQUE 제약 전에 애플리케이션 레벨에서 먼저 차단해 409 에러 메시지를 제어(아래 findByPostIdAndUserId로 확인)
+    // 같은 글에 낸 내 지원 — 재지원(취소 복구)·내 지원 상태 조회용
+    Optional<Application> findByPostIdAndUserId(Long postId, Long userId);
     long countByPostId(Long postId);
     void deleteByPostId(Long postId);
 
@@ -40,4 +42,9 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     @EntityGraph(attributePaths = {"post"})
     List<Application> findByUserIdAndStatus(Long userId, ApplicationStatus status);
     void deleteByUserId(Long userId);
+
+    // 같은 글·같은 악기의 특정 상태 지원 — 정원 마감 시 남은 대기(PENDING) 지원을 한꺼번에 거절하는 데 쓴다.
+    // 거절 알림에 지원자의 FCM 토큰이 필요해 user를 함께 로딩한다
+    @EntityGraph(attributePaths = {"user"})
+    List<Application> findByPostIdAndInstrumentAndStatus(Long postId, String instrument, ApplicationStatus status);
 }

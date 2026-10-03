@@ -2,32 +2,55 @@ import React from "react";
 import { View, Text, Image, StyleSheet, useWindowDimensions } from "react-native";
 import { colors } from "@/constants/theme";
 
-const musicBg = require("@/assets/images/music-bg.png");
-const logoImg = require("@/assets/images/logo-img.png");
+const backgroundImg = require("@/assets/images/bg_image.png");
+const logoImg = require("@/assets/images/logo_image.png");
 
-// 번들 에셋의 실제 픽셀 비율을 가져와 투명 여백 없이 정확한 높이 계산
-const { width: srcW, height: srcH } = Image.resolveAssetSource(logoImg);
-const LOGO_ASPECT = srcW / srcH;
+// 배경 이미지 최상단 하늘색. 화면이 이미지보다 길 때 위쪽 빈 곳을 이 색으로 이어 붙인다
+const SKY_COLOR = "#51B4FD";
 
+// 파스텔 톤 조절: 흰색 덮개의 진하기(0~1), 배경 흐림 정도, 로고 불투명도. 값만 바꿔 맞춘다
+const PASTEL_OVERLAY = 0.3;
+const BG_BLUR = 0.5;
+const LOGO_OPACITY = 0.85;
+
+// 번들 에셋의 실제 픽셀 비율을 가져와 높이를 정확히 계산
+const bg = Image.resolveAssetSource(backgroundImg);
+const BG_ASPECT = bg.width / bg.height;
+const logo = Image.resolveAssetSource(logoImg);
+const LOGO_ASPECT = logo.width / logo.height;
+
+// 앱 진입(로딩) 화면: 하단 정렬한 벚꽃 앙상블 배경 위 하늘 영역에 로고를 얹는다
 export default function LoadingScreen() {
-  const { width: screenWidth } = useWindowDimensions();
-  const logoWidth = screenWidth * 0.55;
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const logoWidth = screenWidth * 0.7;
   const logoHeight = logoWidth / LOGO_ASPECT;
 
   return (
     <View style={styles.container}>
-      <Image source={musicBg} style={styles.backgroundImage} />
+      <Image
+        source={backgroundImg}
+        style={{
+          position: "absolute",
+          bottom: 0,
+          width: screenWidth,
+          height: screenWidth / BG_ASPECT,
+        }}
+        resizeMode="cover"
+        blurRadius={BG_BLUR}
+      />
+      {/* 전체를 흰색으로 덮어 채도를 낮추고 파스텔 톤으로 만든다 */}
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(255,255,255,${PASTEL_OVERLAY})` }]}
+      />
 
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingTop: screenHeight * 0.1 }]}>
         <Image
           source={logoImg}
-          style={{ width: logoWidth, height: logoHeight }}
+          style={{ width: logoWidth, height: logoHeight, opacity: LOGO_OPACITY }}
           resizeMode="contain"
         />
-
-        <View style={styles.divider} />
-
-        <Text style={styles.tagline}>음대생을 위한 연주 플랫폼</Text>
+        <Text style={styles.tagline}>악기 취미생들을 위한 플랫폼</Text>
       </View>
     </View>
   );
@@ -36,35 +59,15 @@ export default function LoadingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  backgroundImage: {
-    // RN 0.86의 StyleSheet.absoluteFill은 스프레드할 수 없는 타입이라 속성을 직접 펼쳐 쓴다
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
+    backgroundColor: SKY_COLOR,
+    overflow: "hidden",
   },
   content: {
-    flex: 1,
     alignItems: "center",
-    justifyContent: "center",
-  },
-  divider: {
-    width: 72,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.primary,
-    opacity: 0.3,
-    marginTop: -25,
-    marginBottom: 14,
   },
   tagline: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: colors.primary,
     letterSpacing: 4,
   },
 });

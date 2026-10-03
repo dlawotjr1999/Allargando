@@ -12,7 +12,6 @@ import java.time.LocalDate;
 /*
  * 연주회 응답 DTO — 목록·단건 조회 공용
  * KOPIS 동기화 데이터라 필드 수가 적고 목록/단건 간 차이(applicationCount 같은 계산값)가 없어 DTO를 나누지 않음
- * (ConcoursResponseDTO와 동일한 이유)
  */
 @Getter
 @Builder

@@ -35,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /*
@@ -77,10 +78,9 @@ public class ApplicationService {
             throw new BadRequestException("이미 종료된 공연에는 지원할 수 없습니다");
         }
 
-        // 지원자 전공 악기가 이미 정원 마감된 경우 사전 차단 (모집 목록에 없는 악기는 통과 — 자리 미반영 지원)
-        if (post.isInstrumentClosed(user.getInstrument())) {
-            throw new BadRequestException("이미 정원이 마감된 악기입니다");
-        }
+        // 지원 악기는 요청 값(없으면 프로필 악기)이고, 이 글이 모집하는 악기이며 정원이 남아 있어야 한다(D9, 둘 다 400)
+        String instrument = resolveInstrument(user, requestDto);
+        post.requireAcceptingInstrument(instrument);
 
         // 본인 글 지원 체크
         if (post.getUser().getId().equals(user.getId())) {
@@ -92,21 +92,28 @@ public class ApplicationService {
             throw new ForbiddenException("지원할 수 없는 모집글입니다");
         }
 
-        // 중복 지원 체크 (DB UNIQUE 제약의 사전 방어선)
-        if (applicationRepository.existsByPostIdAndUserId(post.getId(), user.getId())) {
+        // 중복 지원 체크 (DB UNIQUE 제약의 사전 방어선). 취소한 지원만 다시 지원할 수 있고(D7),
+        // 대기·수락·거절·철회된 지원이 있으면 409
+        Optional<Application> previous = applicationRepository.findByPostIdAndUserId(post.getId(), user.getId());
+        if (previous.isPresent() && previous.get().getStatus() != ApplicationStatus.CANCELLED) {
             throw new ConflictException("이미 지원한 모집글입니다");
         }
 
-        // 전공 악기는 지원 시점의 프로필 값을 스냅샷으로 저장 (수락 시 모집 악기와 매칭에 사용)
-        Application application = Application.builder()
-            .user(user)
-            .post(post)
-            .instrument(user.getInstrument())
-            .additionalInfo(requestDto.getAdditionalInfo())
-            .status(ApplicationStatus.PENDING)
-            .build();
-
-        applicationRepository.save(application);
+        Application application;
+        if (previous.isPresent()) {
+            // 취소했던 지원 복구 — 같은 행을 PENDING으로 되돌리고 악기·어필 문구를 새 값으로 갱신(변경 감지로 저장)
+            application = previous.get();
+            application.reapply(instrument, requestDto.getAdditionalInfo());
+        } else {
+            // 지원 악기를 저장한다(수락 시 모집 악기 정원과 매칭에 사용)
+            application = applicationRepository.save(Application.builder()
+                .user(user)
+                .post(post)
+                .instrument(instrument)
+                .additionalInfo(requestDto.getAdditionalInfo())
+                .status(ApplicationStatus.PENDING)
+                .build());
+        }
 
         // 지원 도착 → 모집자(글 작성자)에게 단건 push. AFTER_COMMIT 이후 발송 — 이 트랜잭션이
         // 롤백되면(예: 아래 managedUser 재조회 실패) 이벤트 자체가 버려져 유령 알림이 나가지 않는다
@@ -119,6 +126,12 @@ public class ApplicationService {
         User managedUser = userService.getManagedUserById(user.getId());
 
         return AppResponseDTO.from(application, managedUser);
+    }
+
+    // 지원 악기 결정 — 요청에 있으면 그 값(앞뒤 공백 제거), 없으면 프로필 악기
+    private String resolveInstrument(User user, AppRequestDTO requestDto) {
+        String requested = requestDto.getInstrument();
+        return requested == null || requested.isBlank() ? user.getInstrument() : requested.trim();
     }
 
     // 한 게시글에 대한 지원서 목록 조회
@@ -182,10 +195,29 @@ public class ApplicationService {
         Application application = findApplicationOrThrow(id);
         accessPolicy.requireRecruiter(user, application, "모집자만 수락 또는 거절할 수 있습니다");
         requirePending(application);
+        requireEventNotPassed(application.getPost(), "이미 종료된 공연의 지원은 수락할 수 없습니다");
         application.getPost().confirmInstrument(application.getInstrument());
         application.updateStatus(ApplicationStatus.ACCEPTED);
         // AFTER_COMMIT 이후 발송 — @Version 충돌로 이 트랜잭션이 롤백돼도 유령 "수락" 알림 없음
         eventPublisher.publishEvent(new ApplicationResultNotificationEvent(application.getUser().getFcmToken(), true));
+        // 이 수락으로 악기 정원이 차면 같은 악기의 남은 대기 지원은 자동 거절한다(D10, 대기자 유지 없음)
+        Post post = application.getPost();
+        if (post.isInstrumentClosed(application.getInstrument())) {
+            rejectPendingByInstrument(post.getId(), application.getInstrument());
+        }
+    }
+
+    // 같은 글·같은 악기의 대기(PENDING) 지원을 모두 거절(REJECTED)하고 각 지원자에게 거절 알림 이벤트를 발행한다(D10·D12).
+    // 정원 마감(accept)과 수락자 없는 악기 삭제(글 수정)가 같이 쓰도록 한 곳에 둔다. 자동 거절된 지원은 REJECTED라
+    // 재지원이 막히며(D7), 이후 수락이 철회돼 자리가 다시 열려도 복구하지 않는다
+    @Transactional
+    public void rejectPendingByInstrument(Long postId, String instrument) {
+        applicationRepository.findByPostIdAndInstrumentAndStatus(postId, instrument, ApplicationStatus.PENDING)
+                .forEach(pending -> {
+                    pending.updateStatus(ApplicationStatus.REJECTED);
+                    eventPublisher.publishEvent(
+                            new ApplicationResultNotificationEvent(pending.getUser().getFcmToken(), false));
+                });
     }
 
     // 거절 (모집자, PENDING → REJECTED)
@@ -218,6 +250,7 @@ public class ApplicationService {
         if (application.getStatus() != ApplicationStatus.ACCEPTED) {
             throw new BadRequestException("수락된 지원만 철회할 수 있습니다");
         }
+        requireEventNotPassed(application.getPost(), "이미 종료된 공연의 수락은 철회할 수 없습니다");
         application.getPost().revokeInstrument(application.getInstrument());
         application.updateStatus(ApplicationStatus.REVOKED);
     }
@@ -225,6 +258,13 @@ public class ApplicationService {
     private Application findApplicationOrThrow(Long id) {
         return applicationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("지원서를 찾을 수 없습니다"));
+    }
+
+    // 공연일이 지난 글의 수락·철회는 막는다(D8). 수동 마감한 글의 수락·거절·철회와 공연이 끝난 글의 거절·취소는 허용한다
+    private void requireEventNotPassed(Post post, String message) {
+        if (post.getEventAt().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException(message);
+        }
     }
 
     private void requirePending(Application application) {
@@ -270,9 +310,11 @@ public class ApplicationService {
         return applicationRepository.countByPostId(postId);
     }
 
-    // 모집글 단건 조회(hasApplied)용 — Post 도메인에서 호출
+    // 모집글 단건 조회(myApplicationStatus·hasApplied)용 — Post 도메인에서 호출. 지원한 적이 없으면 null
     @Transactional(readOnly = true)
-    public boolean hasApplied(Long postId, Long userId) {
-        return applicationRepository.existsByPostIdAndUserId(postId, userId);
+    public ApplicationStatus getMyApplicationStatus(Long postId, Long userId) {
+        return applicationRepository.findByPostIdAndUserId(postId, userId)
+                .map(Application::getStatus)
+                .orElse(null);
     }
 }

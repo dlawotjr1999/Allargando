@@ -201,6 +201,18 @@ public class Post {
         return target != null && Boolean.TRUE.equals(target.getClosed());
     }
 
+    // 지원 시점 검증(D9) — 이 글이 모집하는 악기여야 하고 아직 정원이 남아 있어야 한다. 아니면 400.
+    // 모집 목록에 없는 악기로는 지원할 수 없다(과거의 "자리 미반영 지원"은 폐지)
+    public void requireAcceptingInstrument(String instrumentName) {
+        PostInstrument target = findInstrument(instrumentName);
+        if (target == null) {
+            throw new BadRequestException("이 모집글에서 모집하지 않는 악기입니다");
+        }
+        if (Boolean.TRUE.equals(target.getClosed())) {
+            throw new BadRequestException("이미 정원이 마감된 악기입니다");
+        }
+    }
+
     // 모집 목록에 해당 악기가 없으면 null (호출부에서 "미반영" 케이스로 처리)
     private PostInstrument findInstrument(String instrumentName) {
         return this.postInstruments.stream()

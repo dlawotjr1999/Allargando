@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 /*
  * Obri 백엔드 애플리케이션 진입점 (Spring Boot 부트스트랩)
- * 콩쿠르 크롤러의 @Scheduled 실행을 위해 EnableScheduling 활성화
+ * KOPIS 연주회 동기화(KopisSyncScheduler)의 @Scheduled 실행을 위해 EnableScheduling 활성화
  */
 @SpringBootApplication
 @EnableScheduling

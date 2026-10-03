@@ -11,7 +11,7 @@ import java.io.IOException;
 
 /*
  * KOPIS(공연예술통합전산망) 오픈API에 대한 HTTP 접근만 담당(Jsoup 래핑). 파싱 로직은 여기 두지 않는다
- * KopisSyncService가 Mockito로 목킹할 수 있도록 별도 빈으로 분리(ConcoursCrawlerClient와 동일 역할 분리)
+ * KopisSyncService가 Mockito로 목킹할 수 있도록 별도 빈으로 분리
  * 응답이 XML이라 Jsoup을 HTML 파서가 아닌 XML 파서(Parser.xmlParser())로 사용
  */
 @Component

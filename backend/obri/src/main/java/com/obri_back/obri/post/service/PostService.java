@@ -1,5 +1,6 @@
 package com.obri_back.obri.post.service;
 
+import com.obri_back.obri.application.entity.ApplicationStatus;
 import com.obri_back.obri.application.service.ApplicationService;
 import com.obri_back.obri.global.exception.ForbiddenException;
 import com.obri_back.obri.global.exception.NotFoundException;
@@ -74,16 +75,16 @@ public class PostService {
         return postRepository.findByUserId(userId, pageable).map(PostSummaryResponseDTO::from);
     }
 
-    // 모집글 단건 조회 — applicationCount·isMine·hasApplied를 계산해 상세 DTO 반환
+    // 모집글 단건 조회 — applicationCount·isMine·내 지원 상태(myApplicationStatus, hasApplied)를 계산해 상세 DTO 반환
     @Transactional(readOnly = true)
     public PostDetailResponseDTO getPost(Long postId, User user) {
         Post post = findPostOrThrow(postId);
 
         long applicationCount = applicationService.countApplicationsByPostId(postId);
         boolean isMine = post.isOwnedBy(user);
-        boolean hasApplied = applicationService.hasApplied(postId, user.getId());
+        ApplicationStatus myApplicationStatus = applicationService.getMyApplicationStatus(postId, user.getId());
 
-        return PostDetailResponseDTO.from(post, applicationCount, isMine, hasApplied);
+        return PostDetailResponseDTO.from(post, applicationCount, isMine, myApplicationStatus);
     }
 
     // 모집글 수정 (작성자만) — 악기 목록 전체 교체 후 대기·수락 지원자에게 알림

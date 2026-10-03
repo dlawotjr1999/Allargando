@@ -339,4 +339,26 @@ class PostTest {
 
         assertThat(created.isOwnedBy(other)).isFalse();
     }
+
+    // D9: 지원 시점 검증 — 모집하지 않는 악기·정원이 찬 악기는 400, 정원이 남은 악기는 통과
+    @Test
+    void requireAcceptingInstrument_passesForOpenRecruitedInstrument() {
+        post.requireAcceptingInstrument("바이올린");
+    }
+
+    @Test
+    void requireAcceptingInstrument_throwsWhenInstrumentNotRecruited() {
+        assertThatThrownBy(() -> post.requireAcceptingInstrument("트럼펫"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("이 모집글에서 모집하지 않는 악기입니다");
+    }
+
+    @Test
+    void requireAcceptingInstrument_throwsWhenInstrumentClosed() {
+        post.confirmInstrument("첼로"); // people=1 → 즉시 마감
+
+        assertThatThrownBy(() -> post.requireAcceptingInstrument("첼로"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("이미 정원이 마감된 악기입니다");
+    }
 }
