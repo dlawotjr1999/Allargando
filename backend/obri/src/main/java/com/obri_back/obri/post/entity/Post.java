@@ -130,12 +130,20 @@ public class Post {
     // 악기 목록 교체 (글 수정) — 이름이 같은 악기는 확정 인원(confirmed)·마감 상태를 승계하고 정원만 갱신,
     // 새 목록에서 사라진 이름만 제거(orphanRemoval), 새로 등장한 이름만 추가. 전체 clear 후 재삽입하면
     // 이미 수락된 지원자의 확정 카운트가 초기화되는 문제가 있었음(BACKLOG.md #32)
+    // 정원을 수락된 인원 밑으로 줄이는 요청은 400(D12) — 변경을 시작하기 전에 전부 검증해 부분 적용 없이 거부한다
     public void replaceInstruments(List<PostInstrument> newInstruments) {
         Map<String, PostInstrument> existingByName = this.postInstruments.stream()
                 .collect(Collectors.toMap(PostInstrument::getInstrument, pi -> pi, (a, b) -> a));
         Set<String> newNames = newInstruments.stream()
                 .map(PostInstrument::getInstrument)
                 .collect(Collectors.toSet());
+
+        for (PostInstrument newInstrument : newInstruments) {
+            PostInstrument existing = existingByName.get(newInstrument.getInstrument());
+            if (existing != null) {
+                existing.requireCapacityAtLeastConfirmed(newInstrument.getPeople());
+            }
+        }
 
         this.postInstruments.removeIf(pi -> !newNames.contains(pi.getInstrument()));
 
@@ -171,7 +179,7 @@ public class Post {
         recomputeStatus();
     }
 
-    // 수락 철회 시: 해당 악기 확정 인원 감소·마감 해제 후 전체 상태 재계산(재오픈)
+    // 수락 철회 시: 해당 악기 확정 인원 감소·정원 기준 마감 재계산 후 전체 상태 재계산(재오픈)
     // 미반영 수락(모집 목록에 없는 악기)의 철회는 되돌릴 자리가 없으므로 무동작
     public void revokeInstrument(String instrumentName) {
         PostInstrument target = findInstrument(instrumentName);

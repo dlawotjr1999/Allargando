@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import com.obri_back.obri.global.exception.BadRequestException;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -66,17 +67,29 @@ public class PostInstrument {
         }
     }
 
-    // 수락 철회: 확정 인원 1 감소, 악기 마감 해제(재오픈)
+    // 수락 철회: 확정 인원 1 감소 후 마감 여부를 정원 기준으로 재계산한다(한 자리라도 비면 재오픈).
+    // 무조건 재오픈(closed=false)하면 confirmed >= people인데 열린 상태가 되는 불일치가 생긴다
     public void revoke() {
         if (this.confirmed > 0) {
             this.confirmed--;
         }
-        this.closed = false;
+        this.closed = this.confirmed >= this.people;
     }
 
-    // 정원 변경 반영(글 수정 시 이름이 같은 악기 병합용): 확정 인원은 유지하고, 새 정원 기준으로 마감 여부만 재계산
+    // 정원 변경 반영(글 수정 시 이름이 같은 악기 병합용): 이미 수락된 인원 밑으로는 줄일 수 없고(D12),
+    // 확정 인원은 유지하며 새 정원 기준으로 마감 여부만 재계산
     public void updatePeople(int people) {
+        requireCapacityAtLeastConfirmed(people);
         this.people = people;
         this.closed = this.confirmed >= this.people;
+    }
+
+    // 새 정원이 확정 인원보다 작으면 400 — 수락된 지원자가 있는 자리를 조용히 없애지 않는다.
+    // Post.replaceInstruments가 여러 악기를 바꾸기 전에 먼저 호출해 부분 변경 없이 거부할 수 있도록 공개한다
+    public void requireCapacityAtLeastConfirmed(int newPeople) {
+        if (newPeople < this.confirmed) {
+            throw new BadRequestException("'" + this.instrument + "'에 수락된 지원자가 " + this.confirmed
+                    + "명 있어 모집 인원을 " + this.confirmed + "명보다 적게 줄일 수 없어요. 먼저 철회해 주세요");
+        }
     }
 }
