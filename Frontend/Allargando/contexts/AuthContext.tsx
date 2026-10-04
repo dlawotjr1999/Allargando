@@ -36,6 +36,8 @@ interface AuthContextType {
   unregistered: boolean;
   // 가입 제출 진행 중. 이 동안 화면 자동 이동을 막는다
   registering: boolean;
+  // 로그인은 됐는데 프로필 조회 결과가 아직 없는 상태(조회 중). 이 동안은 어느 화면으로 보낼지 모른다
+  profilePending: boolean;
   refreshProfile: () => Promise<void>;
   // 프로필 수정 응답처럼 이미 최신 값을 들고 있을 때 재조회 없이 바로 반영
   setProfile: (profile: UserProfile) => void;
@@ -142,6 +144,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const profilePending = !!user && !profile && !profileError && !unregistered && !registering;
+
   return (
     <AuthContext.Provider
       value={{
@@ -151,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profileError,
         unregistered,
         registering,
+        profilePending,
         refreshProfile,
         setProfile,
         signIn,

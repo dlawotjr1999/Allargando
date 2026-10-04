@@ -4,6 +4,9 @@ import { auth } from "@/lib/firebase";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
+// 요청 하나의 제한 시간. 이 앱은 JSON 요청뿐이라 10초면 느린 망에서도 충분하고, 넘으면 재시도 UI로 넘긴다
+const REQUEST_TIMEOUT_MS = 10_000;
+
 export class ApiError extends Error {
   status: number;
 
@@ -50,14 +53,30 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     headers.Authorization = `Bearer ${idToken}`;
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  // 응답이 오지 않는 요청이 화면을 영원히 붙잡지 않도록 시간 제한을 둔다(본문 읽기까지 포함)
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  // 빈 본문·HTML(프록시/게이트웨이 오류 등)이면 JSON 파싱이 실패한다. 그때도 상태코드는 잃지 않도록 null로 받는다
-  const envelope: ApiEnvelope<T> | null = await response.json().catch(() => null);
+  let response: Response;
+  let envelope: ApiEnvelope<T> | null;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+
+    // 빈 본문·HTML(프록시/게이트웨이 오류 등)이면 JSON 파싱이 실패한다. 그때도 상태코드는 잃지 않도록 null로 받는다
+    envelope = await response.json().catch(() => null);
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new ApiError(408, "서버 응답이 없어요. 잠시 후 다시 시도해주세요.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     if (response.status === 401 && requiresAuth && handleUnauthorized) unauthorizedHandler?.();
