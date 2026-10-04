@@ -17,6 +17,7 @@ import { closePost, deletePost, getPost } from "@/api/post";
 import { submitApplication } from "@/api/application";
 import { ApiError } from "@/lib/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
+import { ApplicationStatus } from "@/types/application";
 import { PostDetail } from "@/types/post";
 import { ReportTarget } from "@/types/safety";
 import { markPostListStale } from "@/lib/postListRefresh";
@@ -30,6 +31,14 @@ import ThemedButton from "@/components/common/ThemedButton";
 import ApplicationSubmitModal from "@/components/application/ApplicationSubmitModal";
 import ActionMenu, { ActionMenuItem } from "@/components/common/ActionMenu";
 import ReportDialog from "@/components/report/ReportDialog";
+
+// 이미 지원한 글의 버튼 문구(취소는 다시 지원할 수 있어 여기 없음)
+const MY_STATUS_LABEL: Record<Exclude<ApplicationStatus, "CANCELLED">, string> = {
+  PENDING: "지원 완료 · 검토 중",
+  ACCEPTED: "수락된 지원",
+  REJECTED: "거절된 지원",
+  REVOKED: "수락이 철회된 지원",
+};
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -107,46 +116,49 @@ export default function PostDetailScreen() {
     );
   }
 
-  // 지원 대상 악기는 선택형이 아니라 내 프로필 악기(user.getInstrument())로 서버가 자동 판정한다
-  // (AppRequestDTO엔 postId/additionalInfo뿐, 악기 필드 없음 — 별도 선택 UI 불필요)
-  const myInstrumentSlot = post.instruments.find((it) => it.instrument === profile?.instrument);
   // closed는 서버가 confirmed>=people로 이미 계산해 내려주는 값 — 프론트에서 다시 비교하지 않는다.
-  const instrumentClosed = !!myInstrumentSlot && myInstrumentSlot.closed;
+  // 지원 악기는 모달에서 모집 악기 중 직접 고르므로, 모든 악기가 찼을 때만 지원이 막힌다.
+  const allInstrumentsClosed = post.instruments.every((it) => it.closed);
 
-  // isMine·hasApplied는 서버가 로그인 유저 기준으로 계산해 내려주는 값을 그대로 쓴다
+  // isMine·myApplicationStatus는 서버가 로그인 유저 기준으로 계산해 내려주는 값을 그대로 쓴다
   // (PostDetailResponseDTO) — 별도 목록을 프론트에서 대조해 재계산하지 않는다.
   const isMyPost = post.isMine;
-  const hasApplied = post.hasApplied;
+  const myStatus = post.myApplicationStatus;
   const eventPassed = new Date(post.eventAt) < new Date();
   const isClosed = post.status === "CLOSED";
 
-  // 버튼 비활성 우선순위는 ApplicationService.submitApplication의 검증 순서와 동일하게 맞춘다:
-  // 마감글 → 공연종료 → 내 악기 정원마감 → 중복 지원. 본인 글(isMyPost)은 애초에 이 버튼 자체가
-  // "지원자 보기" 버튼으로 대체되므로(아래 footer 분기) 여기서 다루지 않는다.
-  let applyLabel = "지원하기";
+  // 지원 버튼 문구·활성 여부. 이미 지원한 글은 마감·공연 종료와 상관없이 내 지원 상태를 먼저 보여준다.
+  // 취소(CANCELLED)한 지원만 같은 글에 다시 지원할 수 있고(D7) 대기·수락·거절·철회는 서버가 409로 막는다.
+  // 그 외(지원한 적 없음·취소)는 ApplicationService.submitApplication의 검증 순서(마감글 → 공연종료 →
+  // 정원)와 맞춘다. 본인 글(isMyPost)은 이 버튼 대신 "지원자 보기"가 나오므로 다루지 않는다.
+  let applyLabel = myStatus === "CANCELLED" ? "다시 지원하기" : "지원하기";
   let applyDisabled = false;
-  if (isClosed) {
+  if (myStatus && myStatus !== "CANCELLED") {
+    applyLabel = MY_STATUS_LABEL[myStatus];
+    applyDisabled = true;
+  } else if (isClosed) {
     applyLabel = "마감된 모집글";
     applyDisabled = true;
   } else if (eventPassed) {
     applyLabel = "종료된 공연";
     applyDisabled = true;
-  } else if (instrumentClosed) {
-    applyLabel = "정원이 마감된 악기";
-    applyDisabled = true;
-  } else if (hasApplied) {
-    applyLabel = "이미 지원한 모집글";
+  } else if (allInstrumentsClosed) {
+    applyLabel = "모든 악기 정원이 마감됐어요";
     applyDisabled = true;
   }
 
-  // 지원 제출. 성공하면 모달을 닫고 단건 조회를 다시 실행해 hasApplied·applicationCount를
-  // 서버 최신 값으로 갱신한다(로컬에서 hasApplied=true로 낙관적 갱신하지 않는 이유: applicationCount처럼
+  // 지원 제출. 성공하면 모달을 닫고 단건 조회를 다시 실행해 myApplicationStatus·applicationCount를
+  // 서버 최신 값으로 갱신한다(로컬에서 낙관적으로 바꾸지 않는 이유: applicationCount처럼
   // 이 화면이 직접 계산할 수 없는 값도 같이 바뀌므로, 재조회가 더 단순하고 정확하다).
-  const handleSubmitApplication = async (additionalInfo: string) => {
+  const handleSubmitApplication = async (instrument: string, additionalInfo: string) => {
     if (submittingApplication) return; // 제출은 POST라 비멱등 — 연속 탭 시 지원이 두 번 생기지 않도록 잠금
     setSubmittingApplication(true);
     try {
-      await submitApplication({ postId: post.id, additionalInfo: additionalInfo || undefined });
+      await submitApplication({
+        postId: post.id,
+        instrument,
+        additionalInfo: additionalInfo.trim() || undefined,
+      });
       setApplyModalVisible(false);
       await loadPost();
     } catch (err) {
@@ -322,6 +334,8 @@ export default function PostDetailScreen() {
       <ApplicationSubmitModal
         visible={applyModalVisible}
         postTitle={post.title}
+        instruments={post.instruments}
+        defaultInstrument={profile?.instrument}
         submitting={submittingApplication}
         onSubmit={handleSubmitApplication}
         onClose={() => setApplyModalVisible(false)}

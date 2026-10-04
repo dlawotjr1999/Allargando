@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors } from "@/constants/theme";
 import { getMyPosts } from "@/api/post";
-import { getMyApplications } from "@/api/application";
+import { cancelApplication, getMyApplications } from "@/api/application";
 import { deleteMyAccount } from "@/api/user";
 import { ApiError } from "@/lib/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +39,8 @@ export default function MyPageScreen() {
   const [applications, setApplications] = useState<ApplicationSummary[]>([]);
   const [applicationsLoading, setApplicationsLoading] = useState(true);
   const [applicationsError, setApplicationsError] = useState<string | null>(null);
+  // 지원 취소 요청 중인 지원서 id(없으면 null)
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   // 로딩 스피너는 첫 조회에만 보이고(초기 state가 true), 이후 포커스 복귀 때의 재조회는 화면을 비우지 않고
   // 조용히 갱신한다 — 모집글 수정·삭제나 지원자 처리 후 돌아왔을 때 목록이 낡지 않게 하려는 재조회다.
@@ -74,6 +76,31 @@ export default function MyPageScreen() {
   );
 
   const acceptedCount = applications.filter((a) => a.status === "ACCEPTED").length;
+
+  // 지원 취소(검토 중인 지원만). 취소해도 같은 글에 다시 지원할 수 있어 확인만 거친다.
+  // PATCH지만 멱등이 아니라(이미 처리된 지원은 400) 요청 중인 지원서는 버튼을 잠근다.
+  // 성공하면 목록을 다시 조회해 상태를 서버 값으로 맞춘다
+  const handleCancelApplication = (application: ApplicationSummary) => {
+    Alert.alert("지원 취소", `'${application.post.title}' 지원을 취소할까요? 취소한 뒤에도 다시 지원할 수 있어요.`, [
+      { text: "닫기", style: "cancel" },
+      {
+        text: "지원 취소",
+        style: "destructive",
+        onPress: async () => {
+          if (cancellingId !== null) return;
+          setCancellingId(application.id);
+          try {
+            await cancelApplication(application.id);
+            await loadApplications();
+          } catch (err) {
+            Alert.alert("취소 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
+          } finally {
+            setCancellingId(null);
+          }
+        },
+      },
+    ]);
+  };
 
   // 로그아웃 — Firebase 세션을 끊으면 RootNavigator가 로그인 화면으로 자동 이동시킨다
   const handleLogout = async () => {
@@ -147,7 +174,11 @@ export default function MyPageScreen() {
             ) : (
               applications.map((app, i) => (
                 <View key={app.id} style={i > 0 ? { marginTop: 12 } : undefined}>
-                  <ApplicationCard item={app} />
+                  <ApplicationCard
+                    item={app}
+                    cancelling={cancellingId === app.id}
+                    onCancel={() => handleCancelApplication(app)}
+                  />
                 </View>
               ))
             ),

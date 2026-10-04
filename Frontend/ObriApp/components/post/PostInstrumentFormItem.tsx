@@ -49,6 +49,7 @@ export default function PostInstrumentFormItem({
         value={value.people}
         onChangeText={(text) => onChange(index, { ...value, people: text.replace(/[^0-9]/g, "") })}
         keyboardType="number-pad"
+        maxLength={3}
       />
     </View>
   );

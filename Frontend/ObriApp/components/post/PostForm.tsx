@@ -17,6 +17,13 @@ import { colors } from "@/constants/theme";
 import { CATEGORIES, REGIONS } from "@/constants/filterOptions";
 import { ApiError } from "@/lib/apiClient";
 import { PostCreateRequest } from "@/types/post";
+import {
+  POST_DESCRIPTION_MAX,
+  POST_LOCATION_MAX,
+  POST_TIMETABLE_MAX,
+  POST_TITLE_MAX,
+  validatePostForm,
+} from "@/utils/postValidation";
 import ThemedButton from "@/components/common/ThemedButton";
 import ChipSelect from "@/components/common/ChipSelect";
 import PostInstrumentFormItem, {
@@ -81,15 +88,21 @@ export default function PostForm({ mode, initial, onSubmit }: PostFormProps) {
   // 실패해도 이 화면에 그대로 남아 재시도할 수 있게 화면 이동은 onSubmit이 성공한 뒤에만 일어난다.
   const handleSubmit = async () => {
     if (submitting) return;
+    // 서버로 보내기 전에 형식·필수값·길이를 확인해 어디가 틀렸는지 바로 알려준다(서버도 같은 규칙으로 최종 검증)
+    const invalid = validatePostForm({ category, title, eventDate, eventTime, location, region, timetable, instruments });
+    if (invalid) {
+      Alert.alert("입력을 확인해 주세요", invalid);
+      return;
+    }
     setSubmitting(true);
     try {
       const payload: PostCreateRequest = {
         category,
-        title,
+        title: title.trim(),
         eventAt: `${eventDate}T${eventTime}:00`,
-        location,
+        location: location.trim(),
         region,
-        timetable,
+        timetable: timetable.trim(),
         description: description.trim() || undefined,
         instruments: instruments
           .filter((it) => it.instrument && it.people)
@@ -149,6 +162,7 @@ export default function PostForm({ mode, initial, onSubmit }: PostFormProps) {
               placeholderTextColor={colors.placeholder}
               value={title}
               onChangeText={setTitle}
+              maxLength={POST_TITLE_MAX}
             />
           </View>
 
@@ -161,6 +175,8 @@ export default function PostForm({ mode, initial, onSubmit }: PostFormProps) {
                 placeholderTextColor={colors.placeholder}
                 value={eventDate}
                 onChangeText={setEventDate}
+                maxLength={10}
+                keyboardType="numbers-and-punctuation"
               />
             </View>
             <View style={[styles.fieldGroup, styles.rowField]}>
@@ -171,6 +187,8 @@ export default function PostForm({ mode, initial, onSubmit }: PostFormProps) {
                 placeholderTextColor={colors.placeholder}
                 value={eventTime}
                 onChangeText={setEventTime}
+                maxLength={5}
+                keyboardType="numbers-and-punctuation"
               />
             </View>
           </View>
@@ -183,6 +201,7 @@ export default function PostForm({ mode, initial, onSubmit }: PostFormProps) {
               placeholderTextColor={colors.placeholder}
               value={location}
               onChangeText={setLocation}
+              maxLength={POST_LOCATION_MAX}
             />
           </View>
 
@@ -201,6 +220,7 @@ export default function PostForm({ mode, initial, onSubmit }: PostFormProps) {
               placeholderTextColor={colors.placeholder}
               value={timetable}
               onChangeText={setTimetable}
+              maxLength={POST_TIMETABLE_MAX}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -215,6 +235,7 @@ export default function PostForm({ mode, initial, onSubmit }: PostFormProps) {
               placeholderTextColor={colors.placeholder}
               value={description}
               onChangeText={setDescription}
+              maxLength={POST_DESCRIPTION_MAX}
               multiline
               numberOfLines={4}
               textAlignVertical="top"

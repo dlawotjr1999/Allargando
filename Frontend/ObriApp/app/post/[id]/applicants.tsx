@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/apiClient";
 import { ApplicationSummary } from "@/types/application";
 import { ReportTarget } from "@/types/safety";
 import { confirmBlockUser } from "@/lib/safety";
+import { markPostListStale } from "@/lib/postListRefresh";
 import ScreenHeader from "@/components/common/ScreenHeader";
 import EmptyState from "@/components/common/EmptyState";
 import ApplicantCard from "@/components/application/ApplicantCard";
@@ -33,18 +34,22 @@ export default function ApplicantsScreen() {
   // 신고 중인 대상(null이면 신고 창 닫힘)
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
 
-  const loadFirstPage = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // silent가 true면 스피너·오류 화면 없이 목록만 조용히 갱신한다(처리 직후 서버 값과 맞추는 용도 —
+  // 실패해도 이미 반영한 로컬 상태를 그대로 둔다)
+  const loadFirstPage = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const page = await getApplicationsByPostId(Number(id), 0);
       setApplications(page.content);
       setCurrentPage(page.currentPage);
       setHasNext(page.hasNext);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "지원자 목록을 불러오지 못했어요.");
+      if (!silent) setError(err instanceof ApiError ? err.message : "지원자 목록을 불러오지 못했어요.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [id]);
 
@@ -67,8 +72,10 @@ export default function ApplicantsScreen() {
     }
   };
 
-  // 수락/거절/철회 공통 처리. 성공하면 서버를 다시 조회하지 않고 로컬 목록의 해당 항목만
-  // 새 상태로 바꿔치기한다 — 방금 반영한 상태를 이미 알고 있으므로 전체 목록 재조회는 낭비다.
+  // 수락/거절/철회 공통 처리. 성공하면 먼저 로컬 목록의 해당 항목만 새 상태로 바꿔 즉시 보여준다.
+  // 수락·철회는 악기 정원이 바뀌어 서버가 같은 악기의 다른 대기 지원을 자동 거절하기도 하므로(D10)
+  // 목록을 조용히 다시 조회해 맞추고, 모집글 목록(홈)의 모집 현황도 낡았다고 표시한다.
+  // 거절은 정원에 영향이 없어 로컬 갱신만으로 충분하다.
   const applyLocalStatus = (applicationId: number, status: ApplicationSummary["status"]) => {
     setApplications((prev) =>
       prev.map((a) => (a.id === applicationId ? { ...a, status } : a))
@@ -86,6 +93,10 @@ export default function ApplicantsScreen() {
     try {
       await action(applicationId);
       applyLocalStatus(applicationId, nextStatus);
+      if (nextStatus === "ACCEPTED" || nextStatus === "REVOKED") {
+        markPostListStale();
+        await loadFirstPage(true);
+      }
     } catch (err) {
       Alert.alert(failTitle, err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
     } finally {

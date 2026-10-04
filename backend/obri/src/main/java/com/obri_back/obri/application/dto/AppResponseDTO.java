@@ -22,6 +22,9 @@ public class AppResponseDTO {
     private ApplicationPostSummaryDTO post;
     // UserResponseDTO 대신 ApplicantResponseDTO 사용: 모집자에게 지원자의 email이 노출되는 것을 차단
     private ApplicantResponseDTO applicant;
+    // 지원자가 이 글에 지원하며 고른 악기(D9). applicant.instrument는 프로필 악기라 서로 다를 수 있어,
+    // 모집자가 수락할 때 어느 악기 정원이 차는지 알 수 있도록 따로 내려 준다
+    private String instrument;
     private String additionalInfo;
     private ApplicationStatus status;
     private LocalDateTime createdAt;
@@ -43,6 +46,7 @@ public class AppResponseDTO {
                 .id(application.getId())
                 .post(ApplicationPostSummaryDTO.from(application.getPost()))
                 .applicant(applicant)
+                .instrument(application.getInstrument())
                 .additionalInfo(application.getAdditionalInfo())
                 .status(application.getStatus())
                 .createdAt(application.getCreatedAt())

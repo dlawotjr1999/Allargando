@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { View, FlatList, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from "react-native";
+import { View, FlatList, StyleSheet, TouchableOpacity, Text, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -17,11 +17,7 @@ import FilterSheet from "@/components/post/FilterSheet";
 
 // 모집글 목록 화면 — 필터(카테고리·악기·지역·기간) + 무한스크롤 목록 + FAB(등록).
 // 필터가 바뀌면 loadFirstPage가 재실행되어 0페이지부터 다시 조회한다(아래 useEffect 의존성 참고).
-//
-// filter.sort("최신순" 토글)와 filter.status(상태 칩)는 이 화면에서 UI로는 남아있지만 서버 쿼리에는
-// 반영되지 않는다 — api/post.ts의 buildQuery 주석 참고: 목록은 항상 createdAt DESC 고정이고,
-// 공개 목록은 항상 OPEN·PARTIALLY_CLOSED만 노출(CLOSED 선택 자체가 서버에서 무의미)되기 때문이다.
-export default function ObriScreen() {
+export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -33,11 +29,13 @@ export default function ObriScreen() {
   const [hasNext, setHasNext] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 필터가 바뀌면 첫 페이지부터 새로 조회
-  const loadFirstPage = useCallback(async () => {
-    setLoading(true);
+  // 필터가 바뀌면 첫 페이지부터 새로 조회. silent가 true면(당겨서 새로고침) 전체 화면 스피너 대신
+  // 목록을 그대로 두고 값만 바꾼다
+  const loadFirstPage = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const page = await getPosts(filter, 0);
@@ -50,6 +48,13 @@ export default function ObriScreen() {
       setLoading(false);
     }
   }, [filter]);
+
+  // 당겨서 새로고침 — 다른 사람의 새 글·수락 결과가 목록에 바로 반영되지 않을 때 직접 갱신하는 수단
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadFirstPage(true);
+    setRefreshing(false);
+  };
 
   useEffect(() => {
     loadFirstPage();
@@ -92,7 +97,10 @@ export default function ObriScreen() {
 
       {!loading && !error && (
         <View style={styles.resultRow}>
-          <Text style={styles.resultText}>총 {posts.length}개</Text>
+          {/* 서버가 전체 건수를 주지 않아(hasNext만 제공) 불러온 건수만 안다 — 더 있으면 "이상"으로 표시 */}
+          <Text style={styles.resultText}>
+            {posts.length}개{hasNext ? " 이상" : ""}
+          </Text>
         </View>
       )}
 
@@ -112,6 +120,7 @@ export default function ObriScreen() {
               onPress={(id) => router.push({ pathname: "/post/[id]", params: { id } })}
             />
           )}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           onEndReached={loadNextPage}

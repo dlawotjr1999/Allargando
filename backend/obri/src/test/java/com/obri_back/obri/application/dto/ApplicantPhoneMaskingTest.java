@@ -47,4 +47,21 @@ class ApplicantPhoneMaskingTest {
                 ? "010-1234-5678" : "010-****-5678";
         assertThat(response.getApplicant().getPhoneNumber()).isEqualTo(expected);
     }
+
+    // 지원 악기(D9)는 프로필 악기와 달라도 지원서에 저장된 값이 응답의 instrument로 나간다
+    @Test
+    void appResponse_exposesAppliedInstrumentSeparatelyFromProfileInstrument() {
+        User applicant = User.builder().id(1L).nickname("a").instrument("바이올린")
+                .phoneNumber("010-1234-5678").build();
+        User recruiter = User.builder().id(2L).nickname("r").build();
+        Post post = Post.create(recruiter, PostInfo.builder().category("앙상블").title("t")
+                .eventAt(LocalDateTime.now().plusDays(3)).location("l").region("서울").timetable("t").build());
+        Application application = Application.builder().user(applicant).post(post)
+                .instrument("비올라").status(ApplicationStatus.PENDING).build();
+
+        AppResponseDTO response = AppResponseDTO.from(application, applicant, List.of());
+
+        assertThat(response.getInstrument()).isEqualTo("비올라");
+        assertThat(response.getApplicant().getInstrument()).isEqualTo("바이올린");
+    }
 }

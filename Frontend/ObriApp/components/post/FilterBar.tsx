@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { CATEGORIES } from "@/constants/filterOptions";
 import { PostFilter } from "@/types/filter";
-import Chip, { chipTextColor } from "@/components/common/Chip";
+import Chip from "@/components/common/Chip";
 
 interface FilterBarProps {
   filter: PostFilter;
@@ -17,16 +17,8 @@ export default function FilterBar({ filter, onChange, onOpenSheet, onReset }: Fi
   const advancedCount =
     filter.instruments.length +
     filter.regions.length +
-    filter.status.length +
     (filter.startDate || filter.endDate ? 1 : 0);
-  const hasAnyFilter =
-    filter.sort !== "default" || filter.categories.length > 0 || advancedCount > 0;
-
-  const sortActive = filter.sort === "latest";
-
-  function toggleSort() {
-    onChange({ ...filter, sort: sortActive ? "default" : "latest" });
-  }
+  const hasAnyFilter = filter.categories.length > 0 || advancedCount > 0;
 
   function toggleCategory(cat: string) {
     const next = filter.categories.includes(cat)
@@ -42,17 +34,6 @@ export default function FilterBar({ filter, onChange, onOpenSheet, onReset }: Fi
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
       >
-        <Chip
-          label="최신순"
-          active={sortActive}
-          onPress={toggleSort}
-          leftIcon={
-            <Ionicons name="time-outline" size={13} color={chipTextColor(sortActive)} />
-          }
-        />
-
-        <View style={styles.divider} />
-
         {CATEGORIES.map((cat) => (
           <Chip
             key={cat}
@@ -101,12 +82,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
-  },
-  divider: {
-    width: StyleSheet.hairlineWidth,
-    height: 16,
-    backgroundColor: colors.border,
-    marginHorizontal: 4,
   },
   filterButton: {
     flexDirection: "row",

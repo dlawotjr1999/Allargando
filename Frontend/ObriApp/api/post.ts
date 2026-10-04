@@ -8,11 +8,9 @@ import { PostFilter } from "@/types/filter";
 // 필터+페이지 번호를 쿼리스트링으로 변환.
 // - category/instrument/region은 반복 키(?category=A&category=B)로 보내야 백엔드
 //   @RequestParam List<String>과 맞는다(Concert 도메인 api/concert.ts와 동일한 패턴).
-// - filter.sort는 쿼리에 싣지 않는다: 백엔드가 @PageableDefault(sort="createdAt", DESC)로 항상
-//   최신순 고정이라("latest"/"default"를 구분하는 서버 파라미터 자체가 없음) 프론트 전용 토글 상태다.
-// - filter.status도 쿼리에 싣지 않는다: PostSpecification이 공개 목록에서 CLOSED를 항상 하드코딩으로
-//   제외하고 OPEN·PARTIALLY_CLOSED만 노출하며, status를 받는 파라미터가 아예 없다(BACKLOG.md #35).
-//   마감(CLOSED)한 내 글은 getMyPosts()로만 확인 가능.
+// - 정렬·상태는 쿼리에 없다: 서버가 항상 최신순(@PageableDefault createdAt DESC)이고, 공개 목록에서
+//   CLOSED를 하드코딩으로 제외해 OPEN·PARTIALLY_CLOSED만 노출한다(BACKLOG.md #35). 그래서 PostFilter에도
+//   두지 않는다. 마감(CLOSED)한 내 글은 getMyPosts()로만 확인 가능.
 function buildQuery(filter: PostFilter, page: number): string {
   const params = new URLSearchParams();
   filter.categories.forEach((category) => params.append("category", category));

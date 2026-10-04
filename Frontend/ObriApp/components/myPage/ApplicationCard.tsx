@@ -4,6 +4,7 @@ import { colors } from "@/constants/theme";
 import { ApplicationSummary, ApplicationStatus } from "@/types/application";
 import { formatEventDateTime } from "@/utils/datetime";
 import IconText from "@/components/common/IconText";
+import ThemedButton from "@/components/common/ThemedButton";
 
 const STATUS_LABEL: Record<ApplicationStatus, string> = {
   PENDING: "검토 중",
@@ -23,9 +24,15 @@ const STATUS_COLOR: Record<ApplicationStatus, string> = {
 
 interface ApplicationCardProps {
   item: ApplicationSummary;
+  // 지원 취소 동작은 부모(마이페이지)가 담당 — 검토 중(PENDING)인 지원에만 버튼이 그려진다.
+  // 넘기지 않으면 버튼 없이 보여주기만 한다
+  onCancel?: () => void;
+  // 이 지원의 취소 요청이 진행 중인 동안 true — 버튼을 잠가 중복 탭을 막는다
+  cancelling?: boolean;
 }
 
-export default function ApplicationCard({ item }: ApplicationCardProps) {
+// 마이페이지 "내 지원" 카드. 모집글 요약·내 지원 악기·상태를 보여준다
+export default function ApplicationCard({ item, onCancel, cancelling = false }: ApplicationCardProps) {
   return (
     <View style={styles.appCard}>
       <View style={styles.appCardHeader}>
@@ -44,7 +51,17 @@ export default function ApplicationCard({ item }: ApplicationCardProps) {
       <View style={styles.appCardMeta}>
         <IconText icon="calendar-outline" text={formatEventDateTime(item.post.eventAt)} />
         <IconText icon="location-outline" text={item.post.location} />
+        <IconText icon="musical-note-outline" text={`지원 악기 ${item.instrument}`} />
       </View>
+      {item.status === "PENDING" && onCancel && (
+        <ThemedButton
+          title={cancelling ? "취소 중..." : "지원 취소"}
+          variant="outline"
+          disabled={cancelling}
+          onPress={onCancel}
+          style={styles.cancelButton}
+        />
+      )}
     </View>
   );
 }
@@ -91,5 +108,9 @@ const styles = StyleSheet.create({
   },
   appCardMeta: {
     gap: 3,
+  },
+  cancelButton: {
+    marginTop: 4,
+    height: 38,
   },
 });

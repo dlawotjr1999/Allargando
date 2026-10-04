@@ -37,15 +37,19 @@ export interface ApplicationSummary {
   id: number;
   post: ApplicationPostSummary;
   applicant: Applicant;
+  // 지원자가 이 글에 지원하며 고른 악기. applicant.instrument(프로필 악기)와 다를 수 있다 —
+  // 수락하면 이 악기의 정원이 찬다
+  instrument: string;
   additionalInfo?: string;
   status: ApplicationStatus;
   createdAt: string;
 }
 
 // 지원서 제출 요청 바디. 백엔드 AppRequestDTO와 1:1 대응.
-// instrument 필드가 없다 — 지원 대상 악기는 선택형이 아니라 내 프로필 악기(User.instrument)로
-// 서버가 자동 판정하기 때문(모집 목록에 없는 악기여도 자리만 미반영된 채 지원 자체는 허용됨).
+// instrument는 지원자가 그 글의 모집 악기 중에서 고른다(서버는 보내지 않으면 프로필 악기로 대신하지만,
+// 이 앱은 항상 보낸다). 모집 악기가 아니거나 정원이 찬 악기는 400.
 export interface ApplicationCreateRequest {
   postId: number;
+  instrument: string;
   additionalInfo?: string;
 }
