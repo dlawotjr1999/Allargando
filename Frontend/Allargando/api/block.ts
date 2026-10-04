@@ -1,4 +1,4 @@
-// 유저 차단 API (POST/GET/DELETE /api/blocks, backend/obri/.../block/controller/BlockController)
+// 유저 차단 API (POST/GET/DELETE /api/blocks, backend/allargando/.../block/controller/BlockController)
 import { apiRequest } from "@/lib/apiClient";
 import { BlockedUser } from "@/types/safety";
 

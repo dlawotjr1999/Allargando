@@ -1,5 +1,5 @@
 // 모집글 조회·등록·수정·마감·삭제 API
-// (GET/POST/PUT/PATCH/DELETE /api/posts, backend/obri/.../post/controller/PostController)
+// (GET/POST/PUT/PATCH/DELETE /api/posts, backend/allargando/.../post/controller/PostController)
 import { apiRequest } from "@/lib/apiClient";
 import { PageResponse } from "@/types/api";
 import { PostCreateRequest, PostDetail, PostResponse, PostSummary } from "@/types/post";

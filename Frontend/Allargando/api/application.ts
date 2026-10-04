@@ -1,5 +1,5 @@
 // 지원 제출·조회·상태 전이 API
-// (GET/POST/PATCH /api/applications, backend/obri/.../application/controller/ApplicationController)
+// (GET/POST/PATCH /api/applications, backend/allargando/.../application/controller/ApplicationController)
 import { apiRequest } from "@/lib/apiClient";
 import { PageResponse } from "@/types/api";
 import { ApplicationCreateRequest, ApplicationSummary } from "@/types/application";

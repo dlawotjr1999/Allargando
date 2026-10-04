@@ -7,16 +7,16 @@ Spring Boot 3.5 (Java 21) + PostgreSQL 16 + Flyway. 코드·상세 규칙은 [`.
 ### 1. 로컬 DB 실행
 
 ```bash
-cd obri
+cd allargando
 docker compose up -d
 ```
 
-PostgreSQL 컨테이너(포트 5432, DB `obri`)를 띄운다.
+PostgreSQL 컨테이너(포트 5432, DB `allargando`)를 띄운다.
 
 ### 2. 로컬 설정 파일 준비
 
 ```bash
-cd obri/src/main/resources
+cd allargando/src/main/resources
 cp application-local.properties.example application-local.properties
 ```
 
@@ -25,7 +25,7 @@ cp application-local.properties.example application-local.properties
 ### 3. Firebase 서비스 계정 키 배치
 
 Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성 후, 다운로드한 JSON을
-`obri/src/main/resources/firebase-service-account.json`으로 저장한다 (`.gitignore` 대상).
+`allargando/src/main/resources/firebase-service-account.json`으로 저장한다 (`.gitignore` 대상).
 
 ### 4. 필요한 시크릿
 
@@ -40,16 +40,16 @@ Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 �
 ### 5. 실행
 
 ```bash
-cd obri
+cd allargando
 ./gradlew bootRun
 ```
 
-기본 포트는 `8080`. 프론트엔드 로컬 실행 시 `EXPO_PUBLIC_API_URL`을 이 서버 주소로 맞춘다([`../Frontend/ObriApp/README.md`](../Frontend/ObriApp/README.md) 참고).
+기본 포트는 `8080`. 프론트엔드 로컬 실행 시 `EXPO_PUBLIC_API_URL`을 이 서버 주소로 맞춘다([`../Frontend/Allargando/README.md`](../Frontend/Allargando/README.md) 참고).
 
 ## 테스트
 
 ```bash
-cd obri
+cd allargando
 ./gradlew test
 ```
 

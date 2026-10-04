@@ -3,7 +3,7 @@
 // 로컬 백엔드가 ddl-auto=create라 재기동마다 DB가 초기화되므로, 재기동 후 앱에서
 // 로그인만으로는 프로필이 없어 401이 난다. 이 스크립트로 먼저 등록해두면 바로 테스트 가능.
 //
-// 사용법 (Frontend/ObriApp 디렉토리에서):
+// 사용법 (Frontend/Allargando 디렉토리에서):
 //   TEST_EMAIL=... TEST_PASSWORD=... npm run register-test-user
 // .env의 EXPO_PUBLIC_API_URL이 실기기용 LAN IP일 수 있으니, 로컬(웹/시뮬레이터) 테스트 중이면
 //   API_URL=http://localhost:8080 TEST_EMAIL=... TEST_PASSWORD=... npm run register-test-user

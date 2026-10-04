@@ -1,5 +1,5 @@
 // 지원(Application) 도메인 타입. 백엔드 AppResponseDTO/AppRequestDTO/ApplicantResponseDTO/
-// ApplicationPostSummaryDTO 기준(backend/obri/.../application/dto)으로 필드를 1:1 맞춘다.
+// ApplicationPostSummaryDTO 기준(backend/allargando/.../application/dto)으로 필드를 1:1 맞춘다.
 import { Career } from "./user";
 import { PostStatus } from "./post";
 

@@ -1,5 +1,5 @@
 // 내 정보 조회·수정·탈퇴, 닉네임 중복 확인 API
-// (GET/PUT/DELETE /api/users/me, GET /api/users/check/{nickname}, backend/obri/.../user/controller/UserController)
+// (GET/PUT/DELETE /api/users/me, GET /api/users/check/{nickname}, backend/allargando/.../user/controller/UserController)
 import { apiRequest } from "@/lib/apiClient";
 import { CareerEntry, UserProfile, UserPublicProfile } from "@/types/user";
 

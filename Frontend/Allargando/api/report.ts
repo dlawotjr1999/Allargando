@@ -1,4 +1,4 @@
-// 신고 API (POST /api/reports/..., backend/obri/.../report/controller/ReportController)
+// 신고 API (POST /api/reports/..., backend/allargando/.../report/controller/ReportController)
 import { apiRequest } from "@/lib/apiClient";
 import { ReportRequest, ReportTarget } from "@/types/safety";
 

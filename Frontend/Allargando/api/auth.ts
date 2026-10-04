@@ -1,5 +1,5 @@
 // 가입·FCM 토큰 API (POST /api/auth/register, DELETE /api/auth/fcm-token,
-// backend/obri/.../auth/controller/AuthController)
+// backend/allargando/.../auth/controller/AuthController)
 import { apiRequest } from "@/lib/apiClient";
 import { CareerEntry } from "@/types/user";
 

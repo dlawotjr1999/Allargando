@@ -3,7 +3,7 @@
 악기 취미생이 앙상블·버스킹 멤버를 **무보수로** 모집하는 서비스. Spring Boot 백엔드 + Expo(React Native) 프론트엔드 모노레포이며, 1인 개발로 기획부터 백엔드 설계, 인증 연동, 프론트 API 연동, CI 구축까지 전체 라이프사이클을 진행했다.
 
 - 백엔드 실행: [`backend/README.md`](backend/README.md)
-- 프론트엔드 실행: [`Frontend/ObriApp/README.md`](Frontend/ObriApp/README.md)
+- 프론트엔드 실행: [`Frontend/Allargando/README.md`](Frontend/Allargando/README.md)
 - 코드 규칙·아키텍처 상세: [`CLAUDE.md`](CLAUDE.md)
 
 ## 프로젝트 배경 — 왜 피벗했는가
@@ -121,5 +121,5 @@ com.wangnu.allargando
 
 - `ApplicationService`에 남아있는 `PostService → ApplicationService` 서비스 계층 의존 제거.
 - Auth 회원가입 응답(`POST /api/auth/register`)을 명세(`createdAt`만 반환)에 맞게 경량화.
-- 앱 이름을 "Obri"에서 "Allargando"로 사용자 노출 영역 전체에 반영(현재 백엔드 로직·데이터는 전환 완료, 프론트 브랜드 표기만 남음).
+- 앱 이름을 "Obri"에서 "Allargando"로 변경 완료(백엔드·프론트 패키지·폴더·표기 반영).
 - 소셜 로그인, 연습 피드백(LLM), 맞춤 모집글 추천, 매너 점수, 연주회 찜하기 기능.

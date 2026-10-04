@@ -1,5 +1,5 @@
 // 모집글(Post) 도메인 타입. 백엔드 PostSummaryResponseDTO/PostDetailResponseDTO/PostResponseDTO 기준
-// (backend/obri/.../post/dto)으로 필드를 1:1 맞춘다. 화면·컴포넌트·더미데이터가 공유하는 단일 소스.
+// (backend/allargando/.../post/dto)으로 필드를 1:1 맞춘다. 화면·컴포넌트·더미데이터가 공유하는 단일 소스.
 import type { ApplicationStatus } from "./application";
 
 export type PostStatus = "OPEN" | "PARTIALLY_CLOSED" | "CLOSED";
