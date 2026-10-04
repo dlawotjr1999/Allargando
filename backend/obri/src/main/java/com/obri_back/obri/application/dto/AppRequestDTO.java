@@ -16,8 +16,8 @@ public class AppRequestDTO {
     @NotNull(message = "모집글 ID를 입력해주세요")
     private Long postId;
 
-    // 지원자가 고른 악기(D9). 보내지 않으면 프로필 악기로 대신한다 — 지원 모달이 악기 선택을 보내기 전까지의 호환용이며,
-    // 프론트가 항상 보내게 되면 @NotBlank로 바꾼다
+    // 지원자가 고른 악기(D9). 보내지 않으면 프로필 악기로 대신한다 — 프로필 악기를 기본값으로 두는 것이 설계 의도라
+    // 필수로 바꾸지 않는다(앱은 지원 모달에서 프로필 악기를 미리 선택해 항상 보낸다)
     @Size(max = 255, message = "악기는 255자 이내여야 합니다")
     private String instrument;
 
