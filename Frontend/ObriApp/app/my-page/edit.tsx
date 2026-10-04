@@ -21,6 +21,12 @@ import ThemedButton from "@/components/common/ThemedButton";
 import ChipSelect from "@/components/common/ChipSelect";
 import { INSTRUMENTS } from "@/constants/filterOptions";
 import CareerFormItem from "@/components/auth/CareerFormItem";
+import {
+  CAREER_MAX_COUNT,
+  getNicknameError,
+  NICKNAME_HINT,
+  normalizeNickname,
+} from "@/utils/registerValidation";
 
 // 프로필 수정 화면. 프로필은 마이페이지에서 이미 불러온 AuthContext 값이라 보통 곧바로 있지만,
 // 없을 때(조회 전·실패)는 폼을 만들 수 없어 로딩 화면으로 둔다 — 폼은 초기값을 state로 복사하므로
@@ -41,6 +47,9 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
     profile.careers.map(({ organization, contexts }) => ({ organization, contexts }))
   );
   const [saving, setSaving] = useState(false);
+  // 입력 중에도 형식이 틀리면 바로 알려준다. 이미 규칙에 안 맞는 기존 닉네임은 그대로 둘 수 있어
+  // 바꾸지 않았다면 검사하지 않는다(서버도 새 입력만 검증한다)
+  const nicknameError = normalizeNickname(nickname) === profile.nickname ? null : getNicknameError(nickname);
 
   // 배열 index는 항목 삭제 시 뒤 요소가 앞으로 당겨져 재사용되므로,
   // React key로 쓰기 위한 항목별 안정적인 로컬 id를 별도로 관리한다.
@@ -51,9 +60,13 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
 
   // 닉네임 중복 확인. 내 현재 닉네임은 서버 기준으로 "사용 중"이라 중복으로 나오므로 먼저 걸러낸다.
   const handleCheckNickname = async () => {
-    const value = nickname.trim();
+    const value = normalizeNickname(nickname);
     if (!value) {
       Alert.alert("닉네임 확인", "닉네임을 입력해주세요.");
+      return;
+    }
+    if (nicknameError) {
+      Alert.alert("닉네임 확인", nicknameError);
       return;
     }
     if (value === profile.nickname) {
@@ -63,8 +76,11 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
     try {
       const duplicated = await isNicknameDuplicated(value);
       Alert.alert("닉네임 확인", duplicated ? "이미 사용 중인 닉네임입니다." : "사용 가능한 닉네임입니다.");
-    } catch {
-      Alert.alert("닉네임 확인", "확인에 실패했어요. 잠시 후 다시 시도해주세요.");
+    } catch (err) {
+      Alert.alert(
+        "닉네임 확인",
+        err instanceof ApiError && err.status === 400 ? err.message : "확인에 실패했어요. 잠시 후 다시 시도해주세요."
+      );
     }
   };
 
@@ -80,20 +96,33 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
   };
 
   const handleCareerAdd = () => {
+    if (careers.length >= CAREER_MAX_COUNT) {
+      Alert.alert("활동 이력", `활동 이력은 최대 ${CAREER_MAX_COUNT}개까지 등록할 수 있어요.`);
+      return;
+    }
     setCareers((prev) => [...prev, { organization: "", contexts: "" }]);
     setCareerKeys((prev) => [...prev, keyCounter.current++]);
   };
 
-  // 프로필 저장 (PUT /api/users/me). 경력은 전체 교체라 항상 전체 목록을 보내며, 단체명이 빈 항목은 제외한다.
+  // 프로필 저장 (PUT /api/users/me). 활동 이력은 전체 교체라 항상 전체 목록을 보낸다. 단체명이 비어도 설명만 있는
+  // 행은 의미가 있으므로 거르지 않고, 둘 다 빈 행만 서버가 버린다.
   // 응답이 곧 최신 프로필이라 재조회 없이 AuthContext에 바로 반영한다. 실패하면 이 화면에 남아 재시도할 수 있다.
   const handleSave = async () => {
     if (saving) return;
+    if (!normalizeNickname(nickname)) {
+      Alert.alert("입력을 확인해 주세요", "닉네임을 입력해 주세요.");
+      return;
+    }
+    if (nicknameError) {
+      Alert.alert("입력을 확인해 주세요", nicknameError);
+      return;
+    }
     setSaving(true);
     try {
       const updated = await updateMyInfo({
-        nickname: nickname.trim(),
+        nickname: normalizeNickname(nickname),
         instrument,
-        careers: careers.filter((c) => c.organization.trim()),
+        careers: careers.map((c) => ({ organization: c.organization.trim(), contexts: c.contexts.trim() })),
       });
       setProfile(updated);
       router.back();
@@ -132,12 +161,16 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
               placeholder="닉네임 입력"
               value={nickname}
               onChangeText={setNickname}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={20}
             />
           </View>
           <TouchableOpacity style={styles.checkButton} onPress={handleCheckNickname}>
             <Text style={styles.checkButtonText}>중복 확인</Text>
           </TouchableOpacity>
         </View>
+        <Text style={[styles.nicknameHint, nicknameError ? styles.hintError : null]}>{NICKNAME_HINT}</Text>
 
         <ChipSelect
           label="악기"
@@ -146,7 +179,7 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
           onSelect={setInstrument}
         />
 
-        <Text style={styles.sectionLabel}>경력</Text>
+        <Text style={styles.sectionLabel}>활동 이력</Text>
         {careers.map((career, index) => (
           <CareerFormItem
             key={careerKeys[index]}
@@ -159,7 +192,7 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
         ))}
         <TouchableOpacity style={styles.addButton} onPress={handleCareerAdd}>
           <Ionicons name="add" size={18} color={colors.textMuted} />
-          <Text style={styles.addButtonText}>경력 추가</Text>
+          <Text style={styles.addButtonText}>활동 이력 추가</Text>
         </TouchableOpacity>
 
         <View style={styles.bottom}>
@@ -214,6 +247,17 @@ const styles = StyleSheet.create({
   checkButtonText: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+  // 입력줄(아래 여백 16)에 붙여 안내문을 입력칸 바로 밑에 둔다
+  nicknameHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    lineHeight: 16,
+    marginTop: -10,
+    marginBottom: 16,
+  },
+  hintError: {
+    color: colors.danger,
   },
   sectionLabel: {
     fontSize: 12,

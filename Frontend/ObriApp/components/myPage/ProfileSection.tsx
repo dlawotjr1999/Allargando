@@ -53,13 +53,14 @@ export default function ProfileSection({
 
       {user.careers.length > 0 && (
         <View style={styles.careerSection}>
-          <Text style={styles.careerLabel}>경력</Text>
+          <Text style={styles.careerLabel}>활동 이력</Text>
           {user.careers.map((c) => (
             <View key={c.id} style={styles.careerItem}>
               <View style={styles.careerDot} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.careerOrg}>{c.organization}</Text>
-                <Text style={styles.careerContext}>{c.contexts}</Text>
+                {/* 활동 이력은 단체명·설명 중 한쪽만 있어도 저장된다(혼자 연주한 경우 등) — 빈 쪽은 대시로 보여준다 */}
+                <Text style={styles.careerOrg}>{c.organization || "-"}</Text>
+                <Text style={styles.careerContext}>{c.contexts || "-"}</Text>
               </View>
             </View>
           ))}
