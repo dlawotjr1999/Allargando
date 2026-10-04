@@ -30,7 +30,7 @@ function RootNavigator() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
       </Stack>
-      <Redirect href={user ? "/(tabs)/obri" : "/(auth)/login"} />
+      <Redirect href={user ? "/(tabs)/home" : "/(auth)/login"} />
       <StatusBar style="dark" />
     </>
   );
