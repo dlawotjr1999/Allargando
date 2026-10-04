@@ -1,10 +1,14 @@
 export const CATEGORIES = ["앙상블", "버스킹", "합주", "연주회", "기타"];
 
+// 악기 목록의 단일 소스 — 모집글·필터·지원·가입·프로필 수정이 모두 이 목록을 쓴다.
+// 백엔드는 악기명을 문자열 그대로 비교하므로(Post.requireAcceptingInstrument) 화면마다 목록이 다르면
+// 가입자의 프로필 악기가 모집 악기에 없어 지원할 수 없게 된다. 항목을 바꾸면 기존 데이터와 어긋나니 추가만 한다.
 export const INSTRUMENTS = [
   "바이올린", "비올라", "첼로", "더블베이스",
   "플루트", "오보에", "클라리넷", "바순",
   "호른", "트럼펫", "트롬본", "튜바",
   "피아노", "하프", "타악기",
+  "성악", "기타",
 ];
 
 export const REGIONS = ["서울", "경기", "인천", "부산", "대구", "대전", "광주", "기타"];
@@ -20,9 +24,3 @@ export const CONCERT_REGIONS = [
 // KOPIS genrenm 원본 표기 — 백엔드가 이 문자열과 완전 일치로 비교한다. 세 장르(CCCA·CCCC·CCCD) 모두
 // 백엔드가 실제 응답으로 확인했다(KopisSyncService). 국악은 "국악"이 아니라 "한국음악(국악)"으로 내려온다
 export const CONCERT_CATEGORIES = ["서양음악(클래식)", "한국음악(국악)", "대중음악"];
-
-export const STATUS_LABELS: Record<string, string> = {
-  OPEN: "모집중",
-  PARTIALLY_CLOSED: "부분마감",
-  CLOSED: "마감",
-};

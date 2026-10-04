@@ -8,14 +8,17 @@ interface ChipProps {
   onPress: () => void;
   leftIcon?: React.ReactNode;
   style?: ViewStyle;
+  // 고를 수 없는 항목(예: 정원이 찬 악기) — 흐리게 보이고 눌러도 반응하지 않는다
+  disabled?: boolean;
 }
 
-export default function Chip({ label, active = false, onPress, leftIcon, style }: ChipProps) {
+export default function Chip({ label, active = false, onPress, leftIcon, style, disabled = false }: ChipProps) {
   return (
     <TouchableOpacity
-      style={[styles.chip, active && styles.chipActive, style]}
+      style={[styles.chip, active && styles.chipActive, disabled && styles.chipDisabled, style]}
       onPress={onPress}
       activeOpacity={0.7}
+      disabled={disabled}
     >
       {leftIcon}
       <Text style={[styles.text, active && styles.textActive]}>{label}</Text>
@@ -45,6 +48,9 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+  chipDisabled: {
+    opacity: 0.4,
   },
   textActive: {
     color: colors.background,

@@ -45,13 +45,15 @@ export default function ApplicantCard({
   onMore,
   processing = false,
 }: ApplicantCardProps) {
-  const { applicant, status, additionalInfo } = application;
+  // instrument는 지원자가 이 글에 지원하며 고른 악기(수락하면 이 악기 정원이 찬다).
+  // applicant.instrument는 프로필 악기라 다를 수 있어 헤더에는 고른 악기를 보여준다
+  const { applicant, status, additionalInfo, instrument } = application;
 
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <Text style={styles.nickname} numberOfLines={1}>
-          {applicant.nickname} · {applicant.instrument}
+          {applicant.nickname} · {instrument}
         </Text>
         <View style={styles.headerRight}>
           <View style={[styles.statusBadge, { borderColor: STATUS_COLOR[status] }]}>

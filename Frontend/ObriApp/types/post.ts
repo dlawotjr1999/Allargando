@@ -1,5 +1,6 @@
 // 모집글(Post) 도메인 타입. 백엔드 PostSummaryResponseDTO/PostDetailResponseDTO/PostResponseDTO 기준
 // (backend/obri/.../post/dto)으로 필드를 1:1 맞춘다. 화면·컴포넌트·더미데이터가 공유하는 단일 소스.
+import type { ApplicationStatus } from "./application";
 
 export type PostStatus = "OPEN" | "PARTIALLY_CLOSED" | "CLOSED";
 
@@ -43,7 +44,10 @@ export interface PostDetail extends PostSummary {
   writer: PostWriter;
   applicationCount: number;
   isMine: boolean;
+  // 지원한 적이 있는지 — myApplicationStatus가 있는지와 같다(호환용). 버튼 문구는 myApplicationStatus로 가른다
   hasApplied: boolean;
+  // 내 지원 상태(지원한 적 없으면 null). 취소(CANCELLED)한 지원만 다시 지원할 수 있다
+  myApplicationStatus: ApplicationStatus | null;
   description?: string;
   createdAt: string;
 }

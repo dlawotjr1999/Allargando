@@ -76,7 +76,10 @@ export default function ConcertsScreen() {
 
       {!loading && !error && (
         <View style={styles.resultRow}>
-          <Text style={styles.resultText}>총 {concerts.length}개</Text>
+          {/* 서버가 전체 건수를 주지 않아(hasNext만 제공) 불러온 건수만 안다 — 더 있으면 "이상"으로 표시 */}
+          <Text style={styles.resultText}>
+            {concerts.length}개{hasNext ? " 이상" : ""}
+          </Text>
         </View>
       )}
 

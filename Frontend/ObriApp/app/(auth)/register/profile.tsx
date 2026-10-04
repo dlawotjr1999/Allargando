@@ -17,9 +17,8 @@ import StepIndicator from "@/components/common/StepIndicator";
 import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
 import ChipSelect from "@/components/common/ChipSelect";
+import { INSTRUMENTS } from "@/constants/filterOptions";
 import { isNicknameDuplicated } from "@/api/user";
-
-const INSTRUMENTS = ["피아노", "바이올린", "첼로", "플루트", "성악", "기타"];
 
 export default function RegisterStep2() {
   const router = useRouter();

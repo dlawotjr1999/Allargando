@@ -19,9 +19,8 @@ import LoadingScreen from "@/components/common/LoadingScreen";
 import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
 import ChipSelect from "@/components/common/ChipSelect";
+import { INSTRUMENTS } from "@/constants/filterOptions";
 import CareerFormItem from "@/components/auth/CareerFormItem";
-
-const INSTRUMENTS = ["피아노", "바이올린", "첼로", "플루트", "성악", "기타"];
 
 // 프로필 수정 화면. 프로필은 마이페이지에서 이미 불러온 AuthContext 값이라 보통 곧바로 있지만,
 // 없을 때(조회 전·실패)는 폼을 만들 수 없어 로딩 화면으로 둔다 — 폼은 초기값을 state로 복사하므로
