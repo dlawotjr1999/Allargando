@@ -36,7 +36,7 @@
 
 ### 도메인 구조
 ```
-com.obri_back.obri
+com.wangnu.allargando
 ├── global        공통 응답 포맷 · 예외 처리 · Security 설정 · Firebase 설정
 ├── auth          Firebase 토큰 검증 · 회원가입/로그인
 ├── user          유저 · 경력(Career)
