@@ -3,9 +3,8 @@ import {
   View,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,6 +14,9 @@ import ScreenHeader from "@/components/common/ScreenHeader";
 import StepIndicator from "@/components/common/StepIndicator";
 import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
+import AgreementRow from "@/components/auth/AgreementRow";
+import { openLegalDocument, PRIVACY_URL, TERMS_URL } from "@/lib/legal";
+import { validateAccountStep } from "@/utils/registerValidation";
 
 export default function RegisterStep1() {
   const router = useRouter();
@@ -22,8 +24,16 @@ export default function RegisterStep1() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const allAgreed = form.agreeTerms && form.agreePrivacy && form.agreeAge;
+
+  // 다음 단계로. 이메일 형식·비밀번호 길이/일치·필수 약관 동의를 확인한다
   const handleNext = () => {
-    // TODO: 유효성 검사 (이메일 형식, 비밀번호 길이, 일치 여부)
+    const invalid = validateAccountStep(form);
+    if (invalid) {
+      Alert.alert("입력을 확인해 주세요", invalid);
+      return;
+    }
+    updateForm({ email: form.email.trim() });
     router.push("/(auth)/register/profile");
   };
 
@@ -48,6 +58,7 @@ export default function RegisterStep1() {
           onChangeText={(v) => updateForm({ email: v })}
           keyboardType="email-address"
           autoCapitalize="none"
+          autoCorrect={false}
         />
 
         <ThemedInput
@@ -86,6 +97,35 @@ export default function RegisterStep1() {
           }
         />
 
+        <View style={styles.agreements}>
+          <AgreementRow
+            label="전체 동의"
+            checked={allAgreed}
+            required={false}
+            onToggle={() =>
+              updateForm({ agreeTerms: !allAgreed, agreePrivacy: !allAgreed, agreeAge: !allAgreed })
+            }
+          />
+          <View style={styles.agreementDivider} />
+          <AgreementRow
+            label="이용약관 동의"
+            checked={form.agreeTerms}
+            onToggle={() => updateForm({ agreeTerms: !form.agreeTerms })}
+            onView={() => openLegalDocument("이용약관", TERMS_URL)}
+          />
+          <AgreementRow
+            label="개인정보 수집·이용 동의"
+            checked={form.agreePrivacy}
+            onToggle={() => updateForm({ agreePrivacy: !form.agreePrivacy })}
+            onView={() => openLegalDocument("개인정보처리방침", PRIVACY_URL)}
+          />
+          <AgreementRow
+            label="만 14세 이상입니다"
+            checked={form.agreeAge}
+            onToggle={() => updateForm({ agreeAge: !form.agreeAge })}
+          />
+        </View>
+
         <View style={styles.bottom}>
           <ThemedButton title="다음" onPress={handleNext} />
         </View>
@@ -104,8 +144,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingTop: 16,
   },
+  agreements: {
+    marginTop: 8,
+  },
+  agreementDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: 4,
+  },
   bottom: {
-    marginTop: "auto",
+    marginTop: 24,
     marginBottom: 32,
   },
 });

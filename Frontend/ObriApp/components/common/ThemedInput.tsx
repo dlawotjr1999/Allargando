@@ -13,12 +13,17 @@ interface ThemedInputProps extends TextInputProps {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   rightElement?: React.ReactNode;
+  // 입력칸 아래 안내문. error가 있으면 안내문 대신 오류 문구(빨간색)를 보여준다
+  hint?: string;
+  error?: string | null;
 }
 
 export default function ThemedInput({
   label,
   icon,
   rightElement,
+  hint,
+  error,
   ...inputProps
 }: ThemedInputProps) {
   return (
@@ -38,6 +43,11 @@ export default function ThemedInput({
         />
         {rightElement}
       </View>
+      {error ? (
+        <Text style={[styles.hint, styles.error]}>{error}</Text>
+      ) : hint ? (
+        <Text style={styles.hint}>{hint}</Text>
+      ) : null}
     </View>
   );
 }
@@ -69,5 +79,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: colors.textPrimary,
+  },
+  hint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 6,
+    lineHeight: 16,
+  },
+  error: {
+    color: colors.danger,
   },
 });

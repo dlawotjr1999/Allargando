@@ -4,8 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Alert,
   Image,
@@ -14,6 +12,7 @@ import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
+import { describeAuthError } from "@/lib/authErrors";
 import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
 
@@ -33,12 +32,17 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (isSubmitting) return;
+    if (!email.trim() || !password) {
+      Alert.alert("로그인", "이메일과 비밀번호를 입력해주세요.");
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await signIn(email, password);
-      // 로그인 성공 시 RootLayout의 useAuth 구독이 자동으로 (tabs)로 리다이렉트
-    } catch {
-      Alert.alert("로그인 실패", "이메일 또는 비밀번호를 확인해주세요.");
+      await signIn(email.trim(), password);
+      // 로그인 성공 시 RootLayout의 useAuth 구독이 자동으로 이동시킨다(프로필이 있으면 홈, 가입 미완료면 가입 이어하기)
+    } catch (err) {
+      // 계정 없음·비밀번호 오류는 같은 문구(Firebase 이메일 열거 방지), 형식·네트워크·횟수 제한은 따로 안내
+      Alert.alert("로그인 실패", describeAuthError(err, "login"));
     } finally {
       setIsSubmitting(false);
     }
