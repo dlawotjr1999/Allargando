@@ -2,6 +2,7 @@ package com.obri_back.obri.post.service;
 
 import com.obri_back.obri.application.entity.ApplicationStatus;
 import com.obri_back.obri.application.service.ApplicationService;
+import com.obri_back.obri.global.exception.BadRequestException;
 import com.obri_back.obri.global.exception.ForbiddenException;
 import com.obri_back.obri.global.exception.NotFoundException;
 import com.obri_back.obri.notification.event.NewPostNotificationEvent;
@@ -12,7 +13,9 @@ import com.obri_back.obri.post.dto.PostSummaryResponseDTO;
 import com.obri_back.obri.post.entity.Post;
 import com.obri_back.obri.post.entity.PostInfo;
 import com.obri_back.obri.post.entity.PostInstrument;
+import com.obri_back.obri.post.entity.PostStatus;
 import com.obri_back.obri.post.repository.PostRepository;
+import com.obri_back.obri.post.repository.PostSort;
 import com.obri_back.obri.post.repository.PostSpecification;
 import com.obri_back.obri.user.entity.User;
 import com.obri_back.obri.user.event.UserWithdrawalEvent;
@@ -26,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -58,14 +62,16 @@ public class PostService {
         return PostResponseDTO.from(saved);
     }
 
-    // 모집글 전체 조회 — Specification 동적 필터 적용 후 요약 DTO로 반환
-    // status 필터 없음(BACKLOG.md #35) — PostSpecification이 항상 OPEN·PARTIALLY_CLOSED만 노출
+    // 모집글 전체 조회 — Specification 동적 필터·정렬 적용 후 요약 DTO로 반환
+    // statuses가 비면 모집 중인 글(OPEN·PARTIALLY_CLOSED)만, CLOSED를 고르면 마감된 글도 보인다(D15)
+    // sort(LATEST·EVENT_SOON·CLOSING_SOON)는 Specification이 쿼리에 직접 건다 — pageable은 정렬이 없어야 한다
     // viewerId(조회하는 유저)가 차단한 작성자의 글은 목록에서 제외된다
     @Transactional(readOnly = true)
     public Page<PostSummaryResponseDTO> getPosts(Long viewerId, List<String> categories, List<String> instruments,
-            List<String> regions, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+            List<String> regions, LocalDate startDate, LocalDate endDate, List<PostStatus> statuses, PostSort sort,
+            Pageable pageable) {
         Specification<Post> spec = PostSpecification.filter(
-                viewerId, categories, instruments, regions, startDate, endDate);
+                viewerId, categories, instruments, regions, startDate, endDate, statuses, sort);
         return postRepository.findAll(spec, pageable).map(PostSummaryResponseDTO::from);
     }
 
@@ -114,6 +120,18 @@ public class PostService {
         Post post = findPostOrThrow(postId);
         requireOwner(post, user);
         post.close();
+    }
+
+    // 모집글 수동 마감 해제(재개, 작성자만) — 공연일이 지난 글은 재개할 수 없다(400). 정원이 모두 찬 글은 재개해도 CLOSED.
+    // 마감 때문에 자동 거절된 지원자는 복구하지 않고, 수동 마감·재개에는 알림이 없다(D10·D17)
+    @Transactional
+    public void reopenPost(Long postId, User user) {
+        Post post = findPostOrThrow(postId);
+        requireOwner(post, user);
+        if (post.getEventAt().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("공연일이 지난 모집글은 모집을 재개할 수 없습니다");
+        }
+        post.reopen();
     }
 
     // 모집글 삭제 (작성자만) — 지원서 정리·삭제 알림은 Application 도메인에 위임

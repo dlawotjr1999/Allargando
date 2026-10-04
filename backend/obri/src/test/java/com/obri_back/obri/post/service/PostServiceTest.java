@@ -244,6 +244,48 @@ class PostServiceTest {
                 .isInstanceOf(ForbiddenException.class);
     }
 
+    // D11: 재개는 작성자만, 수동 마감 플래그를 풀고 상태를 다시 파생한다
+    @Test
+    void reopenPost_clearsManualCloseWhenOwner() {
+        // buildPost의 공연일은 과거 고정값이라 재개가 거절된다 — 앞으로 열릴 공연의 글을 따로 만든다
+        Post post = Post.create(owner, PostInfo.builder()
+                .category("앙상블").title("다가오는 공연").location("서울").region("서울").timetable("13:00")
+                .eventAt(java.time.LocalDateTime.now().plusDays(7)).build());
+        post.addInstrument(PostInstrument.of(post, "바이올린", 2));
+        post.close();
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+
+        postService.reopenPost(10L, owner);
+
+        assertThat(post.getManuallyClosed()).isFalse();
+        assertThat(post.getStatus()).isEqualTo(PostStatus.OPEN);
+    }
+
+    @Test
+    void reopenPost_throwsForbiddenWhenNotOwner() {
+        Post post = buildPost(owner);
+        post.close();
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> postService.reopenPost(10L, other))
+                .isInstanceOf(ForbiddenException.class);
+        assertThat(post.getStatus()).isEqualTo(PostStatus.CLOSED);
+    }
+
+    // 공연일이 지난 글은 재개해도 의미가 없다 — 400
+    @Test
+    void reopenPost_throwsBadRequestWhenEventAlreadyPassed() {
+        Post past = Post.create(owner, PostInfo.builder()
+                .category("앙상블").title("지난 공연").location("서울").region("서울").timetable("13:00")
+                .eventAt(java.time.LocalDateTime.now().minusDays(1)).build());
+        past.close();
+        given(postRepository.findById(10L)).willReturn(Optional.of(past));
+
+        assertThatThrownBy(() -> postService.reopenPost(10L, owner))
+                .isInstanceOf(com.obri_back.obri.global.exception.BadRequestException.class);
+        assertThat(past.getStatus()).isEqualTo(PostStatus.CLOSED);
+    }
+
     @Test
     void deletePost_delegatesToApplicationServiceThenDeletesPostWhenOwner() {
         Post post = buildPost(owner);
@@ -276,7 +318,7 @@ class PostServiceTest {
         when(postRepository.findAll(ArgumentMatchers.<Specification<Post>>any(), any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(post), PageRequest.of(0, 10), 1));
 
-        var result = postService.getPosts(1L, null, null, null, null, null, PageRequest.of(0, 10));
+        var result = postService.getPosts(1L, null, null, null, null, null, null, null, PageRequest.of(0, 10));
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getTitle()).isEqualTo("현악 앙상블 단원 모집");

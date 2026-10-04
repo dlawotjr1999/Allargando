@@ -26,20 +26,27 @@ const TABS = [
 ];
 
 // 프로필(AuthContext)·내 모집글·내 지원을 모두 실 API로 불러온다. 이 화면은 바깥이 이미 ScrollView라
-// 무한스크롤 구조가 아니어서 두 목록 모두 첫 페이지(10건)만 조회한다 — 건수가 페이지 크기를 넘는
-// 경우는 아직 드물다고 보고 후순위로 미룸. 통계 숫자도 이 첫 페이지 기준이다.
+// 무한스크롤 구조가 아니어서 두 목록 모두 한 번에 서버 상한(50건)까지 받는다. 통계 숫자는 이 목록 기준이고,
+// 50건을 넘으면 "50+"처럼 더 있음을 표시한다.
+const MY_LIST_SIZE = 50;
+
+// 통계 숫자 표시. 서버에 더 있으면(받은 범위를 넘으면) "50+"처럼 뒤에 +를 붙인다
+const withMoreMark = (count: number, hasMore: boolean) => (hasMore ? `${count}+` : count);
+
 export default function MyPageScreen() {
   const router = useRouter();
   const { profile, profileError, refreshProfile, signOut } = useAuth();
-  const [notifEnabled, setNotifEnabled] = useState(true);
 
   const [myPosts, setMyPosts] = useState<PostSummary[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState<string | null>(null);
+  // 서버에 더 있는데 한 번에 받은 범위를 넘은 경우(통계에 "+" 표시)
+  const [postsHasMore, setPostsHasMore] = useState(false);
 
   const [applications, setApplications] = useState<ApplicationSummary[]>([]);
   const [applicationsLoading, setApplicationsLoading] = useState(true);
   const [applicationsError, setApplicationsError] = useState<string | null>(null);
+  const [applicationsHasMore, setApplicationsHasMore] = useState(false);
   // 지원 취소 요청 중인 지원서 id(없으면 null)
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
@@ -48,8 +55,9 @@ export default function MyPageScreen() {
   const loadMyPosts = useCallback(async () => {
     setPostsError(null);
     try {
-      const page = await getMyPosts(0);
+      const page = await getMyPosts(0, MY_LIST_SIZE);
       setMyPosts(page.content);
+      setPostsHasMore(page.hasNext);
     } catch (err) {
       setPostsError(err instanceof ApiError ? err.message : "모집글을 불러오지 못했어요.");
     } finally {
@@ -60,8 +68,9 @@ export default function MyPageScreen() {
   const loadApplications = useCallback(async () => {
     setApplicationsError(null);
     try {
-      const page = await getMyApplications(0);
+      const page = await getMyApplications(0, MY_LIST_SIZE);
       setApplications(page.content);
+      setApplicationsHasMore(page.hasNext);
     } catch (err) {
       setApplicationsError(err instanceof ApiError ? err.message : "지원 목록을 불러오지 못했어요.");
     } finally {
@@ -145,9 +154,9 @@ export default function MyPageScreen() {
   const profileBlock = profile ? (
     <ProfileSection
       user={profile}
-      myPostCount={myPosts.length}
-      totalApplications={applications.length}
-      acceptedApplications={acceptedCount}
+      myPostCount={withMoreMark(myPosts.length, postsHasMore)}
+      totalApplications={withMoreMark(applications.length, applicationsHasMore)}
+      acceptedApplications={withMoreMark(acceptedCount, applicationsHasMore)}
       onEditPress={() => router.push("/my-page/edit")}
     />
   ) : profileError ? (
@@ -179,6 +188,7 @@ export default function MyPageScreen() {
                 <View key={post.id} style={i > 0 ? { marginTop: 12 } : undefined}>
                   <PostCard
                     post={post}
+                    showStatus
                     onPress={(id) => router.push({ pathname: "/post/[id]", params: { id } })}
                   />
                 </View>
@@ -205,8 +215,6 @@ export default function MyPageScreen() {
         />
 
         <SettingsSection
-          notifEnabled={notifEnabled}
-          onToggleNotif={setNotifEnabled}
           onBlocksPress={() => router.push("/my-page/blocks")}
           onLogout={handleLogout}
           onWithdraw={handleWithdraw}

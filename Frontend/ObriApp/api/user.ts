@@ -1,7 +1,7 @@
 // 내 정보 조회·수정·탈퇴, 닉네임 중복 확인 API
 // (GET/PUT/DELETE /api/users/me, GET /api/users/check/{nickname}, backend/obri/.../user/controller/UserController)
 import { apiRequest } from "@/lib/apiClient";
-import { CareerEntry, UserProfile } from "@/types/user";
+import { CareerEntry, UserProfile, UserPublicProfile } from "@/types/user";
 
 // 내 정보 수정(PUT /api/users/me) 요청 바디. 백엔드 UserUpdateRequestDTO와 대응 —
 // careers는 부분 수정이 아니라 "전체 교체"(서버가 기존 경력을 전부 지우고 다시 저장)라 항상 전체 목록을 보낸다.
@@ -14,6 +14,12 @@ export interface UserUpdateRequest {
 // 내 정보 조회. GET이라 멱등.
 export function getMyInfo() {
   return apiRequest<UserProfile>("/api/users/me");
+}
+
+// 다른 유저의 공개 프로필 조회(닉네임·악기·가입일·활동 이력, 연락처 제외). 없는 닉네임이면 404.
+// 한글 닉네임이 경로에 들어가므로 인코딩한다. GET — 멱등.
+export function getUserProfile(nickname: string) {
+  return apiRequest<UserPublicProfile>(`/api/users/${encodeURIComponent(nickname)}`);
 }
 
 // 내 정보 수정. PUT이라 멱등 — 같은 payload를 여러 번 보내도 최종 상태가 같아 재시도가 안전하다.

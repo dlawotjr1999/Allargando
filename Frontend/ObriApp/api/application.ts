@@ -15,9 +15,10 @@ export function submitApplication(payload: ApplicationCreateRequest) {
   });
 }
 
-// 내 지원 목록(마이페이지, 무한스크롤). GET — 멱등.
-export function getMyApplications(page: number) {
-  return apiRequest<PageResponse<ApplicationSummary>>(`/api/applications/me?page=${page}`);
+// 내 지원 목록(마이페이지). GET — 멱등. size는 페이지 크기(서버 상한 50)
+export function getMyApplications(page: number, size?: number) {
+  const sizeParam = size ? `&size=${size}` : "";
+  return apiRequest<PageResponse<ApplicationSummary>>(`/api/applications/me?page=${page}${sizeParam}`);
 }
 
 // 지원서 단건 조회 (모집자 또는 지원자 본인만 200, 그 외 403). GET — 멱등.

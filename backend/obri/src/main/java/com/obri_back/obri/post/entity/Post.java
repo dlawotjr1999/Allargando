@@ -172,6 +172,13 @@ public class Post {
         this.status = PostStatus.CLOSED;
     }
 
+    // 수동 마감 해제(모집 재개, D11) — 수동 마감 플래그를 풀고 악기별 마감 상태로 상태를 다시 파생한다.
+    // 정원이 모두 찬 글은 재개해도 CLOSED로 남고, 일부만 찼으면 PARTIALLY_CLOSED, 없으면 OPEN이 된다
+    public void reopen() {
+        this.manuallyClosed = false;
+        recomputeStatus();
+    }
+
     // 지원 수락 시: 해당 악기 확정 인원 증가 후 전체 상태 재계산 (Post 도메인 로직)
     // 지원자 전공이 모집 목록에 없으면 자리 미반영·상태만 수락 허용(시나리오 1.4) → 조용히 무동작
     public void confirmInstrument(String instrumentName) {

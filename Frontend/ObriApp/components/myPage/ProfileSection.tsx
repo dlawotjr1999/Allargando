@@ -6,9 +6,10 @@ import { UserProfile } from "@/types/user";
 
 interface ProfileSectionProps {
   user: UserProfile;
-  myPostCount: number;
-  totalApplications: number;
-  acceptedApplications: number;
+  // 통계는 한 번에 받은 목록 기준이라 더 있을 수 있다 — 호출부가 "50+"처럼 문자열로 넘길 수 있다
+  myPostCount: number | string;
+  totalApplications: number | string;
+  acceptedApplications: number | string;
   onEditPress: () => void;
 }
 

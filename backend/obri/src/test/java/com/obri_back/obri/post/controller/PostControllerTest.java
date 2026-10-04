@@ -7,6 +7,7 @@ import com.obri_back.obri.post.dto.PostInstrumentDTO;
 import com.obri_back.obri.post.dto.PostResponseDTO;
 import com.obri_back.obri.post.dto.PostSummaryResponseDTO;
 import com.obri_back.obri.post.entity.PostStatus;
+import com.obri_back.obri.post.repository.PostSort;
 import com.obri_back.obri.post.service.PostService;
 import com.obri_back.obri.user.entity.User;
 import jakarta.servlet.FilterChain;
@@ -33,8 +34,10 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -158,21 +161,74 @@ class PostControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // 정렬은 서버가 고정한다 — ?sort=로 임의 속성(연관 엔티티의 개인정보 컬럼 등)을 지정해도 반영되지 않고,
-    // 페이지 크기는 설정한 상한(50)으로 잘린다
+    // 페이지 크기는 설정한 상한(50)으로 잘리고, Pageable에는 정렬이 없다(정렬은 sort 파라미터로 Specification이 건다)
     @Test
-    void getPosts_ignoresClientSortAndCapsPageSize() throws Exception {
-        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any()))
+    void getPosts_capsPageSizeAndLeavesPageableUnsorted() throws Exception {
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
-        mockMvc.perform(get("/api/posts?sort=user.phoneNumber,asc&size=100000")
+        mockMvc.perform(get("/api/posts?size=100000")
                         .with(authentication(auth)))
                 .andExpect(status().isOk());
 
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), captor.capture());
-        assertThat(captor.getValue().getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "createdAt"));
+        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), any(), any(), captor.capture());
+        assertThat(captor.getValue().getSort()).isEqualTo(Sort.unsorted());
         assertThat(captor.getValue().getPageSize()).isEqualTo(50);
+    }
+
+    // D15: 정렬은 화이트리스트(LATEST·EVENT_SOON·CLOSING_SOON)만 받는다 — 임의 속성(연관 엔티티의 개인정보 컬럼 등)이나
+    // 목록 밖 값은 400이고 서비스까지 가지 않는다
+    @Test
+    void getPosts_rejectsSortOutsideWhitelistWith400() throws Exception {
+        mockMvc.perform(get("/api/posts?sort=user.phoneNumber,asc")
+                        .with(authentication(auth)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/posts?sort=password")
+                        .with(authentication(auth)))
+                .andExpect(status().isBadRequest());
+
+        verify(postService, never()).getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getPosts_rejectsUnknownStatusWith400() throws Exception {
+        mockMvc.perform(get("/api/posts?status=DELETED")
+                        .with(authentication(auth)))
+                .andExpect(status().isBadRequest());
+
+        verify(postService, never()).getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getPosts_defaultsToLatestSortAndNoStatus() throws Exception {
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        mockMvc.perform(get("/api/posts").with(authentication(auth)))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<PostSort> sort = ArgumentCaptor.forClass(PostSort.class);
+        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), isNull(), sort.capture(), any());
+        assertThat(sort.getValue()).isEqualTo(PostSort.LATEST);
+    }
+
+    // sort와 복수 status가 그대로 서비스에 전달된다
+    @Test
+    void getPosts_forwardsSortAndStatusesToService() throws Exception {
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        mockMvc.perform(get("/api/posts?sort=CLOSING_SOON&status=OPEN&status=CLOSED")
+                        .with(authentication(auth)))
+                .andExpect(status().isOk());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<PostStatus>> statuses = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<PostSort> sort = ArgumentCaptor.forClass(PostSort.class);
+        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), statuses.capture(), sort.capture(), any());
+        assertThat(sort.getValue()).isEqualTo(PostSort.CLOSING_SOON);
+        assertThat(statuses.getValue()).containsExactly(PostStatus.OPEN, PostStatus.CLOSED);
     }
 
     @Test
@@ -190,7 +246,7 @@ class PostControllerTest {
                 .status(PostStatus.OPEN)
                 .build();
 
-        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any()))
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(summary), PageRequest.of(0, 10), 1));
 
         mockMvc.perform(get("/api/posts")
@@ -307,6 +363,17 @@ class PostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("모집글이 마감되었습니다"));
+    }
+
+    @Test
+    void reopenPost_returns200() throws Exception {
+        doNothing().when(postService).reopenPost(anyLong(), any());
+
+        mockMvc.perform(patch("/api/posts/1/reopen")
+                        .with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value("모집이 재개되었습니다"));
     }
 
     @Test

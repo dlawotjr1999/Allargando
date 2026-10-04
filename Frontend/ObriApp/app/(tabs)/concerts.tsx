@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, FlatList, StyleSheet, Text, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
@@ -26,20 +26,25 @@ export default function ConcertsScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 조회 순번 — 필터를 연달아 바꿀 때 늦게 도착한 이전 필터의 응답이 지금 목록을 덮어쓰지 않게 한다(home.tsx와 동일)
+  const requestSeq = useRef(0);
 
   // 필터가 바뀌면 첫 페이지부터 새로 조회
   const loadFirstPage = useCallback(async () => {
+    const seq = ++requestSeq.current;
     setLoading(true);
     setError(null);
     try {
       const page = await getConcerts(filter, 0);
+      if (seq !== requestSeq.current) return; // 그 사이 더 새로운 조회가 시작됨 — 낡은 응답은 버린다
       setConcerts(page.content);
       setCurrentPage(page.currentPage);
       setHasNext(page.hasNext);
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       setError(err instanceof ApiError ? err.message : "연주회 목록을 불러오지 못했어요.");
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }, [filter]);
 
@@ -50,9 +55,11 @@ export default function ConcertsScreen() {
   // 무한스크롤 — 다음 페이지를 이어붙임
   const loadNextPage = async () => {
     if (loadingMore || !hasNext) return;
+    const seq = requestSeq.current;
     setLoadingMore(true);
     try {
       const page = await getConcerts(filter, currentPage + 1);
+      if (seq !== requestSeq.current) return; // 요청 중에 필터가 바뀌어 첫 페이지부터 다시 불러옴 — 이어붙이지 않는다
       setConcerts((prev) => [...prev, ...page.content]);
       setCurrentPage(page.currentPage);
       setHasNext(page.hasNext);

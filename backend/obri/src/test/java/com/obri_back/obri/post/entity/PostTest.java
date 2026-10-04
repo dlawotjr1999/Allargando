@@ -136,6 +136,53 @@ class PostTest {
         assertThat(post.getManuallyClosed()).isTrue();
     }
 
+    // D11: 수동 마감 해제(모집 재개)는 수동 마감 플래그를 풀고 악기별 마감 상태로 상태를 다시 파생한다
+    @Test
+    void reopen_afterManualClose_restoresOpenAndClearsFlag() {
+        post.close();
+
+        post.reopen();
+
+        assertThat(post.getManuallyClosed()).isFalse();
+        assertThat(post.getStatus()).isEqualTo(PostStatus.OPEN);
+    }
+
+    @Test
+    void reopen_withOneInstrumentFull_becomesPartiallyClosed() {
+        post.confirmInstrument("첼로"); // 첼로만 정원 충족
+        post.close();
+
+        post.reopen();
+
+        assertThat(post.getStatus()).isEqualTo(PostStatus.PARTIALLY_CLOSED);
+    }
+
+    // 정원이 모두 찬 글은 재개해도 CLOSED로 남는다(자동 마감과 수동 마감이 겹친 경우)
+    @Test
+    void reopen_withAllInstrumentsFull_staysClosed() {
+        post.confirmInstrument("첼로");
+        post.confirmInstrument("바이올린");
+        post.confirmInstrument("바이올린");
+        post.close();
+
+        post.reopen();
+
+        assertThat(post.getManuallyClosed()).isFalse();
+        assertThat(post.getStatus()).isEqualTo(PostStatus.CLOSED);
+    }
+
+    // 재개 뒤에는 수동 마감 고정이 풀려 있으므로 수락 철회가 다시 자리를 연다
+    @Test
+    void reopen_thenRevokeInstrument_reopensInsteadOfStayingClosed() {
+        post.confirmInstrument("첼로");
+        post.close();
+        post.reopen();
+
+        post.revokeInstrument("첼로");
+
+        assertThat(post.getStatus()).isEqualTo(PostStatus.OPEN);
+    }
+
     // BACKLOG.md #32: 글 수정 시 이름이 같은 악기는 확정 인원·마감 상태를 승계해야 함
     @Test
     void replaceInstruments_matchingNamePreservesConfirmedCount() {

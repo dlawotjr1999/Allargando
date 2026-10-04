@@ -2,17 +2,28 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
-import { PostSummary } from "@/types/post";
+import { PostStatus, PostSummary } from "@/types/post";
+import { STATUS_LABELS } from "@/constants/filterOptions";
 import { formatEventDateTime, getDday } from "@/utils/datetime";
 import IconText from "@/components/common/IconText";
 
 interface PostCardProps {
   post: PostSummary;
   onPress?: (id: number) => void;
+  // 모집중인 글에도 상태 뱃지를 보일지. 기본은 부분 마감·마감인 글에만 뱃지를 붙이고(모집중은 기본 상태라 생략),
+  // 마감한 글도 섞여 있는 내 모집글 목록은 모집중도 보여준다
+  showStatus?: boolean;
 }
 
-export default function PostCard({ post, onPress }: PostCardProps) {
+const STATUS_COLOR: Record<PostStatus, string> = {
+  OPEN: colors.primaryLight,
+  PARTIALLY_CLOSED: colors.textSecondary,
+  CLOSED: colors.textMuted,
+};
+
+export default function PostCard({ post, onPress, showStatus = false }: PostCardProps) {
   const dday = getDday(post.eventAt);
+  const statusBadgeVisible = showStatus || post.status !== "OPEN";
 
   return (
     <TouchableOpacity
@@ -28,6 +39,13 @@ export default function PostCard({ post, onPress }: PostCardProps) {
       {/* 우측 정보 */}
       <View style={styles.info}>
         <View style={styles.titleRow}>
+          {statusBadgeVisible && (
+            <View style={[styles.statusBadge, { borderColor: STATUS_COLOR[post.status] }]}>
+              <Text style={[styles.statusText, { color: STATUS_COLOR[post.status] }]}>
+                {STATUS_LABELS[post.status]}
+              </Text>
+            </View>
+          )}
           <Text style={styles.title} numberOfLines={1}>
             {post.title}
           </Text>
@@ -66,6 +84,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    flexShrink: 0,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: "700",
   },
   dday: {
     fontSize: 11,

@@ -7,6 +7,8 @@ import com.obri_back.obri.post.dto.PostCreateRequestDTO;
 import com.obri_back.obri.post.dto.PostDetailResponseDTO;
 import com.obri_back.obri.post.dto.PostResponseDTO;
 import com.obri_back.obri.post.dto.PostSummaryResponseDTO;
+import com.obri_back.obri.post.entity.PostStatus;
+import com.obri_back.obri.post.repository.PostSort;
 import com.obri_back.obri.post.service.PostService;
 import com.obri_back.obri.user.entity.User;
 import jakarta.validation.Valid;
@@ -26,10 +28,11 @@ import java.util.List;
 /**
  * 모집글 관련 API 컨트롤러
  * POST   /api/posts             — 모집글 등록
- * GET    /api/posts             — 모집글 전체 조회 (필터·페이지네이션)
+ * GET    /api/posts             — 모집글 전체 조회 (필터·정렬·상태·페이지네이션)
  * GET    /api/posts/{id}        — 모집글 단건 조회
  * PUT    /api/posts/{id}        — 모집글 수정 (작성자만)
  * PATCH  /api/posts/{id}/close  — 모집글 수동 전체 마감 (작성자만)
+ * PATCH  /api/posts/{id}/reopen — 모집글 수동 마감 해제(모집 재개, 작성자만)
  * DELETE /api/posts/{id}        — 모집글 삭제 (작성자만)
  */
 @RestController
@@ -48,9 +51,10 @@ public class PostController {
         return ResponseEntity.ok(APIResponse.ok("모집글이 등록되었습니다", response));
     }
 
-    // 모집글 전체 조회 (카테고리·악기·지역·기간 필터 + 무한스크롤, 내가 차단한 유저의 글은 제외)
-    // status 필터 파라미터 없음(BACKLOG.md #35) — 공개 목록은 항상 OPEN·PARTIALLY_CLOSED만 노출,
-    // CLOSED(마감)된 글은 이 엔드포인트로 조회 불가. 작성자 본인의 마감글은 GET /api/posts/me로 조회
+    // 모집글 전체 조회 (카테고리·악기·지역·기간·상태 필터 + 정렬 + 무한스크롤, 내가 차단한 유저의 글은 제외)
+    // status(복수): 기본은 OPEN·PARTIALLY_CLOSED만, CLOSED를 고르면 마감된 글도 보인다(공연일이 지난 글은 계속 제외)
+    // sort: LATEST(기본)·EVENT_SOON·CLOSING_SOON 화이트리스트 — 목록 밖의 값은 400. Pageable의 sort 파라미터와
+    // 이름이 같지만 여기서는 항상 정렬을 덮어쓰므로(클라이언트의 ?sort=는 속성명으로 쓰이지 않는다) 충돌하지 않는다
     @GetMapping
     public ResponseEntity<APIResponse<PageResponse<PostSummaryResponseDTO>>> getPosts(
             @AuthenticationPrincipal User user,
@@ -59,11 +63,14 @@ public class PostController {
             @RequestParam(required = false) List<String> region,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) List<PostStatus> status,
+            @RequestParam(defaultValue = "LATEST") PostSort sort,
             @PageableDefault(size = 10) Pageable pageable) {
 
+        // 정렬은 PostSpecification이 쿼리에 직접 건다 — Pageable은 정렬 없이 페이지 번호·크기만 쓴다
         Page<PostSummaryResponseDTO> response =
-                postService.getPosts(user.getId(), category, instrument, region, startDate, endDate,
-                        PageSupport.withSort(pageable, Sort.by(Sort.Direction.DESC, "createdAt")));
+                postService.getPosts(user.getId(), category, instrument, region, startDate, endDate, status, sort,
+                        PageSupport.withSort(pageable, Sort.unsorted()));
         return ResponseEntity.ok(APIResponse.ok("모집글 목록 조회 성공", PageResponse.from(response)));
     }
 
@@ -109,6 +116,16 @@ public class PostController {
 
         postService.closePost(id, user);
         return ResponseEntity.ok(APIResponse.ok("모집글이 마감되었습니다"));
+    }
+
+    // 모집글 수동 마감 해제 = 모집 재개 (작성자만, 공연일이 지난 글은 400)
+    @PatchMapping("/{id}/reopen")
+    public ResponseEntity<APIResponse<Void>> reopenPost(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long id) {
+
+        postService.reopenPost(id, user);
+        return ResponseEntity.ok(APIResponse.ok("모집이 재개되었습니다"));
     }
 
     // 모집글 삭제 (작성자만). 연관 지원서도 함께 삭제

@@ -11,10 +11,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { colors } from "@/constants/theme";
-import { INSTRUMENTS, REGIONS } from "@/constants/filterOptions";
+import { INSTRUMENTS, REGIONS, STATUS_LABELS } from "@/constants/filterOptions";
 import { PostFilter } from "@/types/filter";
+import { PostStatus } from "@/types/post";
 import { formatDate, parseDate, toDateOnly } from "@/utils/datetime";
 import Chip from "@/components/common/Chip";
+
+const STATUSES: PostStatus[] = ["OPEN", "PARTIALLY_CLOSED", "CLOSED"];
 
 interface FilterSheetProps {
   visible: boolean;
@@ -39,7 +42,7 @@ export default function FilterSheet({ visible, filter, onApply, onClose }: Filte
   }
 
   function handleReset() {
-    setDraft({ ...filter, instruments: [], regions: [], startDate: undefined, endDate: undefined });
+    setDraft({ ...filter, instruments: [], regions: [], statuses: [], startDate: undefined, endDate: undefined });
   }
 
   // 모달이 열릴 때마다 draft를 현재 filter로 동기화
@@ -133,6 +136,14 @@ export default function FilterSheet({ visible, filter, onApply, onClose }: Filte
               />
             )}
           </Section>
+          <Section title="모집 상태 (선택 안 하면 모집중·부분 마감)">
+            <ChipGroup
+              options={STATUSES}
+              selected={draft.statuses}
+              onToggle={(v) => setDraft({ ...draft, statuses: toggle(draft.statuses, v as PostStatus) })}
+              labelMap={STATUS_LABELS}
+            />
+          </Section>
         </ScrollView>
 
         {/* 하단 버튼 */}
@@ -162,17 +173,19 @@ function ChipGroup({
   options,
   selected,
   onToggle,
+  labelMap,
 }: {
   options: string[];
   selected: string[];
   onToggle: (val: string) => void;
+  labelMap?: Record<string, string>;
 }) {
   return (
     <View style={chipGroupStyle}>
       {options.map((opt) => (
         <Chip
           key={opt}
-          label={opt}
+          label={labelMap ? labelMap[opt] : opt}
           active={selected.includes(opt)}
           onPress={() => onToggle(opt)}
         />

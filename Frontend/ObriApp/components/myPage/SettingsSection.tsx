@@ -1,40 +1,24 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Switch } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { openLegalDocument, PRIVACY_URL, TERMS_URL } from "@/lib/legal";
 
+// 설정 목록. "모집 알림" 스위치는 푸시 수신(토큰 등록)이 연동될 때 함께 추가한다 — 지금은 동작하지 않는
+// 스위치를 두지 않는다(스토어 심사의 "죽은 버튼 없음" 조건)
 interface SettingsSectionProps {
-  notifEnabled: boolean;
-  onToggleNotif: (value: boolean) => void;
   onBlocksPress: () => void;
   onLogout: () => void;
   onWithdraw: () => void;
 }
 
 export default function SettingsSection({
-  notifEnabled,
-  onToggleNotif,
   onBlocksPress,
   onLogout,
   onWithdraw,
 }: SettingsSectionProps) {
   return (
     <View style={styles.settingsSection}>
-      <View style={styles.settingsRow}>
-        <View style={styles.settingsLeft}>
-          <Ionicons name="notifications-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.settingsText}>모집 알림</Text>
-        </View>
-        <Switch
-          value={notifEnabled}
-          onValueChange={onToggleNotif}
-          trackColor={{ false: colors.border, true: colors.primaryLight }}
-          thumbColor={notifEnabled ? colors.primary : colors.placeholder}
-        />
-      </View>
-      <View style={styles.divider} />
-
       <TouchableOpacity style={styles.settingsRow} onPress={onBlocksPress} activeOpacity={0.7}>
         <View style={styles.settingsLeft}>
           <Ionicons name="ban-outline" size={16} color={colors.textSecondary} />

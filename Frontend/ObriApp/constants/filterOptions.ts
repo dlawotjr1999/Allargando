@@ -1,3 +1,6 @@
+import { PostSort } from "@/types/filter";
+import { PostStatus } from "@/types/post";
+
 export const CATEGORIES = ["앙상블", "버스킹", "합주", "연주회", "기타"];
 
 // 악기 목록의 단일 소스 — 모집글·필터·지원·가입·프로필 수정이 모두 이 목록을 쓴다.
@@ -24,3 +27,17 @@ export const CONCERT_REGIONS = [
 // KOPIS genrenm 원본 표기 — 백엔드가 이 문자열과 완전 일치로 비교한다. 세 장르(CCCA·CCCC·CCCD) 모두
 // 백엔드가 실제 응답으로 확인했다(KopisSyncService). 국악은 "국악"이 아니라 "한국음악(국악)"으로 내려온다
 export const CONCERT_CATEGORIES = ["서양음악(클래식)", "한국음악(국악)", "대중음악"];
+
+// 모집글 목록 정렬 3종(D15) — 값은 서버 PostSort와 같다. 순서대로 눌러 바꾼다
+export const POST_SORTS: { value: PostSort; label: string }[] = [
+  { value: "LATEST", label: "최신순" },
+  { value: "EVENT_SOON", label: "공연 임박순" },
+  { value: "CLOSING_SOON", label: "마감 임박순" },
+];
+
+// 모집 상태 라벨. 필터 칩(모집중·부분 마감·마감)과 카드 뱃지가 함께 쓴다
+export const STATUS_LABELS: Record<PostStatus, string> = {
+  OPEN: "모집중",
+  PARTIALLY_CLOSED: "부분 마감",
+  CLOSED: "마감",
+};
