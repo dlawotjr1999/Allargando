@@ -85,6 +85,11 @@ export default function ApplicationSubmitModal({
                   />
                 ))}
               </View>
+              {defaultSelectable && instrument === defaultInstrument && (
+                <Text style={styles.hint}>
+                  내 프로필 악기({defaultInstrument})로 미리 선택해 뒀어요. 다른 악기로도 지원할 수 있어요.
+                </Text>
+              )}
               {defaultInstrument && !defaultSelectable && (
                 <Text style={styles.hint}>
                   내 프로필 악기({defaultInstrument})로는 지원할 수 없는 글이에요. 지원할 악기를 직접 골라주세요.
