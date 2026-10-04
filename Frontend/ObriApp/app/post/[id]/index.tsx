@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
-import { closePost, deletePost, getPost } from "@/api/post";
+import { closePost, deletePost, getPost, reopenPost } from "@/api/post";
 import { submitApplication } from "@/api/application";
 import { ApiError } from "@/lib/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -181,9 +181,34 @@ export default function PostDetailScreen() {
         onPress: async () => {
           try {
             await closePost(post.id);
+            markPostListStale(); // 마감한 글은 공개 목록에서 빠진다
             await loadPost();
           } catch (err) {
             Alert.alert("마감 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
+          }
+        },
+      },
+    ]);
+  };
+
+  // 모집 재개 (작성자만, 수동 마감한 글에만 메뉴가 보인다). 다시 지원을 받기 시작한다. 정원이 모두 찬 글은
+  // 재개해도 마감으로 남으므로 재조회한 상태로 안내를 가른다. 공연일이 지난 글은 서버가 400으로 막는다
+  const handleReopenPost = () => {
+    Alert.alert("모집 재개", "다시 지원을 받을까요?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "재개",
+        onPress: async () => {
+          try {
+            await reopenPost(post.id);
+            markPostListStale(); // 다시 공개 목록에 보인다
+            const refreshed = await getPost(post.id);
+            setPost(refreshed);
+            if (refreshed.status === "CLOSED") {
+              Alert.alert("마감 상태로 유지돼요", "정원이 모두 차서 모집을 재개해도 마감 상태예요. 모집 인원을 늘리면 다시 지원을 받을 수 있어요.");
+            }
+          } catch (err) {
+            Alert.alert("재개 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
           }
         },
       },
@@ -219,6 +244,8 @@ export default function PostDetailScreen() {
           onPress: () => router.push({ pathname: "/post/[id]/edit", params: { id: String(post.id) } }),
         },
         ...(isClosed ? [] : [{ label: "모집 마감", onPress: handleClosePost }]),
+        // 작성자가 직접 마감한 글에만 — 정원이 차서 자동 마감된 글은 재개 대상이 아니다
+        ...(post.manuallyClosed ? [{ label: "모집 재개", onPress: handleReopenPost }] : []),
         { label: "삭제", onPress: handleDeletePost, destructive: true },
       ]
     : [

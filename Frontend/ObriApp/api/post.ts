@@ -8,11 +8,13 @@ import { PostFilter } from "@/types/filter";
 // 필터+페이지 번호를 쿼리스트링으로 변환.
 // - category/instrument/region은 반복 키(?category=A&category=B)로 보내야 백엔드
 //   @RequestParam List<String>과 맞는다(Concert 도메인 api/concert.ts와 동일한 패턴).
-// - 정렬·상태는 쿼리에 없다: 서버가 항상 최신순(@PageableDefault createdAt DESC)이고, 공개 목록에서
-//   CLOSED를 하드코딩으로 제외해 OPEN·PARTIALLY_CLOSED만 노출한다(BACKLOG.md #35). 그래서 PostFilter에도
-//   두지 않는다. 마감(CLOSED)한 내 글은 getMyPosts()로만 확인 가능.
+// - sort(LATEST·EVENT_SOON·CLOSING_SOON)는 서버 화이트리스트 값이고 항상 보낸다(D15).
+// - status는 복수 반복 키로 보낸다. 비워 두면 서버 기본(모집중·부분마감)이고, CLOSED를 보내면 마감된 글도
+//   내려온다(공연일이 지난 글은 계속 제외).
 function buildQuery(filter: PostFilter, page: number): string {
   const params = new URLSearchParams();
+  params.append("sort", filter.sort);
+  filter.statuses.forEach((status) => params.append("status", status));
   filter.categories.forEach((category) => params.append("category", category));
   filter.instruments.forEach((instrument) => params.append("instrument", instrument));
   filter.regions.forEach((region) => params.append("region", region));
@@ -23,7 +25,7 @@ function buildQuery(filter: PostFilter, page: number): string {
 }
 
 // 모집글 전체 조회 (공개 목록, 무한스크롤). GET이라 자연히 멱등 — 실패 시 그냥 재요청하면 된다.
-// 응답은 항상 OPEN·PARTIALLY_CLOSED만 포함(CLOSED 제외는 서버가 강제, 프론트가 걸러낼 필요 없음).
+// 상태를 고르지 않으면 OPEN·PARTIALLY_CLOSED만 내려온다(서버 기본). 차단한 유저의 글은 서버가 제외한다.
 export function getPosts(filter: PostFilter, page: number) {
   return apiRequest<PageResponse<PostSummary>>(`/api/posts?${buildQuery(filter, page)}`);
 }
@@ -64,6 +66,12 @@ export function updatePost(id: number, payload: PostCreateRequest) {
 // 그래도 화면에서는 중복 탭 시 불필요한 요청이 나가지 않도록 버튼을 비활성화하는 편이 좋다.
 export function closePost(id: number) {
   return apiRequest<void>(`/api/posts/${id}/close`, { method: "PATCH" });
+}
+
+// 모집글 수동 마감 해제 = 모집 재개 (작성자만). 공연일이 지난 글은 400. 정원이 모두 찬 글은 재개해도 CLOSED로
+// 남으므로 호출부는 재조회한 상태로 결과를 판단해야 한다. 멱등 — 이미 열린 글에 호출해도 상태가 같다.
+export function reopenPost(id: number) {
+  return apiRequest<void>(`/api/posts/${id}/reopen`, { method: "PATCH" });
 }
 
 // 모집글 삭제 (작성자만, 연관 지원서도 서버에서 함께 정리됨). DELETE지만 멱등은 아니다 —

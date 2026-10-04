@@ -48,6 +48,9 @@ export interface PostDetail extends PostSummary {
   hasApplied: boolean;
   // 내 지원 상태(지원한 적 없으면 null). 취소(CANCELLED)한 지원만 다시 지원할 수 있다
   myApplicationStatus: ApplicationStatus | null;
+  // 작성자가 수동으로 마감했는지 — 작성자에게만 내려오고 남의 글은 null. "모집 재개" 메뉴를 수동 마감 글에만 보이는 데 쓴다
+  // (정원이 차서 자동 마감된 글은 false라 재개 대상이 아니다)
+  manuallyClosed: boolean | null;
   description?: string;
   createdAt: string;
 }

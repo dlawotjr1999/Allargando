@@ -2,9 +2,9 @@ import React from "react";
 import { View, ScrollView, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
-import { CATEGORIES } from "@/constants/filterOptions";
+import { CATEGORIES, POST_SORTS } from "@/constants/filterOptions";
 import { PostFilter } from "@/types/filter";
-import Chip from "@/components/common/Chip";
+import Chip, { chipTextColor } from "@/components/common/Chip";
 
 interface FilterBarProps {
   filter: PostFilter;
@@ -17,8 +17,17 @@ export default function FilterBar({ filter, onChange, onOpenSheet, onReset }: Fi
   const advancedCount =
     filter.instruments.length +
     filter.regions.length +
+    filter.statuses.length +
     (filter.startDate || filter.endDate ? 1 : 0);
-  const hasAnyFilter = filter.categories.length > 0 || advancedCount > 0;
+  const sortChanged = filter.sort !== "LATEST";
+  const hasAnyFilter = sortChanged || filter.categories.length > 0 || advancedCount > 0;
+
+  // 정렬 칩을 누를 때마다 최신순 → 공연 임박순 → 마감 임박순 순으로 바뀐다. 칩에 지금 정렬 이름이 보인다
+  const currentSortIndex = POST_SORTS.findIndex((s) => s.value === filter.sort);
+  function cycleSort() {
+    const next = POST_SORTS[(currentSortIndex + 1) % POST_SORTS.length];
+    onChange({ ...filter, sort: next.value });
+  }
 
   function toggleCategory(cat: string) {
     const next = filter.categories.includes(cat)
@@ -34,6 +43,15 @@ export default function FilterBar({ filter, onChange, onOpenSheet, onReset }: Fi
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
       >
+        <Chip
+          label={POST_SORTS[currentSortIndex].label}
+          active={sortChanged}
+          onPress={cycleSort}
+          leftIcon={<Ionicons name="swap-vertical-outline" size={13} color={chipTextColor(sortChanged)} />}
+        />
+
+        <View style={styles.divider} />
+
         {CATEGORIES.map((cat) => (
           <Chip
             key={cat}
@@ -82,6 +100,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
+  },
+  divider: {
+    width: StyleSheet.hairlineWidth,
+    height: 16,
+    backgroundColor: colors.border,
+    marginHorizontal: 4,
   },
   filterButton: {
     flexDirection: "row",
