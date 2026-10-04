@@ -25,7 +25,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Frontend/ObriApp
+        working-directory: Frontend/Allargando
 
     steps:
       # 1. 코드 체크아웃
@@ -38,7 +38,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: Frontend/ObriApp/package-lock.json
+          cache-dependency-path: Frontend/Allargando/package-lock.json
 
       # 3. 의존성 설치 (lock 파일 그대로 — 버전 변동 없음)
       - name: 의존성 설치

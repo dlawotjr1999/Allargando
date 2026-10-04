@@ -1,0 +1,77 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.14'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.wangnu'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// Spring Boot
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+
+	// DB 마이그레이션 (BACKLOG.md #53) — PostgreSQL 지원은 Flyway 10+부터 flyway-database-postgresql 별도 모듈 필요
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+
+	// Lombok
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	
+	// DevTools
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	
+	// PostgreSQL
+	runtimeOnly 'org.postgresql:postgresql'
+
+	// KOPIS 오픈API 응답(XML) 파싱
+	implementation 'org.jsoup:jsoup:1.17.2'
+
+	// Firebase Admin SDK (서버용)
+	implementation 'com.google.cloud:spring-cloud-gcp-starter:7.2.0'
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
+
+	// Testing
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testCompileOnly 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+	// @DataJpaTest용 내장 DB — 운영은 PostgreSQL 컨테이너라 테스트 스코프 한정
+	testRuntimeOnly 'com.h2database:h2'
+
+	// Swagger
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+// 실행 불가능한 plain jar를 만들지 않음 — build/libs에 bootJar 하나만 남아 Dockerfile이 버전과 무관하게 집을 수 있다
+tasks.named('jar') {
+	enabled = false
+}
+
+// 시크릿을 jar에 넣지 않는다 — 로컬에서 만든 jar가 공유·배포돼도 Firebase 키·로컬 설정이 새지 않게 한다.
+// processResources가 아니라 bootJar에서만 제외하는 이유: 테스트·bootRun은 클래스패스의 키(기본값 classpath:)를 그대로 써야 한다.
+// jar로 실행할 때는 FIREBASE_CREDENTIALS_LOCATION=file:/경로 와 환경변수(DB_*·KOPIS_SERVICE_KEY 등)로 주입한다(CLAUDE.md 6장)
+tasks.named('bootJar') {
+	exclude '**/firebase-service-account.json'
+	exclude '**/application-local.properties*'
+}
