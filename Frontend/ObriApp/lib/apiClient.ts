@@ -24,11 +24,21 @@ interface RequestOptions {
   body?: unknown;
   // 회원가입처럼 아직 로그인 상태가 아닌 요청만 false로 지정
   requiresAuth?: boolean;
+  // 서버가 401을 주면 로그아웃 처리를 부르는지(기본 true). 가입 직후 요청처럼 세션을 잃으면 안 되는 호출만 false
+  handleUnauthorized?: boolean;
+}
+
+// 서버가 401을 줬을 때 부를 동작(AuthProvider가 로그아웃으로 등록). Firebase는 만료된 토큰을 자동 갱신하므로
+// 로그인 상태에서 서버가 401을 준다는 건 계정이 삭제·정지·폐기돼 더는 쓸 수 없다는 뜻이다
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
 }
 
 // path 하나를 백엔드에 요청하고 data만 반환. 실패하면 ApiError를 throw
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, requiresAuth = true } = options;
+  const { method = "GET", body, requiresAuth = true, handleUnauthorized = true } = options;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
@@ -50,6 +60,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const envelope: ApiEnvelope<T> | null = await response.json().catch(() => null);
 
   if (!response.ok) {
+    if (response.status === 401 && requiresAuth && handleUnauthorized) unauthorizedHandler?.();
     throw new ApiError(envelope?.status ?? response.status, envelope?.message ?? "요청을 처리할 수 없습니다");
   }
 

@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Switch } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
+import { openLegalDocument, PRIVACY_URL, TERMS_URL } from "@/lib/legal";
 
 interface SettingsSectionProps {
   notifEnabled: boolean;
@@ -18,9 +19,6 @@ export default function SettingsSection({
   onLogout,
   onWithdraw,
 }: SettingsSectionProps) {
-  const handleComingSoon = () =>
-    Alert.alert("준비 중입니다", "곧 추가될 예정이에요.");
-
   return (
     <View style={styles.settingsSection}>
       <View style={styles.settingsRow}>
@@ -46,7 +44,11 @@ export default function SettingsSection({
       </TouchableOpacity>
       <View style={styles.divider} />
 
-      <TouchableOpacity style={styles.settingsRow} onPress={handleComingSoon} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.settingsRow}
+        onPress={() => openLegalDocument("이용약관", TERMS_URL)}
+        activeOpacity={0.7}
+      >
         <View style={styles.settingsLeft}>
           <Ionicons name="document-text-outline" size={16} color={colors.textSecondary} />
           <Text style={styles.settingsText}>이용약관</Text>
@@ -55,7 +57,11 @@ export default function SettingsSection({
       </TouchableOpacity>
       <View style={styles.divider} />
 
-      <TouchableOpacity style={styles.settingsRow} onPress={handleComingSoon} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.settingsRow}
+        onPress={() => openLegalDocument("개인정보처리방침", PRIVACY_URL)}
+        activeOpacity={0.7}
+      >
         <View style={styles.settingsLeft}>
           <Ionicons name="lock-closed-outline" size={16} color={colors.textSecondary} />
           <Text style={styles.settingsText}>개인정보처리방침</Text>
@@ -85,10 +91,14 @@ export default function SettingsSection({
       <TouchableOpacity
         style={styles.settingsRow}
         onPress={() =>
-          Alert.alert("회원탈퇴", "정말 탈퇴하시겠어요?", [
-            { text: "취소", style: "cancel" },
-            { text: "탈퇴", style: "destructive", onPress: onWithdraw },
-          ])
+          Alert.alert(
+            "회원탈퇴",
+            "탈퇴하면 내가 올린 모집글(받은 지원 포함), 내가 낸 지원 내역, 연습일지, 프로필 정보가 모두 삭제되고 되돌릴 수 없어요.\n\n정말 탈퇴하시겠어요?",
+            [
+              { text: "취소", style: "cancel" },
+              { text: "탈퇴", style: "destructive", onPress: onWithdraw },
+            ]
+          )
         }
         activeOpacity={0.7}
       >

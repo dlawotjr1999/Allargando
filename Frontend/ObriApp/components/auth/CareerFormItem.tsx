@@ -3,6 +3,7 @@ import { View, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { CareerEntry } from "@/types/user";
+import { CAREER_MAX_LENGTH } from "@/utils/registerValidation";
 
 interface CareerFormItemProps {
   value: CareerEntry;
@@ -38,6 +39,7 @@ export default function CareerFormItem({
         onChangeText={(text) =>
           onChange(index, { ...value, organization: text })
         }
+        maxLength={CAREER_MAX_LENGTH}
       />
       <TextInput
         style={[styles.input, styles.textArea]}
@@ -47,6 +49,7 @@ export default function CareerFormItem({
         onChangeText={(text) =>
           onChange(index, { ...value, contexts: text })
         }
+        maxLength={CAREER_MAX_LENGTH}
         multiline
         textAlignVertical="top"
       />
