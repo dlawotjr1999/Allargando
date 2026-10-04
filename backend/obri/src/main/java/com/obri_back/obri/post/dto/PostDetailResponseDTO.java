@@ -25,6 +25,9 @@ public class PostDetailResponseDTO {
     private Boolean hasApplied;
     // 내 지원 상태(없으면 null). 취소(CANCELLED)만 다시 지원할 수 있고 거절·철회는 불가라 버튼 문구를 가르는 데 쓴다(D7)
     private ApplicationStatus myApplicationStatus;
+    // 작성자가 수동으로 마감했는지 — 작성자에게만 내려주고(남에게는 null) "모집 재개" 메뉴를 수동 마감 글에만 보이는 데 쓴다.
+    // 자동 마감(정원 충족)과 구분되어야 재개 가능 여부를 알 수 있다(D11)
+    private Boolean manuallyClosed;
     private String category;
     private String title;
     private LocalDateTime eventAt;
@@ -46,6 +49,7 @@ public class PostDetailResponseDTO {
                 .isMine(isMine)
                 .hasApplied(myApplicationStatus != null)
                 .myApplicationStatus(myApplicationStatus)
+                .manuallyClosed(isMine ? post.getManuallyClosed() : null)
                 .category(post.getCategory())
                 .title(post.getTitle())
                 .eventAt(post.getEventAt())
