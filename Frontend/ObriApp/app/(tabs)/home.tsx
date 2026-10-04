@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, FlatList, StyleSheet, TouchableOpacity, Text, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -31,21 +31,27 @@ export default function HomeScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 조회 순번. 필터를 연달아 바꾸면 요청이 겹치는데, 늦게 도착한 이전 필터의 응답이 지금 목록을 덮어쓰지 않도록
+  // 응답이 올 때 자기 순번이 아직 최신인지 확인한다
+  const requestSeq = useRef(0);
 
   // 필터가 바뀌면 첫 페이지부터 새로 조회. silent가 true면(당겨서 새로고침) 전체 화면 스피너 대신
   // 목록을 그대로 두고 값만 바꾼다
   const loadFirstPage = useCallback(async (silent = false) => {
+    const seq = ++requestSeq.current;
     if (!silent) setLoading(true);
     setError(null);
     try {
       const page = await getPosts(filter, 0);
+      if (seq !== requestSeq.current) return; // 그 사이 더 새로운 조회가 시작됨 — 낡은 응답은 버린다
       setPosts(page.content);
       setCurrentPage(page.currentPage);
       setHasNext(page.hasNext);
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       setError(err instanceof ApiError ? err.message : "모집글 목록을 불러오지 못했어요.");
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }, [filter]);
 
@@ -71,9 +77,11 @@ export default function HomeScreen() {
   // 무한스크롤 — 다음 페이지를 이어붙임
   const loadNextPage = async () => {
     if (loadingMore || !hasNext) return;
+    const seq = requestSeq.current;
     setLoadingMore(true);
     try {
       const page = await getPosts(filter, currentPage + 1);
+      if (seq !== requestSeq.current) return; // 요청 중에 필터가 바뀌어 첫 페이지부터 다시 불러옴 — 이어붙이지 않는다
       setPosts((prev) => [...prev, ...page.content]);
       setCurrentPage(page.currentPage);
       setHasNext(page.hasNext);
