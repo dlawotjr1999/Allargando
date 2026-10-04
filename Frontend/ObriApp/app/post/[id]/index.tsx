@@ -266,13 +266,23 @@ export default function PostDetailScreen() {
           </View>
           <Text style={styles.title}>{post.title}</Text>
 
-          {/* 작성자 — 매너 점수는 백엔드에 아직 없는 향후 기능(REVIEWS 테이블 도입 전)이라 표시하지 않음 */}
-          <View style={styles.writerRow}>
+          {/* 작성자 — 매너 점수는 백엔드에 아직 없는 향후 기능(REVIEWS 테이블 도입 전)이라 표시하지 않음.
+              남의 글이면 눌러서 작성자의 공개 프로필(활동 이력·신고·차단)로 들어간다 */}
+          <TouchableOpacity
+            style={styles.writerRow}
+            disabled={isMyPost}
+            activeOpacity={0.7}
+            onPress={() =>
+              router.push({ pathname: "/user/[nickname]", params: { nickname: post.writer.nickname } })
+            }
+            accessibilityLabel={isMyPost ? undefined : `${post.writer.nickname} 프로필 보기`}
+          >
             <Ionicons name="person-circle-outline" size={18} color={colors.textMuted} />
             <Text style={styles.writerText}>
               {post.writer.nickname} · {post.writer.instrument}
             </Text>
-          </View>
+            {!isMyPost && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
+          </TouchableOpacity>
         </View>
 
         <View style={styles.divider} />

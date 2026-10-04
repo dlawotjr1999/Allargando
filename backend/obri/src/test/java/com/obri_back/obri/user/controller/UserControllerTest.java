@@ -108,7 +108,6 @@ class UserControllerTest {
                 .nickname("other")
                 .instrument("첼로")
                 .careers(List.of())
-                .createdAt(LocalDateTime.of(2024, 1, 1, 0, 0))
                 .build();
 
         when(userService.getUserProfile("other")).thenReturn(response);
@@ -119,7 +118,8 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.data.nickname").value("other"))
                 .andExpect(jsonPath("$.data.email").doesNotExist())
-                .andExpect(jsonPath("$.data.phoneNumber").doesNotExist());
+                .andExpect(jsonPath("$.data.phoneNumber").doesNotExist())
+                .andExpect(jsonPath("$.data.createdAt").doesNotExist());
     }
 
     private String careersBody(String careersJson) {
