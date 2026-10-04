@@ -7,7 +7,7 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
   source "$SCRIPT_DIR/.env"
 fi
 
-: "${FIREBASE_API_KEY:?FIREBASE_API_KEY가 없어요. backend/obri/.env.example을 backend/obri/.env로 복사해 값을 채워주세요.}"
+: "${FIREBASE_API_KEY:?FIREBASE_API_KEY가 없어요. backend/allargando/.env.example을 backend/allargando/.env로 복사해 값을 채워주세요.}"
 EMAIL="${EMAIL:-test@test.com}"
 PASSWORD="${PASSWORD:-test1234}"
 BASE_URL="${BASE_URL:-http://localhost:8080}"
