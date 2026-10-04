@@ -23,7 +23,7 @@ public final class NicknamePolicy {
     // 운영 사칭·경로 충돌을 막는 예약어(소문자). 목록 변경은 코드 수정 후 재배포 — 이미 쓰는 닉네임에는 영향 없음
     private static final Set<String> RESERVED = Set.of(
             "me", "admin", "administrator", "root", "system",
-            "관리자", "운영자", "운영팀", "공식", "obri", "pocoapoco");
+            "관리자", "운영자", "운영팀", "공식", "obri", "allargando", "알라르간도");
 
     private NicknamePolicy() {
     }

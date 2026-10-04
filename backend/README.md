@@ -1,4 +1,4 @@
-# Poco a Poco Backend
+# Allargando Backend
 
 Spring Boot 3.5 (Java 21) + PostgreSQL 16 + Flyway. 코드·상세 규칙은 [`../CLAUDE.md`](../CLAUDE.md) 참고.
 

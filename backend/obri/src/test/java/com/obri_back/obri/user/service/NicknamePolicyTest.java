@@ -31,7 +31,7 @@ class NicknamePolicyTest {
 
     // 예약어는 대소문자를 가리지 않고, 형식 오류와 같은 문구로 거절한다
     @ParameterizedTest
-    @ValueSource(strings = {"me", "ME", "Admin", "administrator", "root", "system", "관리자", "운영자", "운영팀", "공식", "Obri", "PocoAPoco"})
+    @ValueSource(strings = {"me", "ME", "Admin", "administrator", "root", "system", "관리자", "운영자", "운영팀", "공식", "Obri", "Allargando", "알라르간도"})
     void normalizeAndValidate_rejectsReservedWords(String nickname) {
         assertThatThrownBy(() -> NicknamePolicy.normalizeAndValidate(nickname))
                 .isInstanceOf(BadRequestException.class)

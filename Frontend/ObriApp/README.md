@@ -1,6 +1,6 @@
-# Poco a Poco Frontend (Expo)
+# Allargando Frontend (Expo)
 
-악기 취미생이 앙상블·버스킹 멤버를 무보수로 모집하는 서비스 **Poco a Poco**(구 Obri)의 모바일 앱.
+악기 취미생이 앙상블·버스킹 멤버를 무보수로 모집하는 서비스 **Allargando**(구 Obri, Poco a Poco)의 모바일 앱.
 Expo Router 기반. 백엔드 실행 방법은 [`../../backend/README.md`](../../backend/README.md) 참고.
 
 ## 시작하기

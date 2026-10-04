@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Poco a Poco",
-    "slug": "ObriApp",
+    "name": "Allargando",
+    "slug": "allargando",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "obriapp",
+    "scheme": "allargando",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -13,6 +13,7 @@
       "keyboardDisplayRequiresUserAction": false
     },
     "android": {
+      "package": "com.wangnu.allargando",
       "adaptiveIcon": {
         "backgroundColor": "#264174",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
