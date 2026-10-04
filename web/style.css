@@ -1,0 +1,50 @@
+/* 약관·처리방침 등 정적 안내 페이지 공통 스타일. 모바일 우선, 외부 의존 없음 */
+:root {
+  --bg: #fbf3f5;
+  --surface: #ffffff;
+  --primary: #2b3a67;
+  --text: #2b3a67;
+  --muted: #6b7596;
+  --border: #ebd5db;
+  --accent: #f2a7b8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  line-height: 1.75;
+  font-size: 16px;
+  word-break: keep-all;
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+header.site { margin-bottom: 28px; }
+header.site .brand { font-weight: 700; color: var(--primary); text-decoration: none; letter-spacing: 0.5px; }
+
+h1 { font-size: 26px; margin: 8px 0 6px; }
+h2 { font-size: 18px; margin: 36px 0 8px; padding-top: 4px; border-top: 1px solid var(--border); }
+h3 { font-size: 16px; margin: 20px 0 4px; }
+p, li { color: var(--text); }
+ul, ol { padding-left: 22px; }
+li { margin: 4px 0; }
+.meta { color: var(--muted); font-size: 14px; }
+a { color: var(--primary); }
+
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14.5px; background: var(--surface); }
+th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { background: #f7e6ea; font-weight: 600; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px 20px 16px; margin: 16px 0; }
+.note { background: #fff7e6; border: 1px solid #f0d9a8; border-radius: 10px; padding: 10px 14px; font-size: 14px; margin: 16px 0; }
+
+nav.links { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 18px 0 0; }
+footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
