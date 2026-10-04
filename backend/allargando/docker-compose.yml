@@ -1,15 +1,15 @@
 services:
   postgres:
     image: postgres:16
-    container_name: obri-postgres
+    container_name: allargando-postgres
     environment:
-      POSTGRES_DB: obri
+      POSTGRES_DB: allargando
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "1234"
     ports:
       - "5432:5432"
     volumes:
-      - obri-postgres-data:/var/lib/postgresql/data
+      - allargando-postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -17,4 +17,4 @@ services:
       retries: 5
 
 volumes:
-  obri-postgres-data:
+  allargando-postgres-data:

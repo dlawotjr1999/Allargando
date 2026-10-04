@@ -29,7 +29,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
 
     // 토큰은 유효한데 DB에 유저가 없을 때(Firebase 계정만 있고 가입 미완료) 요청에 남기는 표식(D18).
     // 필터는 예외를 던지지 않으므로, 인증 실패 처리기(SecurityConfig)가 이 값으로 401과 404를 가른다
-    public static final String UNREGISTERED_USER_ATTRIBUTE = "obri.unregisteredUser";
+    public static final String UNREGISTERED_USER_ATTRIBUTE = "allargando.unregisteredUser";
 
     private final FirebaseAuth firebaseAuth;
     private final UserRepository userRepository;

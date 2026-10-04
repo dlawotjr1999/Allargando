@@ -4,7 +4,7 @@
 # bootRun·테스트는 이 파일과 classpath의 Firebase 키를 그대로 쓰지만, bootJar에는 둘 다 들어가지 않는다.
 # 로컬에서 jar로 실행할 때는 FIREBASE_CREDENTIALS_LOCATION=file:/키경로 와 DB_URL·DB_PASSWORD·KOPIS_SERVICE_KEY 환경변수를 지정한다.
 
-spring.datasource.url=jdbc:postgresql://localhost:5432/obri
+spring.datasource.url=jdbc:postgresql://localhost:5432/allargando
 spring.datasource.username=postgres
 spring.datasource.password=1234
 
