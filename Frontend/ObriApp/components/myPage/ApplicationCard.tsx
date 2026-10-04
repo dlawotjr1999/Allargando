@@ -33,6 +33,10 @@ interface ApplicationCardProps {
 
 // 마이페이지 "내 지원" 카드. 모집글 요약·내 지원 악기·상태를 보여준다
 export default function ApplicationCard({ item, onCancel, cancelling = false }: ApplicationCardProps) {
+  // 모집이 끝났거나 공연일이 지난 글은 결과를 더 기다릴 필요가 없다는 걸 알려준다
+  const postEnded =
+    item.post.status === "CLOSED" ? "모집 마감" : new Date(item.post.eventAt) < new Date() ? "공연 종료" : null;
+
   return (
     <View style={styles.appCard}>
       <View style={styles.appCardHeader}>
@@ -44,6 +48,7 @@ export default function ApplicationCard({ item, onCancel, cancelling = false }: 
             {STATUS_LABEL[item.status]}
           </Text>
         </View>
+        {postEnded && <Text style={styles.postEnded}>{postEnded}</Text>}
       </View>
       <Text style={styles.appCardTitle} numberOfLines={1}>
         {item.post.title}
@@ -100,6 +105,10 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: "700",
+  },
+  postEnded: {
+    fontSize: 11,
+    color: colors.textMuted,
   },
   appCardTitle: {
     fontSize: 15,

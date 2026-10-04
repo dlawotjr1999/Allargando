@@ -30,8 +30,10 @@ export function getPosts(filter: PostFilter, page: number) {
 
 // 내가 올린 모집글 목록(마이페이지). 공개 목록과 달리 status 필터가 아예 없어
 // 내가 수동 마감(CLOSED)한 글도 여기서는 그대로 보인다. GET — 멱등.
-export function getMyPosts(page: number) {
-  return apiRequest<PageResponse<PostSummary>>(`/api/posts/me?page=${page}`);
+// size는 페이지 크기(서버 상한 50). 마이페이지는 무한스크롤이 아니라 한 번에 많이 받아 통계를 맞춘다
+export function getMyPosts(page: number, size?: number) {
+  const sizeParam = size ? `&size=${size}` : "";
+  return apiRequest<PageResponse<PostSummary>>(`/api/posts/me?page=${page}${sizeParam}`);
 }
 
 // 모집글 단건 조회. isMine·hasApplied·applicationCount는 요청한 유저 기준으로 서버가 계산해

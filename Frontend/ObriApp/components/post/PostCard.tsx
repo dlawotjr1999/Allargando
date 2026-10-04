@@ -2,16 +2,30 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
-import { PostSummary } from "@/types/post";
+import { PostStatus, PostSummary } from "@/types/post";
 import { formatEventDateTime, getDday } from "@/utils/datetime";
 import IconText from "@/components/common/IconText";
 
 interface PostCardProps {
   post: PostSummary;
   onPress?: (id: number) => void;
+  // 모집 상태 뱃지를 보일지. 공개 목록은 모집 중인 글만 나와 필요 없고, 마감한 글도 섞여 있는 내 모집글 목록에서 쓴다
+  showStatus?: boolean;
 }
 
-export default function PostCard({ post, onPress }: PostCardProps) {
+const STATUS_LABEL: Record<PostStatus, string> = {
+  OPEN: "모집중",
+  PARTIALLY_CLOSED: "부분 마감",
+  CLOSED: "마감",
+};
+
+const STATUS_COLOR: Record<PostStatus, string> = {
+  OPEN: colors.primaryLight,
+  PARTIALLY_CLOSED: colors.textSecondary,
+  CLOSED: colors.textMuted,
+};
+
+export default function PostCard({ post, onPress, showStatus = false }: PostCardProps) {
   const dday = getDday(post.eventAt);
 
   return (
@@ -28,6 +42,13 @@ export default function PostCard({ post, onPress }: PostCardProps) {
       {/* 우측 정보 */}
       <View style={styles.info}>
         <View style={styles.titleRow}>
+          {showStatus && (
+            <View style={[styles.statusBadge, { borderColor: STATUS_COLOR[post.status] }]}>
+              <Text style={[styles.statusText, { color: STATUS_COLOR[post.status] }]}>
+                {STATUS_LABEL[post.status]}
+              </Text>
+            </View>
+          )}
           <Text style={styles.title} numberOfLines={1}>
             {post.title}
           </Text>
@@ -66,6 +87,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    flexShrink: 0,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: "700",
   },
   dday: {
     fontSize: 11,
