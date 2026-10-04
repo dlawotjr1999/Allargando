@@ -13,7 +13,7 @@ export default function NotFoundScreen() {
         title="페이지를 찾을 수 없어요"
         description="요청하신 화면이 존재하지 않거나 삭제되었어요."
       />
-      <Link href="/(tabs)/obri" asChild>
+      <Link href="/(tabs)/home" asChild>
         <TouchableOpacity style={styles.link} activeOpacity={0.7}>
           <Text style={styles.linkText}>홈으로 돌아가기</Text>
         </TouchableOpacity>

@@ -46,10 +46,16 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  const envelope: ApiEnvelope<T> = await response.json();
+  // 빈 본문·HTML(프록시/게이트웨이 오류 등)이면 JSON 파싱이 실패한다. 그때도 상태코드는 잃지 않도록 null로 받는다
+  const envelope: ApiEnvelope<T> | null = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ApiError(envelope.status ?? response.status, envelope.message ?? "요청을 처리할 수 없습니다");
+    throw new ApiError(envelope?.status ?? response.status, envelope?.message ?? "요청을 처리할 수 없습니다");
+  }
+
+  // 성공(2xx)인데 본문이 JSON이 아니면 data를 만들 수 없으므로 오류로 통일한다
+  if (!envelope) {
+    throw new ApiError(response.status, "서버 응답을 해석할 수 없습니다");
   }
 
   return envelope.data;

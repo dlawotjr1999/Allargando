@@ -98,9 +98,11 @@ export default function ConcertsScreen() {
           onEndReached={loadNextPage}
           onEndReachedThreshold={0.4}
           ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator style={styles.footerSpinner} color={colors.primary} />
-            ) : null
+            <>
+              {loadingMore && <ActivityIndicator style={styles.footerSpinner} color={colors.primary} />}
+              {/* 공공 API 데이터 출처 표기 */}
+              <Text style={styles.sourceText}>공연 정보 출처: 공연예술통합전산망(KOPIS)</Text>
+            </>
           }
           ListEmptyComponent={
             <EmptyState
@@ -139,4 +141,10 @@ const styles = StyleSheet.create({
   separator: { height: 12 },
   centerFill: { flex: 1, alignItems: "center", justifyContent: "center" },
   footerSpinner: { marginVertical: 16 },
+  sourceText: {
+    marginTop: 16,
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: "center",
+  },
 });

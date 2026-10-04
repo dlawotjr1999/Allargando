@@ -29,7 +29,7 @@ function TabIcon({
 export default function TabsLayout() {
   return (
     <Tabs
-      initialRouteName="obri"
+      initialRouteName="home"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
@@ -55,7 +55,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="obri"
+        name="home"
         options={{
           title: "홈",
           tabBarIcon: ({ color, focused, size }) => (
