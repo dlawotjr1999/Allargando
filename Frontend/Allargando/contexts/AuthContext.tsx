@@ -10,8 +10,8 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
-  User,
-} from "firebase/auth";
+  type User,
+} from "@react-native-firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getMyInfo } from "@/api/user";
 import { registerUser, RegisterRequest } from "@/api/auth";
