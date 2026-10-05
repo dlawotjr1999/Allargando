@@ -8,7 +8,9 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  linkWithPhoneNumber,
   signInWithEmailAndPassword,
+  signInWithPhoneNumber,
   signOut as firebaseSignOut,
   type User,
 } from "@react-native-firebase/auth";
@@ -17,6 +19,10 @@ import { getMyInfo } from "@/api/user";
 import { registerUser, RegisterRequest } from "@/api/auth";
 import { ApiError, setUnauthorizedHandler } from "@/lib/apiClient";
 import { UserProfile } from "@/types/user";
+import { toE164 } from "@/utils/registerValidation";
+
+// 인증번호를 보낸 뒤 돌려받는 확인 핸들. 화면이 사용자가 입력한 코드를 이 핸들로 확인한다
+export type PhoneConfirmation = Awaited<ReturnType<typeof signInWithPhoneNumber>>;
 
 // 가입 제출 입력. email·password는 Firebase 계정을 새로 만들 때만 쓴다 —
 // 가입 미완료로 이미 로그인된 상태에서 이어서 가입할 때는 필요 없다
@@ -34,7 +40,8 @@ interface AuthContextType {
   profileError: string | null;
   // 토큰은 유효한데 서버에 가입된 유저가 없음(404) — Firebase 계정만 만들고 가입을 못 끝낸 상태
   unregistered: boolean;
-  // 가입 제출 진행 중. 이 동안 화면 자동 이동을 막는다
+  // 가입 진행 중. 전화번호 인증 확인을 시작한 때부터 가입 제출이 끝나거나 가입 화면을 벗어날 때까지 true이고,
+  // 이 동안은 로그인 상태가 바뀌어도 화면이 자동으로 옮겨 가지 않는다
   registering: boolean;
   // 로그인은 됐는데 프로필 조회 결과가 아직 없는 상태(조회 중). 이 동안은 어느 화면으로 보낼지 모른다
   profilePending: boolean;
@@ -45,6 +52,12 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   registerAccount: (input: RegisterInput) => Promise<void>;
+  // 전화번호(010-1234-5678 형식)로 인증번호 SMS를 보낸다. 반환된 핸들을 confirmPhoneCode에 넘겨 코드를 확인한다
+  sendPhoneCode: (phoneNumber: string) => Promise<PhoneConfirmation>;
+  // 사용자가 입력한 인증번호를 확인한다. 성공하면 그 번호로 인증된 상태가 되고, 실패하면 Firebase 오류를 그대로 던진다
+  confirmPhoneCode: (confirmation: PhoneConfirmation, code: string) => Promise<void>;
+  // 가입 화면을 벗어날 때 부른다. 전화 인증까지만 하고 끝내지 않은 임시 로그인을 정리한다
+  abandonSignUp: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -110,6 +123,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // 가입 도중 다른 계정으로 바꾸는 경우에도 가입 진행 표시가 남아 화면 이동을 막지 않도록 함께 푼다
+    registeringRef.current = false;
+    setRegistering(false);
     await firebaseSignOut(auth);
   };
 
@@ -146,6 +162,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const profilePending = !!user && !profile && !profileError && !unregistered && !registering;
 
+  // 전화번호 인증번호 발송. 이미 로그인된 계정이 있으면(이메일 계정만 만들고 전화 인증 전에 끊긴 경우) 그 계정에
+  // 전화번호를 연결하고, 없으면 전화번호 계정으로 새로 로그인한다. 번호 형식 오류는 Firebase 오류와 같은 code로 던진다
+  const sendPhoneCode = async (phoneNumber: string): Promise<PhoneConfirmation> => {
+    const e164 = toE164(phoneNumber);
+    if (!e164) {
+      throw Object.assign(new Error("invalid phone number"), { code: "auth/invalid-phone-number" });
+    }
+    const current = auth.currentUser;
+    return current ? linkWithPhoneNumber(current, e164) : signInWithPhoneNumber(auth, e164);
+  };
+
+  // 인증번호 확인. 성공하면 Firebase 로그인 상태가 바뀌어 화면 자동 이동이 일어나므로, 확인하기 전에 가입 진행 중으로
+  // 표시해 막아 둔다. 실패(코드 오류·만료 등)하면 표시를 원래대로 되돌린다
+  const confirmPhoneCode = async (confirmation: PhoneConfirmation, code: string) => {
+    const wasRegistering = registeringRef.current;
+    registeringRef.current = true;
+    setRegistering(true);
+    try {
+      await confirmation.confirm(code);
+    } catch (err) {
+      registeringRef.current = wasRegistering;
+      setRegistering(wasRegistering);
+      throw err;
+    }
+  };
+
+  // 가입 화면을 벗어날 때 정리한다. 가입이 끝났으면(진행 표시가 이미 풀림) 아무것도 하지 않고, 전화 인증만 하고 나간
+  // 경우에는 진행 표시를 풀고 이메일이 아직 없는 임시 전화번호 계정을 로그아웃한다
+  const abandonSignUp = async () => {
+    if (!registeringRef.current) return;
+    registeringRef.current = false;
+    setRegistering(false);
+    const current = auth.currentUser;
+    if (current && !current.email) {
+      await firebaseSignOut(auth).catch(() => {});
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -162,6 +216,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         resetPassword,
         registerAccount,
+        sendPhoneCode,
+        confirmPhoneCode,
+        abandonSignUp,
       }}
     >
       {children}

@@ -2,7 +2,7 @@
 // 로그인에서 "계정 없음"과 "비밀번호 틀림"은 일부러 같은 문구로 돌려준다 — Firebase가 이메일 열거 방지로
 // 둘을 같은 오류(auth/invalid-credential)로 내려주고, 구분해 알려주면 가입 여부를 추측하는 데 쓰일 수 있기 때문이다.
 
-export type AuthErrorContext = "login" | "signup";
+export type AuthErrorContext = "login" | "signup" | "phone";
 
 // 오류 객체에서 Firebase 오류 코드(예: "auth/invalid-email")를 꺼낸다. 없으면 null
 function errorCode(err: unknown): string | null {
@@ -28,11 +28,29 @@ export function describeAuthError(err: unknown, context: AuthErrorContext): stri
       return "이미 가입된 이메일이에요. 로그인해 주세요.";
     case "auth/weak-password":
       return "비밀번호가 너무 약해요. 6자 이상으로 입력해 주세요.";
+    case "auth/invalid-phone-number":
+      return "휴대폰 번호를 010-0000-0000 형식으로 입력해 주세요.";
+    case "auth/invalid-verification-code":
+      return "인증번호가 올바르지 않아요. 다시 확인해 주세요.";
+    case "auth/code-expired":
+    case "auth/session-expired":
+      return "인증번호가 만료됐어요. 인증번호를 다시 받아 주세요.";
+    case "auth/quota-exceeded":
+      return "오늘 보낼 수 있는 인증번호 한도를 넘었어요. 내일 다시 시도해 주세요.";
+    case "auth/captcha-check-failed":
+    case "auth/missing-client-identifier":
+      return "앱 확인에 실패했어요. 앱을 최신 버전으로 업데이트한 뒤 다시 시도해 주세요.";
+    case "auth/credential-already-in-use":
+    case "auth/account-exists-with-different-credential":
+      return "이미 다른 계정에 사용 중인 전화번호예요.";
+    case "auth/provider-already-linked":
+      return "이미 인증이 끝난 계정이에요.";
     case "auth/invalid-credential":
     case "auth/user-not-found":
     case "auth/wrong-password":
       return "이메일 또는 비밀번호가 올바르지 않아요.";
     default:
+      if (context === "phone") return "전화번호를 인증하지 못했어요. 잠시 후 다시 시도해 주세요.";
       return context === "login"
         ? "로그인하지 못했어요. 잠시 후 다시 시도해 주세요."
         : "계정을 만들지 못했어요. 잠시 후 다시 시도해 주세요.";

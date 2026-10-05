@@ -37,6 +37,17 @@ export function formatPhoneNumber(input: string): string | null {
     : `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
+// 휴대폰 번호를 Firebase 전화 인증이 요구하는 국제 표기(E.164, 예: +821012345678)로 바꾼다.
+// 형식이 올바르지 않으면 null. 앞의 0을 떼고 한국 국가번호 +82를 붙인다
+export function toE164(input: string): string | null {
+  const formatted = formatPhoneNumber(input);
+  if (!formatted) return null;
+  return "+82" + formatted.replace(/\D/g, "").slice(1);
+}
+
+// 인증번호는 숫자 6자리다(Firebase가 보내는 SMS 코드와 테스트 번호의 고정 코드 모두)
+export const PHONE_CODE_LENGTH = 6;
+
 export interface AccountStepValues {
   email: string;
   password: string;
