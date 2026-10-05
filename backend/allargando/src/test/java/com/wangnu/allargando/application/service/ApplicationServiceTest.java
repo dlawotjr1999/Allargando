@@ -595,4 +595,73 @@ class ApplicationServiceTest {
         assertThat(applicationService.getMyApplicationStatus(10L, 1L)).isEqualTo(ApplicationStatus.REJECTED);
         assertThat(applicationService.getMyApplicationStatus(10L, 2L)).isNull();
     }
+
+    // ── APP-T10 보강: 권한·없는 리소스·빈 목록 분기 ─────────────────────────────────────
+
+    @Test
+    void reject_throwsForbiddenWhenNotRecruiter() {
+        Application app = buildApplication(ApplicationStatus.PENDING);
+        given(applicationRepository.findById(100L)).willReturn(Optional.of(app));
+        doThrow(new ForbiddenException("모집자만 수락 또는 거절할 수 있습니다"))
+                .when(accessPolicy).requireRecruiter(applicant, app, "모집자만 수락 또는 거절할 수 있습니다");
+
+        assertThatThrownBy(() -> applicationService.reject(applicant, 100L))
+                .isInstanceOf(ForbiddenException.class);
+
+        assertThat(app.getStatus()).isEqualTo(ApplicationStatus.PENDING);
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void revoke_throwsForbiddenWhenNotRecruiter() {
+        Application app = buildApplication(ApplicationStatus.ACCEPTED);
+        given(applicationRepository.findById(100L)).willReturn(Optional.of(app));
+        doThrow(new ForbiddenException("모집자만 수락을 철회할 수 있습니다"))
+                .when(accessPolicy).requireRecruiter(applicant, app, "모집자만 수락을 철회할 수 있습니다");
+
+        assertThatThrownBy(() -> applicationService.revoke(applicant, 100L))
+                .isInstanceOf(ForbiddenException.class);
+
+        assertThat(app.getStatus()).isEqualTo(ApplicationStatus.ACCEPTED);
+        verify(post, never()).revokeInstrument(any());
+    }
+
+    @Test
+    void cancel_throwsForbiddenWhenNotApplicant() {
+        Application app = buildApplication(ApplicationStatus.PENDING);
+        given(applicationRepository.findById(100L)).willReturn(Optional.of(app));
+        doThrow(new ForbiddenException("지원자만 지원을 취소할 수 있습니다"))
+                .when(accessPolicy).requireApplicant(recruiter, app, "지원자만 지원을 취소할 수 있습니다");
+
+        assertThatThrownBy(() -> applicationService.cancel(recruiter, 100L))
+                .isInstanceOf(ForbiddenException.class);
+
+        assertThat(app.getStatus()).isEqualTo(ApplicationStatus.PENDING);
+    }
+
+    @Test
+    void cancel_throwsNotFoundWhenApplicationMissing() {
+        given(applicationRepository.findById(404L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> applicationService.cancel(applicant, 404L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void getApplicationsByPostId_throwsNotFoundWhenPostMissing() {
+        given(postRepository.findById(404L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> applicationService.getApplicationsByPostId(404L, recruiter, PageRequest.of(0, 10)))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void getApplicationsByPostId_returnsEmptyPageWhenNoApplicants() {
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+        given(applicationRepository.findByPostId(eq(10L), any())).willReturn(Page.empty());
+
+        Page<AppResponseDTO> result = applicationService.getApplicationsByPostId(10L, recruiter, PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).isEmpty();
+    }
 }

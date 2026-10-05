@@ -93,23 +93,28 @@ public class PostService {
         return PostDetailResponseDTO.from(post, applicationCount, isMine, myApplicationStatus);
     }
 
-    // 모집글 수정 (작성자만) — 악기 목록 전체 교체 후 대기·수락 지원자에게 알림
+    // 모집글 수정 (작성자만) — 악기 목록 전체 교체. 지원자에게 보일 내용이 실제로 바뀐 경우에만 대기·수락 지원자에게 알림
     @Transactional
     public PostResponseDTO updatePost(Long postId, User user, PostCreateRequestDTO request) {
         Post post = findPostOrThrow(postId);
         requireOwner(post, user);
 
-        post.updateInfo(toPostInfo(request));
-
+        PostInfo info = toPostInfo(request);
         List<PostInstrument> newInstruments = request.getInstruments().stream()
                 .map(item -> PostInstrument.of(post, item.getInstrument(), item.getPeople()))
                 .collect(Collectors.toList());
+        // 변경 여부는 적용 전 값과 비교해야 하므로 updateInfo·replaceInstruments보다 먼저 계산한다
+        boolean changed = post.hasApplicantVisibleChange(info, newInstruments);
+
+        post.updateInfo(info);
         List<String> removedInstruments = post.replaceInstruments(newInstruments);
         // 삭제된 악기로 들어와 있던 대기 지원은 자동 거절하고 알린다(D12 — 수락자가 있는 악기는 위에서 이미 400)
         removedInstruments.forEach(name -> applicationService.rejectPendingByInstrument(postId, name));
 
-        // 모집글 수정 → 지원자에게 알릴지 여부까지 Application 도메인이 결정 — 명세 시나리오 1.8
-        applicationService.notifyApplicantsOfPostUpdate(postId, post.getTitle());
+        // 모집글 수정 → 실제 변경이 있을 때만 알린다. 누구에게 보낼지는 Application 도메인이 결정 — 명세 시나리오 1.8
+        if (changed) {
+            applicationService.notifyApplicantsOfPostUpdate(postId, post.getTitle());
+        }
 
         return PostResponseDTO.from(post);
     }

@@ -1,7 +1,15 @@
 package com.wangnu.allargando.notification;
 
+import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.MessagingErrorCode;
+import com.google.firebase.messaging.MulticastMessage;
+import com.google.firebase.messaging.SendResponse;
+import com.wangnu.allargando.notification.event.StaleFcmTokensEvent;
+import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -9,7 +17,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -17,6 +27,7 @@ import static org.mockito.Mockito.*;
 class NotificationServiceTest {
 
     @Mock FirebaseMessaging firebaseMessaging;
+    @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks NotificationService notificationService;
 
     @Test
@@ -91,5 +102,95 @@ class NotificationServiceTest {
         notificationService.notifyPostDeleted(List.of("token-a", "token-b"), 1L, "현악 앙상블 단원 모집");
 
         verify(firebaseMessaging, times(1)).sendEachForMulticast(any());
+    }
+
+    @Test
+    void notifyNewPost_swallowsSendFailure() throws Exception {
+        when(firebaseMessaging.send(any(Message.class))).thenThrow(new RuntimeException("FCM down"));
+
+        notificationService.notifyNewPost(1L, "현악 앙상블 단원 모집");
+
+        verify(firebaseMessaging, times(1)).send(any(Message.class));
+    }
+
+    @Test
+    void notifyNewApplication_skipsWhenTokenBlank() {
+        notificationService.notifyNewApplication("  ", 1L, "현악 앙상블 단원 모집");
+
+        verifyNoInteractions(firebaseMessaging);
+    }
+
+    @Test
+    void notifyPostUpdated_sendsMulticastWhenTokensPresent() throws Exception {
+        notificationService.notifyPostUpdated(List.of("token-a", "token-b"), 1L, "수정된 제목");
+
+        verify(firebaseMessaging, times(1)).sendEachForMulticast(any());
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void notifyPostUpdated_swallowsSendFailure() throws Exception {
+        when(firebaseMessaging.sendEachForMulticast(any())).thenThrow(new RuntimeException("FCM down"));
+
+        notificationService.notifyPostUpdated(List.of("token-a"), 1L, "수정된 제목");
+
+        verify(firebaseMessaging, times(1)).sendEachForMulticast(any());
+    }
+
+    @Test
+    void notifyPostDeleted_swallowsSendFailure() throws Exception {
+        when(firebaseMessaging.sendEachForMulticast(any())).thenThrow(new RuntimeException("FCM down"));
+
+        notificationService.notifyPostDeleted(List.of("token-a"), 1L, "현악 앙상블 단원 모집");
+
+        verify(firebaseMessaging, times(1)).sendEachForMulticast(any());
+    }
+
+    // NOTI-T6: 토큰이 500개를 넘어도 한도에 맞게 나눠 보내고 예외가 밖으로 나가지 않는다
+    @Test
+    void notifyPostUpdated_splitsTokensIntoBatchesOf500() throws Exception {
+        List<String> tokens = IntStream.range(0, 501).mapToObj(i -> "token-" + i).toList();
+
+        notificationService.notifyPostUpdated(tokens, 1L, "수정된 제목");
+
+        ArgumentCaptor<MulticastMessage> captor = ArgumentCaptor.forClass(MulticastMessage.class);
+        verify(firebaseMessaging, times(2)).sendEachForMulticast(captor.capture());
+    }
+
+    // NOTI-T6: 한 묶음이 실패해도 다음 묶음은 계속 보낸다
+    @Test
+    void notifyPostUpdated_continuesWithNextBatchWhenOneFails() throws Exception {
+        List<String> tokens = IntStream.range(0, 501).mapToObj(i -> "token-" + i).toList();
+        when(firebaseMessaging.sendEachForMulticast(any()))
+                .thenThrow(new RuntimeException("FCM down"))
+                .thenReturn(mock(BatchResponse.class));
+
+        notificationService.notifyPostUpdated(tokens, 1L, "수정된 제목");
+
+        verify(firebaseMessaging, times(2)).sendEachForMulticast(any());
+    }
+
+    // NOTI-T6: UNREGISTERED로 응답한 토큰만 정리 이벤트로 알리고, 다른 실패(일시 오류)는 건드리지 않는다
+    @Test
+    void notifyPostUpdated_publishesStaleEventOnlyForUnregisteredTokens() throws Exception {
+        SendResponse ok = mock(SendResponse.class);
+        SendResponse unregistered = mock(SendResponse.class);
+        SendResponse unavailable = mock(SendResponse.class);
+        FirebaseMessagingException gone = mock(FirebaseMessagingException.class);
+        FirebaseMessagingException busy = mock(FirebaseMessagingException.class);
+        when(gone.getMessagingErrorCode()).thenReturn(MessagingErrorCode.UNREGISTERED);
+        when(busy.getMessagingErrorCode()).thenReturn(MessagingErrorCode.UNAVAILABLE);
+        when(unregistered.getException()).thenReturn(gone);
+        when(unavailable.getException()).thenReturn(busy);
+        BatchResponse batch = mock(BatchResponse.class);
+        when(batch.getFailureCount()).thenReturn(2);
+        when(batch.getResponses()).thenReturn(List.of(ok, unregistered, unavailable));
+        when(firebaseMessaging.sendEachForMulticast(any())).thenReturn(batch);
+
+        notificationService.notifyPostUpdated(List.of("token-ok", "token-dead", "token-busy"), 1L, "수정된 제목");
+
+        ArgumentCaptor<StaleFcmTokensEvent> captor = ArgumentCaptor.forClass(StaleFcmTokensEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().fcmTokens()).containsExactly("token-dead");
     }
 }

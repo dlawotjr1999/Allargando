@@ -158,4 +158,14 @@ class ReportServiceTest {
 
         verify(reportRepository).deleteAllInvolving(1L, ReportTargetType.USER, ReportTargetType.POST);
     }
+
+    @Test
+    void reportUser_propagatesNotFoundWhenNicknameMissing() {
+        given(userService.getManagedUserByNickname("ghost")).willThrow(new NotFoundException("유저를 찾을 수 없습니다"));
+
+        assertThatThrownBy(() -> reportService.reportUser(me, "ghost", request))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(reportRepository, never()).save(any());
+    }
 }
