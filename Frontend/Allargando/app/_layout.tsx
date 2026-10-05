@@ -6,6 +6,9 @@ import LoadingScreen from "@/components/common/LoadingScreen";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { RegisterProvider } from "@/contexts/RegisterContext";
 
+// 앱 시작 시 로딩(스플래시) 화면을 최소로 보여 주는 시간(ms)
+const SPLASH_MIN_MS = 1500;
+
 export default function RootLayout() {
   return (
     <AuthProvider>
@@ -43,10 +46,18 @@ function RootNavigator() {
     if (!loading && !profilePending) setBooted(true);
   }, [loading, profilePending]);
 
+  // 네이티브 Firebase는 저장된 세션을 거의 즉시 복원해 로딩 화면이 깜빡이듯 지나가므로,
+  // 앱을 켠 직후 한 번만 최소 SPLASH_MIN_MS 동안은 로딩 화면을 유지한다(이후 화면 전환에는 영향 없음)
+  const [minSplashDone, setMinSplashDone] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setMinSplashDone(true), SPLASH_MIN_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   // 부팅 이후 프로필 조회 중에는 홈으로 먼저 보내지 않고(깜빡임·가입 화면 튕김 방지) 로그인 화면에 둔다
   const href = registering ? heldTarget : booted && profilePending ? "/(auth)/login" : target;
 
-  if (loading || (profilePending && !booted)) {
+  if (!minSplashDone || loading || (profilePending && !booted)) {
     return (
       <>
         <LoadingScreen />

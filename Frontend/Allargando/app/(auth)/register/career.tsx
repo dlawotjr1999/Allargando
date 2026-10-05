@@ -13,14 +13,13 @@ import CareerFormItem from "@/components/auth/CareerFormItem";
 import { CareerEntry } from "@/types/user";
 import {
   CAREER_MAX_COUNT,
-  formatPhoneNumber,
   normalizeNickname,
   validateAccountStep,
   validateProfileStep,
 } from "@/utils/registerValidation";
 
-// 가입 3단계(활동 이력)와 제출. 제출하면 Firebase 계정을 만들고 서버에 가입한다(AuthContext.registerAccount).
-// 성공하면 인증 상태가 바뀌어 루트가 홈으로 보내므로 여기서 직접 이동하지 않는다.
+// 가입 3단계(활동 이력)와 제출. 제출하면 전화 인증한 계정에 이메일·비밀번호를 연결하고 서버에 가입한다
+// (AuthContext.registerAccount). 성공하면 인증 상태가 바뀌어 루트가 홈으로 보내므로 여기서 직접 이동하지 않는다.
 export default function RegisterStep3() {
   const { user, registerAccount } = useAuth();
   const { form, updateForm, resetForm } = useRegisterForm();
@@ -73,7 +72,6 @@ export default function RegisterStep3() {
         email: form.email.trim(),
         password: form.password,
         nickname: normalizeNickname(form.nickname),
-        phoneNumber: formatPhoneNumber(form.phoneNumber) ?? form.phoneNumber,
         instrument: form.instrument,
         careers: careers.map((c) => ({ organization: c.organization.trim(), contexts: c.contexts.trim() })),
       });

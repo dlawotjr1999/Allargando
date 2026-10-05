@@ -25,7 +25,11 @@ export function describeAuthError(err: unknown, context: AuthErrorContext): stri
     case "auth/user-disabled":
       return "사용이 정지된 계정이에요.";
     case "auth/email-already-in-use":
-      return "이미 가입된 이메일이에요. 로그인해 주세요.";
+      return context === "signup"
+        ? "이미 가입된 이메일이에요. 이전 단계에서 다른 이메일을 입력하거나, 이미 계정이 있다면 로그인해 주세요."
+        : "이미 가입된 이메일이에요. 로그인해 주세요.";
+    case "auth/phone-not-verified":
+      return "전화번호 인증을 먼저 완료해 주세요.";
     case "auth/weak-password":
       return "비밀번호가 너무 약해요. 6자 이상으로 입력해 주세요.";
     case "auth/invalid-phone-number":

@@ -5,10 +5,12 @@
 // 가입 제출(registerAccount)도 여기서 맡아 가입 도중 화면이 멋대로 옮겨 가지 않게 한다.
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
-  createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  getIdToken,
+  linkWithCredential,
+  linkWithPhoneNumber,
   onAuthStateChanged,
   sendPasswordResetEmail,
-  linkWithPhoneNumber,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signOut as firebaseSignOut,
@@ -134,21 +136,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
-  // 가입 제출: Firebase 계정 생성 → 서버 가입(POST /api/auth/register).
+  // 가입 제출: 전화번호 인증으로 로그인된 계정에 이메일·비밀번호를 연결한 뒤 서버에 가입한다(POST /api/auth/register).
+  // 서버는 ID 토큰의 phone_number 값만 믿으므로 전화번호는 보내지 않는다 — 그래서 전화 인증을 마치지 않았으면 제출할 수 없다.
+  // 이미 이메일이 연결된 계정(이메일 연결까지 끝내고 서버 가입만 실패해 이어서 가입하는 경우)은 연결을 건너뛴다.
   // 서버 가입이 실패해도 Firebase 계정은 지우지 않는다 — 서버가 멱등이라 같은 토큰으로 재시도하면 되고,
-  // 지우면 동시 요청으로 정상 가입된 계정까지 사라질 수 있다(CLAUDE.md §3.1). 이때 로그인은 유지돼
-  // 끝에서 프로필을 다시 조회하면 404(unregistered)로 확정되어 가입 화면으로 이어진다.
-  // 실패는 그대로 던지므로 호출부가 안내를 띄운다
+  // 지우면 동시 요청으로 정상 가입된 계정까지 사라질 수 있다. 이때 로그인은 유지돼 끝에서 프로필을 다시 조회하면
+  // 가입 미완료(404)로 확정되어 가입 화면으로 이어진다. 실패는 그대로 던지므로 호출부가 안내를 띄운다
   const registerAccount = async (input: RegisterInput) => {
     registeringRef.current = true;
     setRegistering(true);
     try {
-      if (!auth.currentUser) {
-        await createUserWithEmailAndPassword(auth, input.email ?? "", input.password ?? "");
+      const current = auth.currentUser;
+      if (!current?.phoneNumber) {
+        throw Object.assign(new Error("phone not verified"), { code: "auth/phone-not-verified" });
+      }
+      if (!current.email) {
+        await linkWithCredential(current, EmailAuthProvider.credential(input.email ?? "", input.password ?? ""));
+        // 연결 직전에 받아 둔 토큰에는 이메일이 없으므로, 서버가 이메일을 읽을 수 있게 토큰을 새로 받는다
+        await getIdToken(current, true);
       }
       await registerUser({
         nickname: input.nickname,
-        phoneNumber: input.phoneNumber,
         instrument: input.instrument,
         careers: input.careers,
       });
