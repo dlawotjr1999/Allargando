@@ -37,3 +37,7 @@ firebase-service-account.json
 application-local.properties
 application-local.yml
 application-local.yaml
+
+# Firebase 안드로이드 설정(앱 전용) — 어느 폴더에 있어도 커밋 제외
+google-services.json
+GoogleService-Info.plist

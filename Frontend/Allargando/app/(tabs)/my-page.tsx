@@ -1,8 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { View, ScrollView, Text, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useRouter } from "expo-router";
 import { colors } from "@/constants/theme";
 import { getMyPosts } from "@/api/post";
 import { cancelApplication, getMyApplications } from "@/api/application";

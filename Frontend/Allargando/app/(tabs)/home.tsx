@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, FlatList, StyleSheet, TouchableOpacity, Text, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useRouter } from "expo-router";
 import { colors } from "@/constants/theme";
 import { getPosts } from "@/api/post";
 import { ApiError } from "@/lib/apiClient";
