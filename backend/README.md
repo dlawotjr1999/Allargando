@@ -55,7 +55,6 @@ cd allargando
 
 - Service는 Mockito 단위 테스트, Controller는 `@WebMvcTest` + `MockMvc`로 격리 실행 — 로컬 DB 없이도 대부분 통과한다.
 - `@DataJpaTest` 기반 Specification 테스트는 내장 H2로 동작.
-- `test.sh` (bash+curl 스크립트)로 토큰 발급부터 전체 API 플로우를 수동 점검할 수 있다. Git Bash에서는 `python3` 대신 `python` 사용(버전 출력이 토큰에 섞이는 문제 회피).
 
 ## API 문서
 

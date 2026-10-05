@@ -273,8 +273,8 @@ public class ApplicationService {
         }
     }
 
-    // 모집글 수정 알림 — Post 도메인에서 호출. 대기·수락 지원자에게 알릴지 여부까지 이 도메인이 결정
-    // TODO: 수정 알림의 실제 필요성은 추후 재검토 대상(우선순위 낮음, 논의 2026-07-29)
+    // 모집글 수정 알림 — Post 도메인에서 호출. 수정 내용이 실제로 바뀌었는지는 Post 쪽이 판단하고(Post.hasApplicantVisibleChange),
+    // 여기서는 대기·수락 지원자에게만 보낸다
     @Transactional(readOnly = true)
     public void notifyApplicantsOfPostUpdate(Long postId, String title) {
         List<String> tokens = applicationRepository.findApplicantFcmTokens(postId,

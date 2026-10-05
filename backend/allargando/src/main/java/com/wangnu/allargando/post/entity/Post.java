@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -125,6 +126,26 @@ public class Post {
         this.region = info.getRegion();
         this.timetable = info.getTimetable();
         this.description = info.getDescription();
+    }
+
+    // 수정 요청이 지원자에게 알릴 만한 변경(제목·공연일시·장소·지역·타임테이블·설명·악기 구성)을 담고 있는지 —
+    // 수정을 적용하기 전에 호출해 현재 값과 비교한다. 같은 값을 다시 저장하는 PUT에는 알림을 보내지 않기 위해서다(NOTI-T12).
+    // 악기는 (이름, 정원) 쌍의 집합으로 비교하므로 순서만 바뀐 요청은 변경으로 보지 않는다
+    public boolean hasApplicantVisibleChange(PostInfo info, List<PostInstrument> newInstruments) {
+        boolean infoChanged = !Objects.equals(title, info.getTitle())
+                || !Objects.equals(eventAt, info.getEventAt())
+                || !Objects.equals(location, info.getLocation())
+                || !Objects.equals(region, info.getRegion())
+                || !Objects.equals(timetable, info.getTimetable())
+                || !Objects.equals(description, info.getDescription());
+        if (infoChanged) {
+            return true;
+        }
+        Map<String, Integer> current = postInstruments.stream()
+                .collect(Collectors.toMap(PostInstrument::getInstrument, PostInstrument::getPeople, (a, b) -> a));
+        Map<String, Integer> proposed = newInstruments.stream()
+                .collect(Collectors.toMap(PostInstrument::getInstrument, PostInstrument::getPeople, (a, b) -> a));
+        return !current.equals(proposed);
     }
 
     // 악기 목록 교체 (글 수정) — 이름이 같은 악기는 확정 인원(confirmed)·마감 상태를 승계하고 정원만 갱신,

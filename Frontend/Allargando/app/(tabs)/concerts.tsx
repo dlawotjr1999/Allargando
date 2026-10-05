@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, FlatList, StyleSheet, Text, ActivityIndicator } from "react-native";
+import { View, FlatList, StyleSheet, Text, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
 import { getConcerts } from "@/api/concert";
@@ -25,14 +25,16 @@ export default function ConcertsScreen() {
   const [hasNext, setHasNext] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // 조회 순번 — 필터를 연달아 바꿀 때 늦게 도착한 이전 필터의 응답이 지금 목록을 덮어쓰지 않게 한다(home.tsx와 동일)
   const requestSeq = useRef(0);
 
-  // 필터가 바뀌면 첫 페이지부터 새로 조회
-  const loadFirstPage = useCallback(async () => {
+  // 필터가 바뀌면 첫 페이지부터 새로 조회. silent가 true면(당겨서 새로고침) 전체 화면 스피너 대신
+  // 목록을 그대로 두고 값만 바꾼다
+  const loadFirstPage = useCallback(async (silent = false) => {
     const seq = ++requestSeq.current;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const page = await getConcerts(filter, 0);
@@ -51,6 +53,13 @@ export default function ConcertsScreen() {
   useEffect(() => {
     loadFirstPage();
   }, [loadFirstPage]);
+
+  // 당겨서 새로고침 — 서버 DB의 최신 목록을 다시 받는다(KOPIS 동기화는 서버가 하루 한 번 하므로 여기서 부르지 않는다)
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadFirstPage(true);
+    setRefreshing(false);
+  };
 
   // 무한스크롤 — 다음 페이지를 이어붙임
   const loadNextPage = async () => {
@@ -103,6 +112,7 @@ export default function ConcertsScreen() {
           renderItem={({ item }) => (
             <ConcertCard concert={item} onPress={() => setSelected(item)} />
           )}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           onEndReached={loadNextPage}

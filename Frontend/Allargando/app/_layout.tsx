@@ -24,7 +24,7 @@ export default function RootLayout() {
 type Destination = "/(auth)/login" | "/(auth)/register/profile" | "/(tabs)/home";
 
 function RootNavigator() {
-  const { user, loading, profile, profileError, unregistered, registering } = useAuth();
+  const { user, loading, profilePending, unregistered, registering } = useAuth();
 
   const target: Destination = !user ? "/(auth)/login" : unregistered ? "/(auth)/register/profile" : "/(tabs)/home";
 
@@ -35,12 +35,18 @@ function RootNavigator() {
   useEffect(() => {
     if (!registering) setHeldTarget(target);
   }, [registering, target]);
-  const href = registering ? heldTarget : target;
 
-  // 로그인은 돼 있는데 프로필 조회 결과가 아직 없는 동안(조회 중)에도 홈으로 먼저 보내지 않고 기다린다
-  const profilePending = !!user && !profile && !profileError && !unregistered && !registering;
+  // 로딩(스플래시) 화면은 앱을 켠 직후 저장된 세션을 복원하고 프로필을 확인하는 동안에만 보인다.
+  // 그 뒤 로그아웃→재로그인 때는 로그인 화면에 머물고(로그인 버튼이 진행 표시), 프로필이 오면 곧바로 이동한다
+  const [booted, setBooted] = useState(false);
+  useEffect(() => {
+    if (!loading && !profilePending) setBooted(true);
+  }, [loading, profilePending]);
 
-  if (loading || profilePending) {
+  // 부팅 이후 프로필 조회 중에는 홈으로 먼저 보내지 않고(깜빡임·가입 화면 튕김 방지) 로그인 화면에 둔다
+  const href = registering ? heldTarget : booted && profilePending ? "/(auth)/login" : target;
+
+  if (loading || (profilePending && !booted)) {
     return (
       <>
         <LoadingScreen />

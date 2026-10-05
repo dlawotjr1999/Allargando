@@ -191,6 +191,48 @@ class PostServiceTest {
         verify(applicationService).notifyApplicantsOfPostUpdate(10L, "수정된 제목");
     }
 
+    // NOTI-T12: 값이 같은 PUT(악기 순서만 바뀐 것 포함)은 지원자에게 알리지 않는다
+    @Test
+    void updatePost_doesNotNotifyWhenNothingChanged() {
+        Post post = buildPost(owner);
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+
+        PostCreateRequestDTO sameButReordered = PostCreateRequestDTO.builder()
+                .category(request.getCategory()).title(request.getTitle())
+                .eventAt(request.getEventAt()).location(request.getLocation())
+                .region(request.getRegion()).timetable(request.getTimetable())
+                .description(request.getDescription())
+                .instruments(List.of(
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("첼로").people(1).build(),
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("바이올린").people(2).build()))
+                .build();
+
+        postService.updatePost(10L, owner, sameButReordered);
+
+        verify(applicationService, never()).notifyApplicantsOfPostUpdate(anyLong(), anyString());
+    }
+
+    // NOTI-T12: 글 내용이 같아도 모집 인원(정원)이 바뀌면 지원자에게 알린다
+    @Test
+    void updatePost_notifiesWhenOnlyInstrumentCapacityChanged() {
+        Post post = buildPost(owner);
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+
+        PostCreateRequestDTO capacityChanged = PostCreateRequestDTO.builder()
+                .category(request.getCategory()).title(request.getTitle())
+                .eventAt(request.getEventAt()).location(request.getLocation())
+                .region(request.getRegion()).timetable(request.getTimetable())
+                .description(request.getDescription())
+                .instruments(List.of(
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("바이올린").people(3).build(),
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("첼로").people(1).build()))
+                .build();
+
+        postService.updatePost(10L, owner, capacityChanged);
+
+        verify(applicationService).notifyApplicantsOfPostUpdate(10L, request.getTitle());
+    }
+
     // D12: 수락된 인원 밑으로 모집 인원을 줄이는 수정은 400 — 글은 바뀌지 않고 지원자 알림도 가지 않는다
     @Test
     void updatePost_throwsBadRequestWhenReducingCapacityBelowConfirmed() {

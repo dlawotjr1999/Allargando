@@ -11,6 +11,7 @@ import com.wangnu.allargando.global.exception.BadRequestException;
 import com.wangnu.allargando.global.exception.ConflictGuard;
 import com.wangnu.allargando.global.exception.NotFoundException;
 import com.wangnu.allargando.global.exception.UnauthorizedException;
+import com.wangnu.allargando.notification.event.StaleFcmTokensEvent;
 import com.wangnu.allargando.user.dto.CareerDTO;
 import com.wangnu.allargando.user.entity.Career;
 import com.wangnu.allargando.user.event.UserWithdrawalEvent;
@@ -20,6 +21,7 @@ import com.wangnu.allargando.user.repository.UserRepository;
 import com.wangnu.allargando.user.service.NicknamePolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -149,6 +151,17 @@ public class AuthService {
                 .orElseThrow(() -> new NotFoundException("유저를 찾을 수 없습니다"));
 
         managedUser.updateFcmToken(null);
+    }
+
+    /*
+     * 죽은 FCM 토큰 정리 — NotificationService가 발송 응답에서 UNREGISTERED를 확인한 토큰을 알려 오면 비운다.
+     * 발송 스레드에서 도는 동기 리스너이고 트랜잭션은 여기서 새로 연다
+     */
+    @EventListener
+    @Transactional
+    public void onStaleFcmTokens(StaleFcmTokensEvent event) {
+        int cleared = userRepository.clearFcmTokens(event.fcmTokens());
+        log.info("죽은 FCM 토큰 정리 {}건", cleared);
     }
 
     /*

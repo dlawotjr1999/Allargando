@@ -1,5 +1,6 @@
 package com.wangnu.allargando.user.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -27,6 +28,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Modifying(flushAutomatically = true)
     @Query("update User u set u.fcmToken = null where u.fcmToken = :fcmToken and u.id <> :userId")
     int clearFcmTokenOfOthers(@Param("fcmToken") String fcmToken, @Param("userId") Long userId);
+
+    // FCM이 죽은 토큰(UNREGISTERED)이라고 알려 준 토큰을 모든 유저에서 비운다 — 불러오지 않은 행이라 영속성 컨텍스트를 비우지 않는다
+    @Modifying(flushAutomatically = true)
+    @Query("update User u set u.fcmToken = null where u.fcmToken in :fcmTokens")
+    int clearFcmTokens(@Param("fcmTokens") List<String> fcmTokens);
 
     boolean existsByFirebaseUid(String firebaseUid);
     boolean existsByEmail(String email);

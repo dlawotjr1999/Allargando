@@ -1,6 +1,7 @@
 package com.wangnu.allargando.auth.service;
 
 import com.google.firebase.auth.AuthErrorCode;
+import com.wangnu.allargando.notification.event.StaleFcmTokensEvent;
 import com.wangnu.allargando.user.event.UserWithdrawalEvent;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
@@ -547,5 +548,15 @@ class AuthServiceTest {
 
         assertThatCode(() -> authService.onUserWithdrawn(new UserWithdrawalEvent(1L, "test-uid")))
                 .doesNotThrowAnyException();
+    }
+
+    // NOTI-T6: FCM이 죽은 토큰이라고 알려 오면 그 토큰을 DB에서 비운다
+    @Test
+    void onStaleFcmTokens_clearsReportedTokens() {
+        given(userRepository.clearFcmTokens(List.of("dead-1", "dead-2"))).willReturn(2);
+
+        authService.onStaleFcmTokens(new StaleFcmTokensEvent(List.of("dead-1", "dead-2")));
+
+        verify(userRepository).clearFcmTokens(List.of("dead-1", "dead-2"));
     }
 }

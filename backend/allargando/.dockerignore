@@ -18,5 +18,4 @@ out/
 .vscode/
 docker-compose.yml
 Dockerfile
-test.sh
 *.md

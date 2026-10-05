@@ -24,7 +24,7 @@ const LOGO_WIDTH = 240;
 const LOGO_HEIGHT = LOGO_WIDTH * (srcH / srcW);
 
 export default function LoginScreen() {
-  const { signIn, resetPassword } = useAuth();
+  const { signIn, resetPassword, profilePending } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -116,7 +116,7 @@ export default function LoginScreen() {
             <Text style={styles.forgotPasswordText}>비밀번호를 잊으셨나요?</Text>
           </TouchableOpacity>
 
-          <ThemedButton title="로그인" onPress={handleLogin} loading={isSubmitting} />
+          <ThemedButton title="로그인" onPress={handleLogin} loading={isSubmitting || profilePending} />
         </View>
 
         <View style={styles.signupRow}>
