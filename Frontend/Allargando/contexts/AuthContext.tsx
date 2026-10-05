@@ -6,6 +6,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
   EmailAuthProvider,
+  getAdditionalUserInfo,
   getIdToken,
   linkWithCredential,
   linkWithPhoneNumber,
@@ -73,6 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [registering, setRegistering] = useState(false);
   // state는 비동기로 반영돼 refreshProfile이 낡은 값을 볼 수 있어, 가입 중 여부는 ref로도 들고 있는다
   const registeringRef = useRef(false);
+  // 마지막으로 보낸 인증번호가 기존 로그인 계정에 전화번호를 연결하는 것이었는지(true) 새 로그인이었는지(false)
+  const phoneLinkingRef = useRef(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -178,7 +181,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw Object.assign(new Error("invalid phone number"), { code: "auth/invalid-phone-number" });
     }
     const current = auth.currentUser;
+    // 확인 단계에서 "연결"인지 "새 로그인"인지 알아야 하므로 보낼 때 기억해 둔다
+    phoneLinkingRef.current = !!current;
     return current ? linkWithPhoneNumber(current, e164) : signInWithPhoneNumber(auth, e164);
+  };
+
+  // 전화번호로 새로 로그인했는데 그 번호가 이미 가입된 계정의 것이면, 새로 가입하는 것이 아니라 기존 계정에 로그인된 것이다.
+  // 비밀번호 없이 기존 계정에 들어가지 않도록 로그아웃하고 안내한다. 서버에 가입 기록이 없는 번호 계정(예전 가입 시도가
+  // 중간에 끊긴 흔적)이면 그대로 이어서 가입한다. 가입 여부를 확인하지 못하면(네트워크 등) 안전하게 막는다
+  const rejectIfAlreadyRegistered = async () => {
+    try {
+      await getMyInfo();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return;
+      await firebaseSignOut(auth).catch(() => {});
+      throw Object.assign(new Error("could not check registration"), { code: "auth/network-request-failed" });
+    }
+    await firebaseSignOut(auth).catch(() => {});
+    throw Object.assign(new Error("phone already registered"), { code: "auth/phone-already-registered" });
   };
 
   // 인증번호 확인. 성공하면 Firebase 로그인 상태가 바뀌어 화면 자동 이동이 일어나므로, 확인하기 전에 가입 진행 중으로
@@ -188,7 +208,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     registeringRef.current = true;
     setRegistering(true);
     try {
-      await confirmation.confirm(code);
+      const result = await confirmation.confirm(code);
+      if (!phoneLinkingRef.current && result && getAdditionalUserInfo(result)?.isNewUser === false) {
+        await rejectIfAlreadyRegistered();
+      }
     } catch (err) {
       registeringRef.current = wasRegistering;
       setRegistering(wasRegistering);

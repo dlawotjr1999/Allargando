@@ -22,17 +22,19 @@ export default function RootLayout() {
 
 // 인증 상태에 따라 3갈래로 보낸다:
 //  · 로그인 안 함 → 로그인 화면
-//  · 로그인했는데 서버에 가입 정보가 없음(가입을 못 끝낸 계정) → 가입 이어하기(계정 만들기는 건너뛴 프로필 단계)
+//  · 로그인했는데 서버에 가입 정보가 없음(가입을 못 끝낸 계정) → 가입 이어하기. 전화 인증만 하고 이메일 연결 전에 끊긴
+//    계정(이메일이 없음)은 이메일·비밀번호를 정하는 1단계부터, 이메일은 있는 계정은 프로필 단계부터 이어간다
 //  · 로그인 + 프로필 있음 → 홈 탭
-type Destination = "/(auth)/login" | "/(auth)/register/profile" | "/(tabs)/home";
+type Destination = "/(auth)/login" | "/(auth)/register" | "/(auth)/register/profile" | "/(tabs)/home";
 
 function RootNavigator() {
   const { user, loading, profilePending, unregistered, registering } = useAuth();
 
-  const target: Destination = !user ? "/(auth)/login" : unregistered ? "/(auth)/register/profile" : "/(tabs)/home";
+  const resumeDestination: Destination = user?.email ? "/(auth)/register/profile" : "/(auth)/register";
+  const target: Destination = !user ? "/(auth)/login" : unregistered ? resumeDestination : "/(tabs)/home";
 
-  // 가입 제출 중에는 Firebase 계정이 생기는 순간 target이 바뀌어도 화면을 옮기지 않는다(AUTH-T11).
-  // 가입 시작 전의 목적지를 기억해 두고 제출 중에는 그 값을 쓰며, 끝나면 곧바로 target을 쓴다.
+  // 가입 진행 중에는 전화 인증으로 로그인 상태가 바뀌어 target이 달라져도 화면을 옮기지 않는다.
+  // 가입 시작 전의 목적지를 기억해 두고 진행 중에는 그 값을 쓰며, 끝나면 곧바로 target을 쓴다.
   // 고정이 아니라 Redirect를 떼어 버리면 가입이 실패해 다시 붙을 때 현재 화면에서 로그인 화면으로 튄다
   const [heldTarget, setHeldTarget] = useState<Destination>(target);
   useEffect(() => {

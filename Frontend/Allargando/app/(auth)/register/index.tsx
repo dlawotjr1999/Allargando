@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   View,
+  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -9,6 +10,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
 import { useRegisterForm } from "@/contexts/RegisterContext";
 import ScreenHeader from "@/components/common/ScreenHeader";
 import StepIndicator from "@/components/common/StepIndicator";
@@ -18,8 +20,12 @@ import AgreementRow from "@/components/auth/AgreementRow";
 import { openLegalDocument, PRIVACY_URL, TERMS_URL } from "@/lib/legal";
 import { validateAccountStep } from "@/utils/registerValidation";
 
+// 가입 1단계(계정). 전화 인증만 하고 이메일 연결 전에 끊긴 계정(user가 있음)이 이어서 가입하는 경우에도 이 화면으로
+// 오며, 이때는 뒤로 갈 곳이 없으므로 뒤로 가기를 숨기고 다른 계정으로 로그인할 수 있게 한다.
 export default function RegisterStep1() {
   const router = useRouter();
+  const { user, signOut } = useAuth();
+  const resuming = !!user;
   const { form, updateForm } = useRegisterForm();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -45,8 +51,13 @@ export default function RegisterStep1() {
         keyboardDismissMode="on-drag"
       >
         <ScreenHeader
+          showBack={!resuming}
           title="계정 만들기"
-          subtitle="이메일과 비밀번호를 입력해주세요"
+          subtitle={
+            resuming
+              ? "전화번호 인증은 끝났어요. 로그인에 쓸 이메일과 비밀번호를 정해주세요"
+              : "이메일과 비밀번호를 입력해주세요"
+          }
         />
         <StepIndicator total={3} current={1} />
 
@@ -128,6 +139,11 @@ export default function RegisterStep1() {
 
         <View style={styles.bottom}>
           <ThemedButton title="다음" onPress={handleNext} />
+          {resuming && (
+            <TouchableOpacity style={styles.switchAccount} onPress={() => signOut().catch(() => {})}>
+              <Text style={styles.switchAccountText}>다른 계정으로 로그인</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -155,5 +171,14 @@ const styles = StyleSheet.create({
   bottom: {
     marginTop: 24,
     marginBottom: 32,
+  },
+  switchAccount: {
+    alignItems: "center",
+    paddingVertical: 14,
+  },
+  switchAccountText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textDecorationLine: "underline",
   },
 });

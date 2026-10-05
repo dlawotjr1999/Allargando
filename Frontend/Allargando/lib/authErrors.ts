@@ -28,6 +28,8 @@ export function describeAuthError(err: unknown, context: AuthErrorContext): stri
       return context === "signup"
         ? "이미 가입된 이메일이에요. 이전 단계에서 다른 이메일을 입력하거나, 이미 계정이 있다면 로그인해 주세요."
         : "이미 가입된 이메일이에요. 로그인해 주세요.";
+    case "auth/phone-already-registered":
+      return "이미 가입된 전화번호예요. 로그인 화면에서 이메일로 로그인해 주세요.";
     case "auth/phone-not-verified":
       return "전화번호 인증을 먼저 완료해 주세요.";
     case "auth/weak-password":
