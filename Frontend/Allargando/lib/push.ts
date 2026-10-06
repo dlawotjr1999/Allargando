@@ -24,7 +24,8 @@ const messaging = getMessaging();
 
 // 앱이 완전히 꺼져 있거나 백그라운드일 때 도착한 메시지를 처리하는 자리. 서버가 알림 내용(notification)을 함께 보내서
 // 시스템이 알림을 직접 띄워 주므로 따로 할 일은 없다. 다만 등록하지 않으면 백그라운드 수신 시 경고가 나므로 빈 처리기를 둔다.
-// 이 파일이 앱 시작 때 로드되므로(루트 레이아웃이 가져온다) 백그라운드 수신 시에도 이 줄이 실행된다
+// 앱이 꺼져 있을 때 메시지가 오면 화면 없이 JS만 시작되므로, 맨 처음 진입 파일(index.js)이 라우터보다 먼저 이 파일을
+// 불러와 이 줄이 화면 코드와 무관하게 실행되도록 한다
 setBackgroundMessageHandler(messaging, async () => {});
 
 export type EnableResult = "enabled" | "denied" | "blocked";
