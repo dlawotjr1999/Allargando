@@ -138,6 +138,7 @@ export default function MyPageScreen() {
     try {
       await deleteMyAccount();
     } catch (err) {
+      if (__DEV__) console.warn("[탈퇴] 서버 삭제 실패", err);
       Alert.alert("탈퇴 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
       return;
     }

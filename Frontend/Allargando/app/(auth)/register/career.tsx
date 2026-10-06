@@ -77,6 +77,7 @@ export default function RegisterStep3() {
       });
       resetForm();
     } catch (err) {
+      if (__DEV__) console.warn("[가입] 제출 실패", err);
       if (err instanceof ApiError) {
         // 닉네임·번호 중복(409)이나 형식 오류(400)는 앞 단계 입력을 고쳐야 한다
         const fixable = err.status === 400 || err.status === 409;

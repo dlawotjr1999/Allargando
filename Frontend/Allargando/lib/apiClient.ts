@@ -76,6 +76,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     if (controller.signal.aborted) {
       throw new ApiError(408, "서버 응답이 없어요. 잠시 후 다시 시도해주세요.");
     }
+    // 연결 실패 같은 요청 단계의 오류는 화면에 일반 문구만 보여 원인을 알기 어려우므로, 개발 중에는 터미널에 남긴다
+    if (__DEV__) console.warn(`[api] ${method} ${path} 요청 실패`, err);
     throw err;
   } finally {
     clearTimeout(timer);
