@@ -40,11 +40,9 @@ cp .env.example .env
 
 앱은 네이티브 Firebase SDK(`@react-native-firebase`)를 쓰므로 Expo Go가 아니라 **development build**에서 실행한다. 설정은 Firebase 콘솔 → 프로젝트 설정 → 내 앱(Android)에서 받은 `google-services.json`을 이 폴더에 두면 빌드에 들어간다(`.gitignore` 대상이라 커밋하지 않는다). 접근 권한이 없다면 프로젝트 관리자에게 콘솔 초대를 요청한다.
 
-`.env`의 `EXPO_PUBLIC_FIREBASE_*` 값은 앱에서 쓰지 않고, 터미널에서 도는 개발용 스크립트(`scripts/register-test-user.mjs`)가 웹 SDK로 로그인할 때만 필요하다.
-
 ## 인증 현황
 
-인증은 네이티브 Firebase SDK(`@react-native-firebase/auth`)로 **이메일/비밀번호** 로그인을 쓴다. 백엔드가 계정 고유성 앵커로 설계한 **전화번호 인증(SMS OTP)** 은 가입 화면에 붙이는 작업을 진행 중이다.
+인증은 네이티브 Firebase SDK(`@react-native-firebase/auth`)로 **이메일/비밀번호** 로그인을 쓴다. 가입 때는 백엔드가 계정 고유성 앵커로 쓰는 **전화번호 인증(SMS OTP)** 을 거친다: 프로필 단계에서 인증번호를 확인하고, 마지막 단계에서 인증된 계정에 이메일·비밀번호를 연결한 뒤 서버에 가입한다.
 
 Firebase 인증 호출은 `lib/firebase.ts`(인스턴스), `contexts/AuthContext.tsx`(로그인 상태·가입), `lib/apiClient.ts`(ID 토큰 첨부) 세 곳에서만 한다. 화면 코드는 이 파일들을 경유하고 Firebase 모듈을 직접 import하지 않는다.
 
