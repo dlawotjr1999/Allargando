@@ -2,7 +2,7 @@
 // 로그인에서 "계정 없음"과 "비밀번호 틀림"은 일부러 같은 문구로 돌려준다 — Firebase가 이메일 열거 방지로
 // 둘을 같은 오류(auth/invalid-credential)로 내려주고, 구분해 알려주면 가입 여부를 추측하는 데 쓰일 수 있기 때문이다.
 
-export type AuthErrorContext = "login" | "signup" | "phone";
+export type AuthErrorContext = "login" | "signup" | "phone" | "reset";
 
 // 오류 객체에서 Firebase 오류 코드(예: "auth/invalid-email")를 꺼낸다. 없으면 null
 function errorCode(err: unknown): string | null {
@@ -63,6 +63,7 @@ export function describeAuthError(err: unknown, context: AuthErrorContext): stri
       return "이메일 또는 비밀번호가 올바르지 않아요.";
     default:
       if (context === "phone") return "전화번호를 인증하지 못했어요. 잠시 후 다시 시도해 주세요.";
+      if (context === "reset") return "비밀번호를 재설정하지 못했어요. 잠시 후 다시 시도해 주세요.";
       return context === "login"
         ? "로그인하지 못했어요. 잠시 후 다시 시도해 주세요."
         : "계정을 만들지 못했어요. 잠시 후 다시 시도해 주세요.";

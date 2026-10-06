@@ -13,6 +13,11 @@ export const NICKNAME_HINT = "한글·영문·숫자·_ 2~20자로 입력해 주
 const NICKNAME_RE = /^[가-힣A-Za-z0-9_]{2,20}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// 이메일 형식이 대략 맞는지 확인한다(공백 없이 "무언가@무언가.무언가"). 실제 사용 가능 여부는 Firebase가 판단한다
+export function isEmailFormat(email: string): boolean {
+  return EMAIL_RE.test(email.trim());
+}
+
 // 앞뒤 공백을 지우고 NFC로 정규화한다(서버도 같은 정규화 뒤 검증·저장하므로 보내는 값을 미리 맞춘다)
 export function normalizeNickname(nickname: string): string {
   return nickname.trim().normalize("NFC");
