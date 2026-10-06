@@ -129,7 +129,7 @@ public class Post {
     }
 
     // 수정 요청이 지원자에게 알릴 만한 변경(제목·공연일시·장소·지역·타임테이블·설명·악기 구성)을 담고 있는지 —
-    // 수정을 적용하기 전에 호출해 현재 값과 비교한다. 같은 값을 다시 저장하는 PUT에는 알림을 보내지 않기 위해서다(NOTI-T12).
+    // 수정을 적용하기 전에 호출해 현재 값과 비교한다. 같은 값을 다시 저장하는 수정 요청에는 지원자에게 알림을 보내지 않기 위해서다.
     // 악기는 (이름, 정원) 쌍의 집합으로 비교하므로 순서만 바뀐 요청은 변경으로 보지 않는다
     public boolean hasApplicantVisibleChange(PostInfo info, List<PostInstrument> newInstruments) {
         boolean infoChanged = !Objects.equals(title, info.getTitle())

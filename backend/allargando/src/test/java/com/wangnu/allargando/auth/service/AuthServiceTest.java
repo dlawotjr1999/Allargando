@@ -528,7 +528,7 @@ class AuthServiceTest {
                 .doesNotThrowAnyException();
     }
 
-    // NOTI-T6: FCM이 죽은 토큰이라고 알려 오면 그 토큰을 DB에서 비운다
+    // FCM이 죽은 토큰(앱 삭제 등으로 더는 쓸 수 없는 토큰)이라고 알려 오면 그 토큰을 DB에서 비운다
     @Test
     void onStaleFcmTokens_clearsReportedTokens() {
         given(userRepository.clearFcmTokens(List.of("dead-1", "dead-2"))).willReturn(2);

@@ -146,7 +146,7 @@ class NotificationServiceTest {
         verify(firebaseMessaging, times(1)).sendEachForMulticast(any());
     }
 
-    // NOTI-T6: 토큰이 500개를 넘어도 한도에 맞게 나눠 보내고 예외가 밖으로 나가지 않는다
+    // FCM multicast 한도는 한 번에 500개라, 토큰이 501개면 500개 + 1개로 나눠 두 번 보내고 예외가 밖으로 나가지 않는다
     @Test
     void notifyPostUpdated_splitsTokensIntoBatchesOf500() throws Exception {
         List<String> tokens = IntStream.range(0, 501).mapToObj(i -> "token-" + i).toList();
@@ -157,7 +157,7 @@ class NotificationServiceTest {
         verify(firebaseMessaging, times(2)).sendEachForMulticast(captor.capture());
     }
 
-    // NOTI-T6: 한 묶음이 실패해도 다음 묶음은 계속 보낸다
+    // 첫 묶음 발송이 예외로 실패해도 거기서 멈추지 않고 다음 묶음을 계속 보낸다
     @Test
     void notifyPostUpdated_continuesWithNextBatchWhenOneFails() throws Exception {
         List<String> tokens = IntStream.range(0, 501).mapToObj(i -> "token-" + i).toList();
@@ -170,7 +170,7 @@ class NotificationServiceTest {
         verify(firebaseMessaging, times(2)).sendEachForMulticast(any());
     }
 
-    // NOTI-T6: UNREGISTERED로 응답한 토큰만 정리 이벤트로 알리고, 다른 실패(일시 오류)는 건드리지 않는다
+    // 응답이 UNREGISTERED(죽은 토큰)인 토큰만 정리 이벤트로 알리고, UNAVAILABLE 같은 일시 오류 토큰은 건드리지 않는다
     @Test
     void notifyPostUpdated_publishesStaleEventOnlyForUnregisteredTokens() throws Exception {
         SendResponse ok = mock(SendResponse.class);

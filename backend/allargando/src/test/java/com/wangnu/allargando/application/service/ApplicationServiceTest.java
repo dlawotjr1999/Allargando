@@ -596,7 +596,7 @@ class ApplicationServiceTest {
         assertThat(applicationService.getMyApplicationStatus(10L, 2L)).isNull();
     }
 
-    // ── APP-T10 보강: 권한·없는 리소스·빈 목록 분기 ─────────────────────────────────────
+    // ── 권한(403)·없는 리소스(404)·빈 목록 분기 ─────────────────────────────────────
 
     @Test
     void reject_throwsForbiddenWhenNotRecruiter() {
