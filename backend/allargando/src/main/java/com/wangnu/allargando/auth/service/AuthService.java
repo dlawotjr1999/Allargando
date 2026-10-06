@@ -19,6 +19,7 @@ import com.wangnu.allargando.user.entity.User;
 import com.wangnu.allargando.user.repository.CareerRepository;
 import com.wangnu.allargando.user.repository.UserRepository;
 import com.wangnu.allargando.user.service.NicknamePolicy;
+import com.wangnu.allargando.user.service.PhoneNumberPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -67,7 +68,7 @@ public class AuthService {
 
         String firebaseUid = decodedToken.getUid();
         String email = decodedToken.getEmail();
-        String phoneNumber = resolvePhoneNumber(decodedToken, request);
+        String phoneNumber = extractPhoneNumberClaim(decodedToken);
 
         // 멱등: 이미 가입된 uid면 기존 결과 반환
         Optional<User> existing = userRepository.findByFirebaseUid(firebaseUid);
@@ -227,35 +228,15 @@ public class AuthService {
         }
     }
 
-    /*
-     * 회원가입 시 전화번호 결정 — claim 우선, 없으면 요청 바디 폴백
-     *
-     * [임시] 원 설계는 claim만 신뢰하는 것이나(§3.1), Phone Auth가 Expo Go에서 동작하지 않아
-     * 전화 인증 도입이 출시 전으로 연기됐다. claim을 먼저 보는 순서는 그대로 두었으므로,
-     * 나중에 Phone Auth를 붙이면 이 메서드를 고치지 않아도 자동으로 claim이 우선한다.
-     * 전화 인증 도입이 끝나면 아래 폴백 분기와 RegisterRequestDTO.phoneNumber를 함께 제거할 것.
-     */
-    private String resolvePhoneNumber(FirebaseToken decodedToken, RegisterRequestDTO request) {
-        Object phoneClaim = decodedToken.getClaims().get("phone_number");
-        if (phoneClaim != null) {
-            return phoneClaim.toString();
-        }
-
-        String phoneNumber = request.getPhoneNumber();
-        if (phoneNumber == null || phoneNumber.isBlank()) {
-            throw new BadRequestException("휴대폰 번호가 없습니다");
-        }
-        return phoneNumber;
-    }
-
-    // 검증된 토큰에서 phone_number claim 추출 (Firebase Admin SDK에 전용 getter 없어 claims map에서 직접 조회)
-    // 전화번호 변경(PATCH /api/auth/phone-number)은 폴백 없이 claim만 신뢰한다 — 변경은 가입과 달리
-    // 이미 인증된 사용자의 행위라, 바디 값을 받아주면 남의 번호로 덮어쓸 수 있다
+    // 검증된 토큰에서 phone_number claim을 꺼내 저장 형식(010-1234-5678)으로 바꾼다. Firebase Admin SDK에 전용 getter가
+    // 없어 claims map에서 직접 조회한다. 가입과 번호 변경 모두 요청 바디의 번호는 받지 않고 이 claim만 믿는다 —
+    // 바디 값을 받으면 인증하지 않은 남의 번호로 가입하거나 덮어쓸 수 있기 때문이다.
+    // claim이 없으면(전화 인증을 거치지 않은 토큰) 400, 국내 휴대폰 번호가 아니어도 400
     private String extractPhoneNumberClaim(FirebaseToken decodedToken) {
         Object phoneClaim = decodedToken.getClaims().get("phone_number");
         if (phoneClaim == null) {
             throw new BadRequestException("휴대폰 인증 정보가 없습니다");
         }
-        return phoneClaim.toString();
+        return PhoneNumberPolicy.fromE164(phoneClaim.toString());
     }
 }

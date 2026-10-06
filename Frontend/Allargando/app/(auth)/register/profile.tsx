@@ -11,6 +11,7 @@ import StepIndicator from "@/components/common/StepIndicator";
 import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
 import ChipSelect from "@/components/common/ChipSelect";
+import PhoneVerification from "@/components/auth/PhoneVerification";
 import { isNicknameDuplicated } from "@/api/user";
 import {
   formatPhoneNumber,
@@ -53,11 +54,16 @@ export default function RegisterStep2() {
     }
   };
 
-  // 다음 단계로. 닉네임·전화번호는 서버가 입력 문자열 그대로 중복 비교를 하므로 정규화한 값으로 맞춰 둔다
+  // 다음 단계로. 전화번호는 문자 인증을 마쳐야 넘어갈 수 있다. 닉네임·전화번호는 서버가 입력 문자열 그대로
+  // 중복 비교를 하므로 정규화한 값으로 맞춰 둔다
   const handleNext = () => {
     const invalid = validateProfileStep(form);
     if (invalid) {
       Alert.alert("입력을 확인해 주세요", invalid);
+      return;
+    }
+    if (!user?.phoneNumber) {
+      Alert.alert("전화번호 인증", "전화번호 인증을 완료해 주세요.");
       return;
     }
     updateForm({
@@ -104,16 +110,7 @@ export default function RegisterStep2() {
           {NICKNAME_HINT}
         </Text>
 
-        <ThemedInput
-          label="전화번호"
-          icon="call-outline"
-          placeholder="010-0000-0000"
-          value={form.phoneNumber}
-          onChangeText={(v) => updateForm({ phoneNumber: v })}
-          keyboardType="phone-pad"
-          maxLength={17}
-          hint="모집글에 지원하면 모집자에게 공개돼요."
-        />
+        <PhoneVerification phoneNumber={form.phoneNumber} onChangePhone={(v) => updateForm({ phoneNumber: v })} />
 
         <ChipSelect
           label="악기"

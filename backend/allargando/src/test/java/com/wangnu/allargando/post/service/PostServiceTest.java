@@ -191,7 +191,7 @@ class PostServiceTest {
         verify(applicationService).notifyApplicantsOfPostUpdate(10L, "수정된 제목");
     }
 
-    // NOTI-T12: 값이 같은 PUT(악기 순서만 바뀐 것 포함)은 지원자에게 알리지 않는다
+    // 값이 같은 수정 요청(악기 순서만 바뀐 것 포함)은 지원자에게 알림을 보내지 않는다
     @Test
     void updatePost_doesNotNotifyWhenNothingChanged() {
         Post post = buildPost(owner);
@@ -212,7 +212,7 @@ class PostServiceTest {
         verify(applicationService, never()).notifyApplicantsOfPostUpdate(anyLong(), anyString());
     }
 
-    // NOTI-T12: 글 내용이 같아도 모집 인원(정원)이 바뀌면 지원자에게 알린다
+    // 글 본문은 같아도 악기별 모집 인원(정원)이 바뀌면 지원자에게 알린다
     @Test
     void updatePost_notifiesWhenOnlyInstrumentCapacityChanged() {
         Post post = buildPost(owner);

@@ -58,7 +58,7 @@ class AuthServiceTest {
         lenient().when(mockToken.getUid()).thenReturn("test-uid");
         lenient().when(mockToken.getEmail()).thenReturn("test@test.com");
         lenient().when(mockToken.getClaims())
-                .thenReturn(Map.of("phone_number", "010-1234-5678"));
+                .thenReturn(Map.of("phone_number", "+821012345678"));
         // TransactionTemplate은 콜백을 그대로 실행하는 것으로 대체(트랜잭션 자체는 통합 테스트 영역)
         lenient().when(transactionTemplate.execute(any()))
                 .thenAnswer(inv -> inv.<TransactionCallback<?>>getArgument(0).doInTransaction(null));
@@ -300,56 +300,34 @@ class AuthServiceTest {
         verify(userRepository, never()).save(any());
     }
 
-    // claim도 바디도 없으면 저장 이전에 400 — 폴백 도입 후에도 최종 방어선은 유지된다
+    // 전화 인증을 거치지 않은 토큰(phone_number claim 없음)은 저장 이전에 400 — 요청 바디의 번호는 받지 않는다
     @Test
-    void register_throwsBadRequestWhenPhoneNumberMissingFromBothClaimAndBody() throws Exception {
+    void register_throwsBadRequestWhenPhoneClaimMissing() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(mockToken.getClaims()).willReturn(Map.of());
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
-        given(request.getPhoneNumber()).willReturn(null);
 
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("휴대폰 번호가 없습니다");
+                .hasMessage("휴대폰 인증 정보가 없습니다");
 
         verify(userRepository, never()).save(any());
     }
 
-    // [임시] Phone Auth 도입 전까지의 폴백 — claim이 없으면 요청 바디의 전화번호를 사용
+    // 국내 휴대폰 번호가 아닌 번호(예: 미국 +1)로 인증한 토큰은 저장 이전에 400
     @Test
-    void register_fallsBackToRequestPhoneNumberWhenClaimMissing() throws Exception {
+    void register_throwsBadRequestWhenPhoneIsNotKoreanMobile() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
-        given(mockToken.getClaims()).willReturn(Map.of());
-        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
+        given(mockToken.getClaims()).willReturn(Map.of("phone_number", "+14155550123"));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
-        given(request.getNickname()).willReturn("tester");
-        given(request.getPhoneNumber()).willReturn("010-9999-8888");
-        given(request.getCareers()).willReturn(null);
 
-        authService.register("valid-token", request);
+        assertThatThrownBy(() -> authService.register("valid-token", request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("국내 휴대폰 번호로만 인증할 수 있습니다");
 
-        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, times(1)).save(captor.capture());
-        assertThat(captor.getValue().getPhoneNumber()).isEqualTo("010-9999-8888");
-    }
-
-    // claim이 있으면 바디 값보다 우선한다 — Phone Auth 도입 시 코드 수정 없이 전환되도록 보장
-    @Test
-    void register_prefersClaimOverRequestPhoneNumber() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
-        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
-
-        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
-        given(request.getNickname()).willReturn("tester");
-        given(request.getCareers()).willReturn(null);
-
-        authService.register("valid-token", request);
-
-        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, times(1)).save(captor.capture());
-        assertThat(captor.getValue().getPhoneNumber()).isEqualTo("010-1234-5678");
+        verify(userRepository, never()).save(any());
     }
 
     // 빈 토큰은 FirebaseAuthException이 아니라 IllegalArgumentException을 유발한다 — 500이 아닌 401이어야 함
@@ -550,7 +528,7 @@ class AuthServiceTest {
                 .doesNotThrowAnyException();
     }
 
-    // NOTI-T6: FCM이 죽은 토큰이라고 알려 오면 그 토큰을 DB에서 비운다
+    // FCM이 죽은 토큰(앱 삭제 등으로 더는 쓸 수 없는 토큰)이라고 알려 오면 그 토큰을 DB에서 비운다
     @Test
     void onStaleFcmTokens_clearsReportedTokens() {
         given(userRepository.clearFcmTokens(List.of("dead-1", "dead-2"))).willReturn(2);

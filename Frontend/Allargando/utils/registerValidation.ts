@@ -13,6 +13,11 @@ export const NICKNAME_HINT = "한글·영문·숫자·_ 2~20자로 입력해 주
 const NICKNAME_RE = /^[가-힣A-Za-z0-9_]{2,20}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// 이메일 형식이 대략 맞는지 확인한다(공백 없이 "무언가@무언가.무언가"). 실제 사용 가능 여부는 Firebase가 판단한다
+export function isEmailFormat(email: string): boolean {
+  return EMAIL_RE.test(email.trim());
+}
+
 // 앞뒤 공백을 지우고 NFC로 정규화한다(서버도 같은 정규화 뒤 검증·저장하므로 보내는 값을 미리 맞춘다)
 export function normalizeNickname(nickname: string): string {
   return nickname.trim().normalize("NFC");
@@ -36,6 +41,33 @@ export function formatPhoneNumber(input: string): string | null {
     ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
     : `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
+
+// 휴대폰 번호를 Firebase 전화 인증이 요구하는 국제 표기(E.164, 예: +821012345678)로 바꾼다.
+// 형식이 올바르지 않으면 null. 앞의 0을 떼고 한국 국가번호 +82를 붙인다
+export function toE164(input: string): string | null {
+  const formatted = formatPhoneNumber(input);
+  if (!formatted) return null;
+  return "+82" + formatted.replace(/\D/g, "").slice(1);
+}
+
+// 아이디 찾기 결과로 보여 줄 이메일 마스킹. 앞 2자만 남기고 나머지를 *로 가린다(예: test@test.com → te**@test.com)
+export function maskEmail(email: string): string {
+  const at = email.indexOf("@");
+  if (at <= 0) return email;
+  const local = email.slice(0, at);
+  const visible = local.slice(0, local.length <= 2 ? 1 : 2);
+  return `${visible}${"*".repeat(local.length - visible.length)}@${email.slice(at + 1)}`;
+}
+
+// 새 비밀번호 검증. 비밀번호 길이 기준은 가입과 같다. 틀린 항목의 안내 문구를 돌려준다(맞으면 null)
+export function validateNewPassword(password: string, confirm: string): string | null {
+  if (password.length < PASSWORD_MIN) return `비밀번호는 ${PASSWORD_MIN}자 이상 입력해 주세요.`;
+  if (password !== confirm) return "비밀번호가 서로 달라요.";
+  return null;
+}
+
+// 인증번호는 숫자 6자리다(Firebase가 보내는 SMS 코드와 테스트 번호의 고정 코드 모두)
+export const PHONE_CODE_LENGTH = 6;
 
 export interface AccountStepValues {
   email: string;

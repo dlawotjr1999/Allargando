@@ -23,7 +23,8 @@
         "softwareKeyboardLayoutMode": "pan"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["POST_NOTIFICATIONS"]
     },
     "web": {
       "output": "static",
@@ -43,7 +44,10 @@
           }
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-firebase/messaging"
     ],
     "experiments": {
       "typedRoutes": true,

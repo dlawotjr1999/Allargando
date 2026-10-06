@@ -1,5 +1,6 @@
 // 백엔드 API 호출 공통 레이어. 모든 응답이 { status, message, data } 포맷(CLAUDE.md 4장)이라
 // 이 레이어에서 언랩하고, 실패 시 ApiError로 통일해 호출부가 매번 res.ok를 확인하지 않게 한다.
+import { getIdToken } from "@react-native-firebase/auth";
 import { auth } from "@/lib/firebase";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -46,7 +47,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
   if (requiresAuth) {
-    const idToken = await auth.currentUser?.getIdToken();
+    // 로그인한 사용자의 ID 토큰을 가져온다. 만료가 가까우면 네이티브 SDK가 자동으로 갱신해 준다
+    const currentUser = auth.currentUser;
+    const idToken = currentUser ? await getIdToken(currentUser) : null;
     if (!idToken) {
       throw new ApiError(401, "로그인이 필요합니다");
     }
@@ -73,6 +76,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     if (controller.signal.aborted) {
       throw new ApiError(408, "서버 응답이 없어요. 잠시 후 다시 시도해주세요.");
     }
+    // 연결 실패 같은 요청 단계의 오류는 화면에 일반 문구만 보여 원인을 알기 어려우므로, 개발 중에는 터미널에 남긴다
+    if (__DEV__) console.warn(`[api] ${method} ${path} 요청 실패`, err);
     throw err;
   } finally {
     clearTimeout(timer);

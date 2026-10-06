@@ -69,7 +69,12 @@ export default function ConcertsScreen() {
     try {
       const page = await getConcerts(filter, currentPage + 1);
       if (seq !== requestSeq.current) return; // 요청 중에 필터가 바뀌어 첫 페이지부터 다시 불러옴 — 이어붙이지 않는다
-      setConcerts((prev) => [...prev, ...page.content]);
+      // 서버가 정렬을 고정해 두었어도, 스크롤하는 사이 동기화로 목록이 바뀌어 같은 공연이 다음 페이지에 또 올 수 있다.
+      // 같은 id가 두 번 들어가면 목록의 key가 겹쳐 오류가 나므로, 이미 가진 공연은 빼고 이어붙인다
+      setConcerts((prev) => {
+        const known = new Set(prev.map((concert) => concert.id));
+        return [...prev, ...page.content.filter((concert) => !known.has(concert.id))];
+      });
       setCurrentPage(page.currentPage);
       setHasNext(page.hasNext);
     } catch {
