@@ -6,6 +6,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
   EmailAuthProvider,
+  deleteUser,
   getAdditionalUserInfo,
   getIdToken,
   linkWithCredential,
@@ -15,6 +16,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signOut as firebaseSignOut,
+  updatePassword,
   type User,
 } from "@react-native-firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -61,6 +63,15 @@ interface AuthContextType {
   confirmPhoneCode: (confirmation: PhoneConfirmation, code: string) => Promise<void>;
   // 가입 화면을 벗어날 때 부른다. 전화 인증까지만 하고 끝내지 않은 임시 로그인을 정리한다
   abandonSignUp: () => Promise<void>;
+  // 계정 찾기용 인증번호 발송. 가입 때와 달리 항상 "전화번호로 로그인"하는 방식으로 보낸다
+  sendRecoveryCode: (phoneNumber: string) => Promise<PhoneConfirmation>;
+  // 계정 찾기용 인증번호 확인. 그 번호로 가입된 계정이 있어야 통과하고, 통과하면 그 계정의 이메일(없으면 null)을 돌려준다.
+  // 이후 비밀번호를 바꾸거나 화면을 벗어날 때까지 로그인 상태를 유지하며, 끝나면 endRecovery로 반드시 로그아웃해야 한다
+  confirmRecoveryCode: (confirmation: PhoneConfirmation, code: string) => Promise<{ email: string | null }>;
+  // 전화 인증을 마친 계정의 비밀번호를 새로 정하고 로그아웃한다
+  changePasswordAfterRecovery: (newPassword: string) => Promise<void>;
+  // 계정 찾기를 끝낸다(화면을 벗어나거나 완료했을 때). 전화번호로 들어간 임시 로그인을 무조건 로그아웃한다
+  endRecovery: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -186,17 +197,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return current ? linkWithPhoneNumber(current, e164) : signInWithPhoneNumber(auth, e164);
   };
 
-  // 전화번호로 새로 로그인했는데 그 번호가 이미 가입된 계정의 것이면, 새로 가입하는 것이 아니라 기존 계정에 로그인된 것이다.
-  // 비밀번호 없이 기존 계정에 들어가지 않도록 로그아웃하고 안내한다. 서버에 가입 기록이 없는 번호 계정(예전 가입 시도가
-  // 중간에 끊긴 흔적)이면 그대로 이어서 가입한다. 가입 여부를 확인하지 못하면(네트워크 등) 안전하게 막는다
-  const rejectIfAlreadyRegistered = async () => {
+  // 지금 로그인된 계정이 서버에 가입돼 있는지 조회한다. 있으면 true, 가입 기록이 없으면(404) false.
+  // 그 밖의 오류(네트워크 등)로는 판단할 수 없으므로 안전하게 로그아웃하고 연결 오류로 던진다
+  const checkRegisteredOnServer = async (): Promise<boolean> => {
     try {
       await getMyInfo();
+      return true;
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) return;
+      if (err instanceof ApiError && err.status === 404) return false;
       await firebaseSignOut(auth).catch(() => {});
       throw Object.assign(new Error("could not check registration"), { code: "auth/network-request-failed" });
     }
+  };
+
+  // 전화번호로 새로 로그인했는데 그 번호가 이미 가입된 계정의 것이면, 새로 가입하는 것이 아니라 기존 계정에 로그인된 것이다.
+  // 비밀번호 없이 기존 계정에 들어가지 않도록 로그아웃하고 안내한다. 서버에 가입 기록이 없는 번호 계정(예전 가입 시도가
+  // 중간에 끊긴 흔적)이면 그대로 이어서 가입한다
+  const rejectIfAlreadyRegistered = async () => {
+    if (!(await checkRegisteredOnServer())) return;
     await firebaseSignOut(auth).catch(() => {});
     throw Object.assign(new Error("phone already registered"), { code: "auth/phone-already-registered" });
   };
@@ -217,6 +235,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRegistering(wasRegistering);
       throw err;
     }
+  };
+
+  // 계정 찾기 인증번호 발송. 가입과 달리 로그인된 계정이 있어도 연결하지 않고 항상 전화번호로 로그인하는 방식이다
+  const sendRecoveryCode = async (phoneNumber: string): Promise<PhoneConfirmation> => {
+    const e164 = toE164(phoneNumber);
+    if (!e164) {
+      throw Object.assign(new Error("invalid phone number"), { code: "auth/invalid-phone-number" });
+    }
+    return signInWithPhoneNumber(auth, e164);
+  };
+
+  // 계정 찾기 인증번호 확인. 전화번호로 로그인하면 Firebase는 가입된 계정이 없을 때 번호만 있는 새 계정을 만들어 버리므로,
+  // 인증 직후 그런 계정을 정리하고 "찾지 못함"으로 안내한다. 계정은 있어도 서버에 가입 기록이 없는 번호(가입을 마치지
+  // 못한 흔적)는 찾을 계정이 아니므로 로그아웃하고 가입을 안내한다. 통과하면 로그인 상태를 유지한 채 이메일을 돌려주며,
+  // 이 동안 화면이 자동으로 옮겨 가지 않도록 가입과 같은 "진행 중" 표시를 켜 둔다
+  const confirmRecoveryCode = async (confirmation: PhoneConfirmation, code: string) => {
+    const wasRegistering = registeringRef.current;
+    registeringRef.current = true;
+    setRegistering(true);
+    try {
+      const result = await confirmation.confirm(code);
+      if (result && getAdditionalUserInfo(result)?.isNewUser === true && auth.currentUser) {
+        await deleteUser(auth.currentUser).catch(() => firebaseSignOut(auth).catch(() => {}));
+        throw Object.assign(new Error("account not found"), { code: "auth/account-not-found" });
+      }
+      if (!(await checkRegisteredOnServer())) {
+        await firebaseSignOut(auth).catch(() => {});
+        throw Object.assign(new Error("signup incomplete"), { code: "auth/signup-incomplete" });
+      }
+      return { email: auth.currentUser?.email ?? null };
+    } catch (err) {
+      registeringRef.current = wasRegistering;
+      setRegistering(wasRegistering);
+      throw err;
+    }
+  };
+
+  // 전화 인증으로 들어온 계정의 비밀번호를 바꾸고 로그아웃한다. 방금 전화로 인증했으므로 재로그인 요구에 걸리지 않는다
+  const changePasswordAfterRecovery = async (newPassword: string) => {
+    const current = auth.currentUser;
+    if (!current) {
+      throw Object.assign(new Error("not signed in"), { code: "auth/user-not-found" });
+    }
+    await updatePassword(current, newPassword);
+    await endRecovery();
+  };
+
+  // 계정 찾기를 끝낸다. 인증으로 들어온 임시 로그인이라 이메일 유무와 관계없이 무조건 로그아웃하고 진행 표시를 푼다.
+  // 진행 중이 아니면(인증 전에 화면을 벗어난 경우) 아무것도 하지 않는다
+  const endRecovery = async () => {
+    if (!registeringRef.current) return;
+    registeringRef.current = false;
+    setRegistering(false);
+    await firebaseSignOut(auth).catch(() => {});
   };
 
   // 가입 화면을 벗어날 때 정리한다. 가입이 끝났으면(진행 표시가 이미 풀림) 아무것도 하지 않고, 전화 인증만 하고 나간
@@ -250,6 +322,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sendPhoneCode,
         confirmPhoneCode,
         abandonSignUp,
+        sendRecoveryCode,
+        confirmRecoveryCode,
+        changePasswordAfterRecovery,
+        endRecovery,
       }}
     >
       {children}

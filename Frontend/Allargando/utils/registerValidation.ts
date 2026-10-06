@@ -45,6 +45,22 @@ export function toE164(input: string): string | null {
   return "+82" + formatted.replace(/\D/g, "").slice(1);
 }
 
+// 아이디 찾기 결과로 보여 줄 이메일 마스킹. 앞 2자만 남기고 나머지를 *로 가린다(예: test@test.com → te**@test.com)
+export function maskEmail(email: string): string {
+  const at = email.indexOf("@");
+  if (at <= 0) return email;
+  const local = email.slice(0, at);
+  const visible = local.slice(0, local.length <= 2 ? 1 : 2);
+  return `${visible}${"*".repeat(local.length - visible.length)}@${email.slice(at + 1)}`;
+}
+
+// 새 비밀번호 검증. 비밀번호 길이 기준은 가입과 같다. 틀린 항목의 안내 문구를 돌려준다(맞으면 null)
+export function validateNewPassword(password: string, confirm: string): string | null {
+  if (password.length < PASSWORD_MIN) return `비밀번호는 ${PASSWORD_MIN}자 이상 입력해 주세요.`;
+  if (password !== confirm) return "비밀번호가 서로 달라요.";
+  return null;
+}
+
 // 인증번호는 숫자 6자리다(Firebase가 보내는 SMS 코드와 테스트 번호의 고정 코드 모두)
 export const PHONE_CODE_LENGTH = 6;
 
