@@ -1,4 +1,4 @@
-// 가입·FCM 토큰 API (POST /api/auth/register, DELETE /api/auth/fcm-token,
+// 가입·FCM 토큰 API (POST /api/auth/register, PATCH·DELETE /api/auth/fcm-token,
 // backend/allargando/.../auth/controller/AuthController)
 import { apiRequest } from "@/lib/apiClient";
 import { CareerEntry } from "@/types/user";
@@ -19,6 +19,12 @@ export function registerUser(payload: RegisterRequest) {
     body: payload,
     handleUnauthorized: false,
   });
+}
+
+// FCM 토큰 등록·갱신. 로그인 후 이 기기의 푸시 토큰을 내 계정에 연결한다. 같은 토큰을 가진 다른 계정의 값은 서버가 먼저
+// 비우므로(토큰은 기기에 속한다), 한 기기에서 계정을 바꿔 로그인해도 이전 계정으로 알림이 가지 않는다. 같은 값을 다시 보내도 안전하다.
+export function registerFcmToken(fcmToken: string) {
+  return apiRequest<void>("/api/auth/fcm-token", { method: "PATCH", body: { fcmToken } });
 }
 
 // FCM 토큰 해제. 토큰은 기기에 속하므로 로그아웃·탈퇴 직전에 불러야 같은 기기의 다음 계정에 푸시가 가지 않는다.
