@@ -5,7 +5,8 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { colors } from "@/constants/theme";
 import { getMyPosts } from "@/api/post";
 import { cancelApplication, getMyApplications } from "@/api/application";
-import { clearFcmToken } from "@/api/auth";
+import { releasePush } from "@/lib/push";
+import { usePushSetting } from "@/lib/usePushSetting";
 import { deleteMyAccount } from "@/api/user";
 import { ApiError } from "@/lib/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +36,7 @@ const withMoreMark = (count: number, hasMore: boolean) => (hasMore ? `${count}+`
 export default function MyPageScreen() {
   const router = useRouter();
   const { profile, profileError, refreshProfile, signOut } = useAuth();
+  const push = usePushSetting();
 
   const [myPosts, setMyPosts] = useState<PostSummary[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
@@ -111,19 +113,10 @@ export default function MyPageScreen() {
     ]);
   };
 
-  // 이 기기의 푸시 토큰을 서버에서 해제한다. 토큰은 기기에 속해서, 해제하지 않으면 같은 기기에서 다른 계정으로
-  // 로그인했을 때 이전 계정의 알림이 도착한다. 실패해도 로그아웃·탈퇴를 막지 않는다(best-effort)
-  const releasePushToken = async () => {
-    try {
-      await clearFcmToken();
-    } catch {
-      // 네트워크 문제 등은 무시 — 서버는 다음 로그인 때 토큰 소유 계정을 바로잡는다
-    }
-  };
-
-  // 로그아웃 — 푸시 토큰을 먼저 해제한 뒤 Firebase 세션을 끊으면 RootNavigator가 로그인 화면으로 자동 이동시킨다
+  // 로그아웃 — 이 기기의 푸시 연결(토큰·새 모집글 토픽)을 먼저 풀어 이전 계정의 알림이 이 기기로 오지 않게 한 뒤,
+  // Firebase 세션을 끊으면 RootNavigator가 로그인 화면으로 자동 이동시킨다. 푸시 해제는 실패해도 로그아웃을 막지 않는다
   const handleLogout = async () => {
-    await releasePushToken();
+    await releasePush();
     try {
       await signOut();
     } catch {
@@ -134,7 +127,7 @@ export default function MyPageScreen() {
   // 회원탈퇴 — 푸시 토큰 해제 → 서버에서 계정 삭제 → 로그아웃 순서. 서버 삭제에 실패하면(예: 연관 데이터 충돌)
   // 로그인 상태를 유지한다. 서버 삭제가 끝난 뒤의 로그아웃 실패는 탈퇴가 이미 끝난 것이므로 "탈퇴 실패"로 보이지 않게 따로 안내한다.
   const handleWithdraw = async () => {
-    await releasePushToken();
+    await releasePush();
     try {
       await deleteMyAccount();
     } catch (err) {
@@ -215,6 +208,9 @@ export default function MyPageScreen() {
         />
 
         <SettingsSection
+          pushEnabled={push.enabled}
+          pushBusy={push.busy}
+          onTogglePush={push.toggle}
           onBlocksPress={() => router.push("/my-page/blocks")}
           onLogout={handleLogout}
           onWithdraw={handleWithdraw}

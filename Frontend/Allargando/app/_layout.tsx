@@ -3,6 +3,7 @@ import { Stack, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
 import LoadingScreen from "@/components/common/LoadingScreen";
+import PushSetup from "@/components/push/PushSetup";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { RegisterProvider } from "@/contexts/RegisterContext";
 
@@ -28,7 +29,7 @@ export default function RootLayout() {
 type Destination = "/(auth)/login" | "/(auth)/register" | "/(auth)/register/profile" | "/(tabs)/home";
 
 function RootNavigator() {
-  const { user, loading, profilePending, unregistered, registering } = useAuth();
+  const { user, loading, profile, profilePending, unregistered, registering } = useAuth();
 
   const resumeDestination: Destination = user?.email ? "/(auth)/register/profile" : "/(auth)/register";
   const target: Destination = !user ? "/(auth)/login" : unregistered ? resumeDestination : "/(tabs)/home";
@@ -75,6 +76,8 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
       </Stack>
       <Redirect href={href} />
+      {/* 서버에 가입된 로그인 사용자(프로필이 있음)가 있는 동안에만 푸시를 준비한다. 서버가 토큰을 유저 행에 저장하기 때문이다 */}
+      {profile && <PushSetup />}
       <StatusBar style="dark" />
     </>
   );

@@ -1,24 +1,48 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Switch } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { openLegalDocument, PRIVACY_URL, TERMS_URL } from "@/lib/legal";
 
-// 설정 목록. "모집 알림" 스위치는 푸시 수신(토큰 등록)이 연동될 때 함께 추가한다 — 지금은 동작하지 않는
-// 스위치를 두지 않는다(스토어 심사의 "죽은 버튼 없음" 조건)
+// 마이페이지의 설정 목록. 맨 위의 푸시 알림 스위치는 새 모집글·지원 결과 같은 알림을 이 기기에서 받을지를 정한다
+// (켜면 알림 권한을 요청하고 서버에 이 기기를 등록, 끄면 등록을 풀고 이 선택을 기기에 저장한다)
 interface SettingsSectionProps {
+  pushEnabled: boolean;
+  // 켜고 끄는 동안(권한 창·서버 호출)에는 스위치를 잠가 연속 조작을 막는다
+  pushBusy: boolean;
+  onTogglePush: (next: boolean) => void;
   onBlocksPress: () => void;
   onLogout: () => void;
   onWithdraw: () => void;
 }
 
 export default function SettingsSection({
+  pushEnabled,
+  pushBusy,
+  onTogglePush,
   onBlocksPress,
   onLogout,
   onWithdraw,
 }: SettingsSectionProps) {
   return (
     <View style={styles.settingsSection}>
+      <View style={styles.settingsRow}>
+        <View style={styles.settingsLeft}>
+          <Ionicons name="notifications-outline" size={16} color={colors.textSecondary} />
+          <View>
+            <Text style={styles.settingsText}>푸시 알림</Text>
+            <Text style={styles.settingsHint}>새 모집글과 지원 소식을 알려줘요</Text>
+          </View>
+        </View>
+        <Switch
+          value={pushEnabled}
+          onValueChange={onTogglePush}
+          disabled={pushBusy}
+          trackColor={{ true: colors.primary }}
+        />
+      </View>
+      <View style={styles.divider} />
+
       <TouchableOpacity style={styles.settingsRow} onPress={onBlocksPress} activeOpacity={0.7}>
         <View style={styles.settingsLeft}>
           <Ionicons name="ban-outline" size={16} color={colors.textSecondary} />
@@ -121,6 +145,11 @@ const styles = StyleSheet.create({
   settingsText: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  settingsHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   settingsDanger: {
     color: colors.danger,
