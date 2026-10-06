@@ -166,9 +166,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (!current.email) {
         await linkWithCredential(current, EmailAuthProvider.credential(input.email ?? "", input.password ?? ""));
-        // 연결 직전에 받아 둔 토큰에는 이메일이 없으므로, 서버가 이메일을 읽을 수 있게 토큰을 새로 받는다
-        await getIdToken(current, true);
       }
+      // 서버는 ID 토큰에 든 이메일·전화번호를 읽는다. 이메일을 방금 연결했거나(토큰에 아직 이메일이 없음), 이메일 계정에
+      // 전화번호를 방금 연결한 이어하기 경우(토큰에 아직 전화번호가 없음)처럼 직전에 받아 둔 토큰이 낡았을 수 있으므로,
+      // 어느 경우든 가입 요청 직전에 토큰을 새로 받아 둔다
+      await getIdToken(current, true);
       await registerUser({
         nickname: input.nickname,
         instrument: input.instrument,
