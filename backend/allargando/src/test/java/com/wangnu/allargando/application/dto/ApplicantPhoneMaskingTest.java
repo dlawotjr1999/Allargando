@@ -14,7 +14,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// D13 — 종료된 지원(거절·취소·철회)의 지원자 전화번호는 마스킹, 진행 중(PENDING)·확정(ACCEPTED)은 원문
+// 지원자의 이름·전화번호는 수락(ACCEPTED)된 지원만 원문이고, 대기와 종료된 지원(거절·취소·철회)은 마스킹한다
 class ApplicantPhoneMaskingTest {
 
     @Test
@@ -32,8 +32,8 @@ class ApplicantPhoneMaskingTest {
 
     @ParameterizedTest
     @EnumSource(ApplicationStatus.class)
-    void appResponse_masksPhoneOnlyForEndedApplications(ApplicationStatus status) {
-        User applicant = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("a").instrument("바이올린")
+    void appResponse_exposesContactOnlyForAcceptedApplications(ApplicationStatus status) {
+        User applicant = User.builder().name("홍길동").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("a").instrument("바이올린")
                 .phoneNumber("010-1234-5678").build();
         User recruiter = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(2L).nickname("r").build();
         Post post = Post.create(recruiter, PostInfo.builder().category("앙상블").title("t")
@@ -43,9 +43,9 @@ class ApplicantPhoneMaskingTest {
 
         AppResponseDTO response = AppResponseDTO.from(application, applicant, List.of());
 
-        String expected = status == ApplicationStatus.PENDING || status == ApplicationStatus.ACCEPTED
-                ? "010-1234-5678" : "010-****-5678";
-        assertThat(response.getApplicant().getPhoneNumber()).isEqualTo(expected);
+        boolean accepted = status == ApplicationStatus.ACCEPTED;
+        assertThat(response.getApplicant().getPhoneNumber()).isEqualTo(accepted ? "010-1234-5678" : "010-****-5678");
+        assertThat(response.getApplicant().getName()).isEqualTo(accepted ? "홍길동" : "홍**");
     }
 
     // 지원 악기(D9)는 프로필 악기와 달라도 지원서에 저장된 값이 응답의 instrument로 나간다

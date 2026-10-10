@@ -76,6 +76,7 @@ export default function ApplicantCard({
       <View style={styles.metaList}>
         <IconText icon="person-outline" text={`이름 ${applicant.name}`} />
         <IconText icon="call-outline" text={applicant.phoneNumber} />
+        {status === "PENDING" && <Text style={styles.contactHint}>수락하면 이름과 연락처가 공개돼요</Text>}
       </View>
 
       {applicant.careers.length > 0 && (
@@ -165,6 +166,11 @@ const styles = StyleSheet.create({
   },
   metaList: {
     gap: 4,
+  },
+  // 대기 중에는 서버가 이름·전화번호를 가려서 주므로 그 이유를 알려 준다
+  contactHint: {
+    fontSize: 11,
+    color: colors.textMuted,
   },
   careerList: {
     gap: 2,

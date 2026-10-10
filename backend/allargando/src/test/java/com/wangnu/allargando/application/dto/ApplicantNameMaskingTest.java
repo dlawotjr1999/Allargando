@@ -8,7 +8,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// 지원자 이름은 전화번호와 같은 규칙으로 노출된다: 진행 중인 지원은 원문, 종료된 지원은 가린다
+// 지원자 이름은 전화번호와 같은 규칙으로 노출된다: 수락된 지원만 원문, 그 밖(대기·종료)은 가린다
 class ApplicantNameMaskingTest {
 
     private User user() {

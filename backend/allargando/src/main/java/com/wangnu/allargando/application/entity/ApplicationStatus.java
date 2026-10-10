@@ -8,9 +8,10 @@ public enum ApplicationStatus {
     CANCELLED,  // 취소 (지원자, PENDING에서만)
     REVOKED;    // 철회 (모집자, ACCEPTED에서만; 확정 취소·자리 재오픈)
 
-    // 모집자에게 지원자 전화번호를 그대로 보여 주는 상태 — 진행 중(PENDING)·확정(ACCEPTED)만(D13).
-    // 거절·취소·철회로 끝난 지원은 연락할 이유가 없으므로 마스킹한다
-    public boolean exposesApplicantPhone() {
-        return this == PENDING || this == ACCEPTED;
+    // 모집자에게 지원자의 이름·전화번호를 그대로 보여 주는 상태 — 수락(ACCEPTED)된 지원만.
+    // 대기 중에는 가린다: 글을 올려 지원만 받고 연락처를 모으는 남용을 막기 위해서다(모집자는 닉네임·악기·경력·
+    // 지원 메시지로 판단하고, 연락은 수락한 뒤에 한다). 거절·취소·철회로 끝난 지원도 연락할 이유가 없어 가린다
+    public boolean exposesApplicantContact() {
+        return this == ACCEPTED;
     }
 }

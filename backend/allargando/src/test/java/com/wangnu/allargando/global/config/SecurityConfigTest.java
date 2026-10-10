@@ -77,6 +77,20 @@ class SecurityConfigTest {
                 .contains("\"status\":404").contains("가입되지 않은 사용자입니다");
     }
 
+    // Firebase·DB 장애로 인증을 판정하지 못했으면(필터가 표식을 남김) 401이 아니라 503 — 앱이 로그아웃시키지 않게 한다
+    @Test
+    void entryPoint_returnsServiceUnavailableWhenAuthCouldNotBeDecided() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute(FirebaseAuthFilter.AUTH_UNAVAILABLE_ATTRIBUTE, true);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        authenticationEntryPoint.commence(request, response,
+                new org.springframework.security.authentication.InsufficientAuthenticationException("x"));
+
+        assertThat(response.getStatus()).isEqualTo(503);
+        assertThat(response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).contains("\"status\":503");
+    }
+
     @Test
     void entryPoint_returnsUnauthorizedOtherwise() throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();

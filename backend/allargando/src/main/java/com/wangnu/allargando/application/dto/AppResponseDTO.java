@@ -39,9 +39,9 @@ public class AppResponseDTO {
     public static AppResponseDTO from(Application application, User user, List<CareerDTO> careers) {
         // 종료된 지원(거절·취소·철회)은 전화번호를 마스킹한다(D13). 지원자 본인의 "내 지원" 목록에도 같은 규칙이 적용되지만
         // 그 화면은 전화번호를 쓰지 않는다
-        boolean maskPhone = !application.getStatus().exposesApplicantPhone();
+        boolean maskContact = !application.getStatus().exposesApplicantContact();
         ApplicantResponseDTO applicant = ApplicantResponseDTO.from(user,
-                careers != null ? careers : careersOf(user), maskPhone);
+                careers != null ? careers : careersOf(user), maskContact);
         return AppResponseDTO.builder()
                 .id(application.getId())
                 .post(ApplicationPostSummaryDTO.from(application.getPost()))

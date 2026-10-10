@@ -260,6 +260,17 @@ public class GlobalExceptionHandler {
     }
 
     /*
+     * 503 Service Unavailable
+     * 외부 서비스(Firebase 등)에 닿지 못해 처리할 수 없을 때 — 요청이 틀린 것이 아니므로 401·400과 구분한다
+     */
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<APIResponse<Void>> handleServiceUnavailableException(ServiceUnavailableException e) {
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(APIResponse.error(503, e.getMessage()));
+    }
+
+    /*
      * 500 Internal Server Error
      * 예상치 못한 서버 에러
      */

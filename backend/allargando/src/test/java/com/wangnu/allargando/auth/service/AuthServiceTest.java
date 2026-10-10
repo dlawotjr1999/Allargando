@@ -255,6 +255,20 @@ class AuthServiceTest {
         verify(userRepository, never()).save(any());
     }
 
+    // Firebase에 닿지 못해 토큰을 판정하지 못한 것은 토큰 문제가 아니다 → 401이 아니라 503
+    @Test
+    void register_throwsServiceUnavailableWhenFirebaseIsDown() throws Exception {
+        FirebaseAuthException outage = mock(FirebaseAuthException.class);
+        given(outage.getAuthErrorCode()).willReturn(null);
+        given(outage.getErrorCode()).willReturn(com.google.firebase.ErrorCode.UNAVAILABLE);
+        given(firebaseAuth.verifyIdToken("any-token", true)).willThrow(outage);
+
+        assertThatThrownBy(() -> authService.register("any-token", mock(RegisterRequestDTO.class)))
+                .isInstanceOf(com.wangnu.allargando.global.exception.ServiceUnavailableException.class);
+
+        verify(userRepository, never()).save(any());
+    }
+
     @Test
     void register_throwsConflictWhenEmailExists() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);

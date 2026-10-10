@@ -111,4 +111,41 @@ class FirebaseAuthFilterTest {
         assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal()).isSameAs(user);
         assertThat(request.getAttribute(FirebaseAuthFilter.UNREGISTERED_USER_ATTRIBUTE)).isNull();
     }
+
+    // Firebase 공개키를 가져오지 못한 것은 토큰이 틀린 것이 아니다 → 표식을 남겨 진입점이 503으로 응답하게 한다
+    @Test
+    void firebaseOutage_marksRequestAsAuthUnavailable() throws Exception {
+        request.addHeader("Authorization", "Bearer good");
+        FirebaseAuthException outage = mock(FirebaseAuthException.class);
+        given(outage.getAuthErrorCode()).willReturn(com.google.firebase.auth.AuthErrorCode.CERTIFICATE_FETCH_FAILED);
+        given(firebaseAuth.verifyIdToken("good")).willThrow(outage);
+        run();
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(request.getAttribute(FirebaseAuthFilter.AUTH_UNAVAILABLE_ATTRIBUTE)).isEqualTo(true);
+    }
+
+    // 만료된 토큰은 토큰 문제다 → 표식 없이 401로 간다
+    @Test
+    void expiredToken_isNotMarkedAsAuthUnavailable() throws Exception {
+        request.addHeader("Authorization", "Bearer old");
+        FirebaseAuthException expired = mock(FirebaseAuthException.class);
+        given(expired.getAuthErrorCode()).willReturn(com.google.firebase.auth.AuthErrorCode.EXPIRED_ID_TOKEN);
+        given(firebaseAuth.verifyIdToken("old")).willThrow(expired);
+        run();
+        assertThat(request.getAttribute(FirebaseAuthFilter.AUTH_UNAVAILABLE_ATTRIBUTE)).isNull();
+    }
+
+    // DB 장애로 유저를 조회하지 못해도 필터가 예외를 던지지 않고 표식을 남긴다(비 JSON 오류 방지)
+    @Test
+    void databaseFailure_marksRequestAsAuthUnavailable() throws Exception {
+        request.addHeader("Authorization", "Bearer good");
+        FirebaseToken token = mock(FirebaseToken.class);
+        given(token.getUid()).willReturn("uid-1");
+        given(firebaseAuth.verifyIdToken("good")).willReturn(token);
+        given(userRepository.findByFirebaseUid("uid-1"))
+                .willThrow(new org.springframework.dao.DataAccessResourceFailureException("db down"));
+        run();
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(request.getAttribute(FirebaseAuthFilter.AUTH_UNAVAILABLE_ATTRIBUTE)).isEqualTo(true);
+    }
 }
