@@ -66,6 +66,17 @@ public class GlobalExceptionHandler {
     }
 
     /*
+     * 426 Upgrade Required
+     * 앱 버전이 서버의 최소 지원 버전보다 낮을 때 — 앱이 업데이트 안내 화면을 띄운다
+     */
+    @ExceptionHandler(UpgradeRequiredException.class)
+    public ResponseEntity<APIResponse<Void>> handleUpgradeRequiredException(UpgradeRequiredException e) {
+        return ResponseEntity
+                .status(HttpStatus.UPGRADE_REQUIRED)
+                .body(APIResponse.error(426, e.getMessage()));
+    }
+
+    /*
      * 429 Too Many Requests
      * 호출 빈도 제한을 넘었을 때 — Retry-After(초)로 다시 시도할 수 있는 시점을 알려준다
      */

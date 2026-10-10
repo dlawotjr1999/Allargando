@@ -56,6 +56,7 @@ cd allargando
 | `KOPIS_SERVICE_KEY` | 예 | 기본값 없음(누락 시 부팅 실패) |
 | `FIREBASE_CREDENTIALS_LOCATION` | 예 | `file:/경로` — 서비스 계정 키는 이미지에 넣지 않고 컨테이너 밖에서 마운트한다 |
 | `FORWARD_HEADERS_STRATEGY` | 프록시 뒤면 예 | `native`. 없으면 서버가 보는 IP가 전부 프록시 주소라 **IP 기준 호출 제한(가입 시간당 10회, 닉네임 확인 분당 30회)이 모든 사용자에게 공유된다.** 프록시 없이 직접 노출할 때는 지정하지 않는다(헤더 위조 가능) |
+| `APP_MIN_VERSION` | 아니오 | 비어 있으면 강제 업데이트를 끈다(기본). 값을 넣으면(예: `1.2.0`) 앱이 보내는 `X-App-Version`이 이보다 낮은 요청을 426으로 거절하고 앱이 업데이트 안내 화면을 띄운다. 헤더가 없는 요청은 통과한다 |
 | `CORS_ALLOWED_ORIGINS` | 아니오 | 비우면 전 오리진 차단. 모바일 앱만 쓰면 비워 둔다 |
 | `SWAGGER_ENABLED` · `KOPIS_SYNC_MANUAL_TRIGGER_ENABLED` | 아니오 | 기본 `false`. 운영에서 켜지 않는다 |
 | `SLOW_QUERY_LOG_MS` | 아니오 | 기본 `200`. 이보다 오래 걸린 SQL을 `org.hibernate.SQL_SLOW`로 남긴다(값이 아니라 `?`로 찍힌다). `0`이면 끈다 |
