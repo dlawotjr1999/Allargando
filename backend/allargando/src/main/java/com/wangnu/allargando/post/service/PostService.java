@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /*
@@ -106,10 +107,18 @@ public class PostService {
         // 변경 여부는 적용 전 값과 비교해야 하므로 updateInfo·replaceInstruments보다 먼저 계산한다
         boolean changed = post.hasApplicantVisibleChange(info, newInstruments);
 
+        // 정원을 줄여 이번 수정으로 새로 마감되는 악기를 알아내려고 적용 전 마감 상태를 적어 둔다
+        Set<String> closedBefore = closedInstrumentNames(post);
+
         post.updateInfo(info);
         List<String> removedInstruments = post.replaceInstruments(newInstruments);
         // 삭제된 악기로 들어와 있던 대기 지원은 자동 거절하고 알린다(D12 — 수락자가 있는 악기는 위에서 이미 400)
         removedInstruments.forEach(name -> applicationService.rejectPendingByInstrument(postId, name));
+        // 정원이 수락 인원과 같아져 새로 마감된 악기의 대기 지원도 같은 이유로 자동 거절한다 — 수락으로 정원이 찰 때와
+        // 같은 규칙이다. 두지 않으면 마감된 악기에 대기 지원이 남아, 수락하려 할 때야 400이 난다
+        closedInstrumentNames(post).stream()
+                .filter(name -> !closedBefore.contains(name))
+                .forEach(name -> applicationService.rejectPendingByInstrument(postId, name));
 
         // 모집글 수정 → 실제 변경이 있을 때만 알린다. 누구에게 보낼지는 Application 도메인이 결정 — 명세 시나리오 1.8
         if (changed) {
@@ -186,5 +195,12 @@ public class PostService {
         if (!post.isOwnedBy(user)) {
             throw new ForbiddenException("작성자만 처리할 수 있습니다");
         }
+    }
+    // 마감(closed)된 악기 이름 목록
+    private Set<String> closedInstrumentNames(Post post) {
+        return post.getPostInstruments().stream()
+                .filter(pi -> Boolean.TRUE.equals(pi.getClosed()))
+                .map(PostInstrument::getInstrument)
+                .collect(Collectors.toSet());
     }
 }

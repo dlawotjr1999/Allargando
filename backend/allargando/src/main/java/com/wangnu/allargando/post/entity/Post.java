@@ -205,7 +205,9 @@ public class Post {
     public void confirmInstrument(String instrumentName) {
         PostInstrument target = findInstrument(instrumentName);
         if (target == null) {
-            return; // 모집하지 않는 악기: 자리 카운트 미반영, 상태만 ACCEPTED
+            // 지원 이후 글 수정으로 악기가 빠진 경우다(지원과 수정이 겹치면 자동 거절이 놓친 대기 지원이 남을 수 있다).
+            // 조용히 수락하면 정원에 반영되지 않은 수락이 생기므로 거절한다 — 모집자가 해당 지원을 직접 거절하면 된다
+            throw new BadRequestException("모집하지 않는 악기입니다");
         }
         if (Boolean.TRUE.equals(target.getClosed())) {
             throw new BadRequestException("이미 정원이 마감된 악기입니다");

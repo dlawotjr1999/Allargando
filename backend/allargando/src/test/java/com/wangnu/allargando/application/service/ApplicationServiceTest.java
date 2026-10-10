@@ -374,31 +374,39 @@ class ApplicationServiceTest {
                 new PostDeletedNotificationEvent(java.util.List.of("accepted-token"), 10L, "현악 앙상블 단원 모집"));
     }
 
-    // 회원 탈퇴 — 수락된 지원은 악기 확정 인원을 되돌려 자리를 다시 연 뒤, 이 유저의 지원서를 전부 삭제한다
+    // 회원 탈퇴 — 지원서를 한 번만 읽어, 수락된 지원은 악기 확정 인원을 되돌려 자리를 다시 연 뒤 그 목록을 그대로 삭제한다
     @Test
-    void onUserWithdrawal_revokesAcceptedSlotsThenDeletesAllApplicationsOfUser() {
+    void onUserWithdrawal_revokesAcceptedSlotsThenDeletesTheSameLoadedApplications() {
         Post acceptedPost = mock(Post.class);
         Application accepted = mock(Application.class);
+        given(accepted.getStatus()).willReturn(ApplicationStatus.ACCEPTED);
         given(accepted.getPost()).willReturn(acceptedPost);
         given(accepted.getInstrument()).willReturn("바이올린");
-        given(applicationRepository.findByUserIdAndStatus(1L, ApplicationStatus.ACCEPTED))
-                .willReturn(List.of(accepted));
+        Application pending = mock(Application.class);
+        given(pending.getStatus()).willReturn(ApplicationStatus.PENDING);
+        List<Application> mine = List.of(accepted, pending);
+        given(applicationRepository.findByUserId(1L)).willReturn(mine);
 
         applicationService.onUserWithdrawal(new UserWithdrawalEvent(1L, "applicant-uid"));
 
         org.mockito.InOrder inOrder = inOrder(acceptedPost, applicationRepository);
         inOrder.verify(acceptedPost).revokeInstrument("바이올린");
-        inOrder.verify(applicationRepository).deleteByUserId(1L);
+        inOrder.verify(applicationRepository).deleteAll(mine);
+        // 수락 목록을 따로 읽지 않는다 — 두 번 읽으면 그 사이 끼어든 수락의 인원을 되돌리지 못한다
+        verify(applicationRepository, never()).findByUserIdAndStatus(any(), any());
+        verify(applicationRepository, times(1)).findByUserId(1L);
     }
 
     @Test
     void onUserWithdrawal_justDeletesWhenNoAcceptedApplications() {
-        given(applicationRepository.findByUserIdAndStatus(1L, ApplicationStatus.ACCEPTED))
-                .willReturn(List.of());
+        Application pending = mock(Application.class);
+        given(pending.getStatus()).willReturn(ApplicationStatus.PENDING);
+        List<Application> mine = List.of(pending);
+        given(applicationRepository.findByUserId(1L)).willReturn(mine);
 
         applicationService.onUserWithdrawal(new UserWithdrawalEvent(1L, "applicant-uid"));
 
-        verify(applicationRepository).deleteByUserId(1L);
+        verify(applicationRepository).deleteAll(mine);
     }
 
     // 모집자가 차단한 유저는 지원할 수 없다 — 차단 사실을 드러내지 않는 일반 메시지로 403

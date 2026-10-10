@@ -41,7 +41,8 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     // post를 함께 로딩해 상태별로 먼저 조회한 뒤 삭제한다
     @EntityGraph(attributePaths = {"post"})
     List<Application> findByUserIdAndStatus(Long userId, ApplicationStatus status);
-    void deleteByUserId(Long userId);
+    // 탈퇴 정리용 — 이 유저의 지원서 전부(상태 무관). 한 번만 읽어 같은 목록으로 인원 복구와 삭제를 처리한다
+    List<Application> findByUserId(Long userId);
 
     // 같은 글·같은 악기의 특정 상태 지원 — 정원 마감 시 남은 대기(PENDING) 지원을 한꺼번에 거절하는 데 쓴다.
     // 거절 알림에 지원자의 FCM 토큰이 필요해 user를 함께 로딩한다

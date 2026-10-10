@@ -299,9 +299,14 @@ public class ApplicationService {
     @EventListener
     @Transactional
     public void onUserWithdrawal(UserWithdrawalEvent event) {
-        applicationRepository.findByUserIdAndStatus(event.userId(), ApplicationStatus.ACCEPTED)
+        // 지원서를 한 번만 읽어 같은 목록으로 처리한다. 수락 목록을 따로 읽고 다시 deleteByUserId로 지우면 두 문장 사이에
+        // 모집자의 수락이 끼어도 인원을 되돌리지 못한 채 지원서만 지워져 자리가 하나 영구히 막힌다. 읽은 엔티티를
+        // 그대로 지우면 그 사이 바뀐 지원서는 @Version 충돌로 거절되어 전체가 롤백된다(클라이언트가 재시도)
+        List<Application> mine = applicationRepository.findByUserId(event.userId());
+        mine.stream()
+                .filter(application -> application.getStatus() == ApplicationStatus.ACCEPTED)
                 .forEach(application -> application.getPost().revokeInstrument(application.getInstrument()));
-        applicationRepository.deleteByUserId(event.userId());
+        applicationRepository.deleteAll(mine);
     }
 
     // 모집글 단건 조회(applicationCount)용 — Post 도메인에서 호출

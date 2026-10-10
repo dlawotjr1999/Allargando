@@ -78,10 +78,13 @@ class PostTest {
                 .isInstanceOf(BadRequestException.class);
     }
 
-    // 시나리오 1.4: 지원자 전공이 모집 목록에 없으면 수락 허용(자리 미반영, 상태만 변경) — 예외 아님
+    // 지원은 모집 악기만 고를 수 있다(D9). 지원 뒤 글 수정으로 악기가 빠진 지원이 남아 있어도 조용히 수락하지 않고 거절한다
+    // (옛 동작은 자리에 반영하지 않은 채 상태만 수락으로 바꿨다 — 정원 불변식 밖의 수락이 생기는 경로였다)
     @Test
-    void confirmInstrument_nonRecruitedInstrument_keepsStatusAndSeats() {
-        post.confirmInstrument("트럼펫"); // 모집 목록에 없는 악기 → 무동작
+    void confirmInstrument_nonRecruitedInstrument_throwsAndKeepsStatusAndSeats() {
+        assertThatThrownBy(() -> post.confirmInstrument("트럼펫"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("모집하지 않는 악기입니다");
 
         assertThat(post.getStatus()).isEqualTo(PostStatus.OPEN);
         assertThat(instrument("바이올린").getConfirmed()).isEqualTo(0);

@@ -424,6 +424,45 @@ class PostServiceTest {
         verify(applicationService, never()).rejectPendingByInstrument(eq(10L), eq("바이올린"));
     }
 
+    // 정원을 수락 인원까지 줄여 악기가 새로 마감되면 그 악기의 대기 지원도 자동 거절을 요청한다
+    @Test
+    void updatePost_rejectsPendingApplicationsOfNewlyClosedInstruments() {
+        Post post = buildPost(owner);
+        post.confirmInstrument("바이올린"); // 바이올린 people=2, confirmed=1
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+        PostCreateRequestDTO update = PostCreateRequestDTO.builder()
+                .category("앙상블").title("수정").eventAt(LocalDateTime.of(2099, 5, 1, 15, 0))
+                .location("서울").region("서울").timetable("토요일")
+                .instruments(List.of(
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("바이올린").people(1).build(),
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("첼로").people(1).build()))
+                .build(); // 바이올린 정원 2 → 1(= 수락 인원)이라 새로 마감된다
+
+        postService.updatePost(10L, owner, update);
+
+        verify(applicationService).rejectPendingByInstrument(10L, "바이올린");
+        verify(applicationService, never()).rejectPendingByInstrument(eq(10L), eq("첼로"));
+    }
+
+    // 이미 마감돼 있던 악기는 이번 수정으로 새로 마감된 것이 아니므로 다시 거절하지 않는다
+    @Test
+    void updatePost_doesNotRejectAgainForAlreadyClosedInstruments() {
+        Post post = buildPost(owner);
+        post.confirmInstrument("첼로"); // 첼로 people=1 → 이미 마감
+        given(postRepository.findById(10L)).willReturn(Optional.of(post));
+        PostCreateRequestDTO update = PostCreateRequestDTO.builder()
+                .category("앙상블").title("수정").eventAt(LocalDateTime.of(2099, 5, 1, 15, 0))
+                .location("서울").region("서울").timetable("토요일")
+                .instruments(List.of(
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("바이올린").people(2).build(),
+                        PostCreateRequestDTO.InstrumentItem.builder().instrument("첼로").people(1).build()))
+                .build();
+
+        postService.updatePost(10L, owner, update);
+
+        verify(applicationService, never()).rejectPendingByInstrument(anyLong(), anyString());
+    }
+
     // 수락자가 있는 악기를 빼려는 수정은 400이고 대기 지원 거절·수정 알림도 일어나지 않는다
     @Test
     void updatePost_throwsAndTouchesNoApplicationWhenRemovingAcceptedInstrument() {
