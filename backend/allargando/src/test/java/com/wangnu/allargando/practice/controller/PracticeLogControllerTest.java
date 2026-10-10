@@ -56,7 +56,7 @@ class PracticeLogControllerTest {
             return null;
         }).when(firebaseAuthFilter).doFilter(any(), any(), any());
 
-        User mockUser = User.builder()
+        User mockUser = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(1L)
                 .email("test@test.com")
                 .firebaseUid("test-uid")

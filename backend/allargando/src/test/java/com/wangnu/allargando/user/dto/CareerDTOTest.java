@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // 경력은 단체명·설명이 모두 비어도 허용하되(혼자 연주한 경우), 아무 내용 없는 행은 저장하지 않는다
 class CareerDTOTest {
 
-    private final User user = User.builder().id(1L).build();
+    private final User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
 
     private CareerDTO dto(String organization, String contexts) {
         return CareerDTO.builder().organization(organization).contexts(contexts).build();

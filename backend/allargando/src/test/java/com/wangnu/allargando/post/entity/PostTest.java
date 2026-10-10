@@ -19,7 +19,7 @@ class PostTest {
 
     @BeforeEach
     void setUp() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
 
         post = Post.create(owner, PostInfo.builder().build());
         post.addInstrument(PostInstrument.of(post, "바이올린", 2));
@@ -331,7 +331,7 @@ class PostTest {
     // BACKLOG.md #34: 모집글 상세 "설명" 섹션에 대응하는 필드
     @Test
     void create_setsDescriptionFromInfo() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
 
         Post created = Post.create(owner, PostInfo.builder().description("공연 설명입니다").build());
 
@@ -340,7 +340,7 @@ class PostTest {
 
     @Test
     void updateInfo_updatesDescription() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
         Post created = Post.create(owner, PostInfo.builder().description("기존 설명").build());
 
         created.updateInfo(PostInfo.builder().description("수정된 설명").build());
@@ -351,7 +351,7 @@ class PostTest {
     // BACKLOG.md #38: location 자유텍스트와 분리된 지역 필터 전용 컬럼
     @Test
     void create_setsRegionFromInfo() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
 
         Post created = Post.create(owner, PostInfo.builder().region("서울").build());
 
@@ -360,7 +360,7 @@ class PostTest {
 
     @Test
     void updateInfo_updatesRegion() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
         Post created = Post.create(owner, PostInfo.builder().region("서울").build());
 
         created.updateInfo(PostInfo.builder().region("경기").build());
@@ -372,7 +372,7 @@ class PostTest {
     // 소유자 판단 로직 자체를 Post로 이관(Tell-Don't-Ask)
     @Test
     void isOwnedBy_trueWhenSameUser() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
         Post created = Post.create(owner, PostInfo.builder().build());
 
         assertThat(created.isOwnedBy(owner)).isTrue();
@@ -380,8 +380,8 @@ class PostTest {
 
     @Test
     void isOwnedBy_falseWhenDifferentUser() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
-        User other = User.builder().id(2L).nickname("other").firebaseUid("other-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User other = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(2L).nickname("other").firebaseUid("other-uid").build();
         Post created = Post.create(owner, PostInfo.builder().build());
 
         assertThat(created.isOwnedBy(other)).isFalse();

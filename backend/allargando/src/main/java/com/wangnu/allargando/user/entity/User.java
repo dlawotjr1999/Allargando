@@ -51,6 +51,10 @@ public class User {
 
     // 대소문자 무시 UNIQUE는 함수 인덱스라 JPA로 표현할 수 없다 — Flyway V7의 UK_user_nickname_lower(lower(nickname)).
     // 형식·예약어 규칙은 NicknamePolicy(D3)
+    // 실명 — 모집자에게만 보인다(ApplicantResponseDTO). 닉네임과 달리 UNIQUE가 아니다
+    @Column(name = "name", nullable = false, length = 50)
+    private String name;
+
     @Column(name = "nickname", nullable = false)
     private String nickname;
 
@@ -63,6 +67,10 @@ public class User {
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    // 이용약관·개인정보 수집 동의 시각 — 가입 요청을 처리한 서버 시각(클라이언트 값을 받지 않는다)
+    @Column(name = "terms_agreed_at", nullable = false)
+    private LocalDateTime termsAgreedAt;
 
     // User-Career 양방향 1:N (부모 저장/수정 시 cascade·orphanRemoval로 함께 처리)
     // @BatchSize: 지원자 목록 등에서 여러 User의 careers를 순회 조회할 때 N+1 방지
@@ -85,7 +93,8 @@ public class User {
 
     // 내 정보 수정: 닉네임·악기를 그대로 반영 (둘 다 필수 입력이라 호출 전에 요청 검증이 끝난 값이다.
     // phoneNumber는 전용 인증 엔드포인트로 이관되어 여기서 다루지 않음)
-    public void updateInfo(String nickname, String instrument) {
+    public void updateInfo(String name, String nickname, String instrument) {
+        this.name = name;
         this.nickname = nickname;
         this.instrument = instrument;
     }

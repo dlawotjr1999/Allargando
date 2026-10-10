@@ -22,6 +22,7 @@ public class UserResponseDTO {
     private Long id;
     private String email;
     private String phoneNumber;
+    private String name;
     private String nickname;
     private String instrument;
     private LocalDateTime createdAt;
@@ -33,6 +34,7 @@ public class UserResponseDTO {
                 .id(user.getId())
                 .email(user.getEmail())
                 .phoneNumber(user.getPhoneNumber())
+                .name(user.getName())
                 .nickname(user.getNickname())
                 .instrument(user.getInstrument())
                 .createdAt(user.getCreatedAt())

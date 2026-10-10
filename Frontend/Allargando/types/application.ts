@@ -24,6 +24,8 @@ export interface ApplicationPostSummary {
 // 지원서 응답에 중첩되는 지원자 프로필. 백엔드 ApplicantResponseDTO와 1:1 대응(모집자가 소비).
 // email은 없음 — 모집자에게 지원자의 email이 노출되지 않도록 백엔드가 의도적으로 제외한 필드다.
 export interface Applicant {
+  // 실명. 대기·수락 지원은 원문, 종료된 지원은 서버가 "홍**"처럼 가려서 준다
+  name: string;
   nickname: string;
   instrument: string;
   phoneNumber: string;

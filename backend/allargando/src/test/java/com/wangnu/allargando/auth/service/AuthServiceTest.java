@@ -71,6 +71,7 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(request.getCareers()).willReturn(null);
 
         authService.register("valid-token", request);
@@ -88,6 +89,7 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(request.getCareers()).willReturn(List.of(
                 CareerDTO.builder().organization("오케스트라").contexts("바이올린 파트").build()));
 
@@ -102,7 +104,7 @@ class AuthServiceTest {
     void register_returnsExistingResultWhenUidAlreadyRegistered() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.findByFirebaseUid("test-uid"))
-                .willReturn(Optional.of(User.builder().firebaseUid("test-uid").build()));
+                .willReturn(Optional.of(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).firebaseUid("test-uid").build()));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
 
@@ -121,7 +123,9 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
 
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(DataIntegrityViolationException.class);
 
@@ -134,13 +138,15 @@ class AuthServiceTest {
         given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.findByFirebaseUid("test-uid"))
                 .willReturn(Optional.empty())
-                .willReturn(Optional.of(User.builder().firebaseUid("test-uid").build()));
+                .willReturn(Optional.of(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).firebaseUid("test-uid").build()));
         given(userRepository.save(any(User.class)))
                 .willThrow(new DataIntegrityViolationException("duplicate key"));
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
 
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         assertThatCode(() -> authService.register("valid-token", request)).doesNotThrowAnyException();
 
         verify(firebaseAuth, never()).deleteUser(anyString());
@@ -156,7 +162,9 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
 
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("이미 가입된 전화번호입니다");
@@ -174,7 +182,9 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
 
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("이미 사용 중인 닉네임입니다");
@@ -187,7 +197,9 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("a/b");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
 
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("사용할 수 없는 닉네임입니다");
@@ -201,7 +213,9 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("Admin");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
 
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(BadRequestException.class);
 
@@ -216,6 +230,7 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn(" " + java.text.Normalizer.normalize("한글", java.text.Normalizer.Form.NFD) + " ");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(request.getCareers()).willReturn(null);
 
         authService.register("valid-token", request);
@@ -247,7 +262,9 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
 
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("이미 가입된 이메일입니다");
@@ -277,6 +294,7 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(request.getCareers()).willReturn(null);
 
         authService.register("valid-token", request);
@@ -291,6 +309,7 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("duplicated");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(userRepository.existsByNicknameIgnoreCase("duplicated")).willReturn(true);
 
         assertThatThrownBy(() -> authService.register("valid-token", request))
@@ -350,7 +369,9 @@ class AuthServiceTest {
 
         RegisterRequestDTO request = mock(RegisterRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
 
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         assertThatThrownBy(() -> authService.register("valid-token", request))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("이미 가입된 전화번호입니다");
@@ -360,7 +381,7 @@ class AuthServiceTest {
 
     @Test
     void updateFcmToken_updatesTokenWhenUserExists() {
-        User user = User.builder().id(1L).build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
         User managedUser = mock(User.class);
         given(userRepository.findById(1L)).willReturn(Optional.of(managedUser));
 
@@ -376,7 +397,7 @@ class AuthServiceTest {
 
     @Test
     void clearFcmToken_setsTokenNull() {
-        User user = User.builder().id(1L).build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
         User managedUser = mock(User.class);
         given(userRepository.findById(1L)).willReturn(Optional.of(managedUser));
 
@@ -389,7 +410,7 @@ class AuthServiceTest {
     void clearFcmToken_throwsNotFoundWhenUserMissing() {
         given(userRepository.findById(99L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> authService.clearFcmToken(User.builder().id(99L).build()))
+        assertThatThrownBy(() -> authService.clearFcmToken(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(99L).build()))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -397,7 +418,7 @@ class AuthServiceTest {
     void updateFcmToken_throwsNotFoundWhenUserMissing() {
         given(userRepository.findById(99L)).willReturn(Optional.empty());
 
-        User user = User.builder().id(99L).build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(99L).build();
         FCMTokenUpdateRequestDTO request = mock(FCMTokenUpdateRequestDTO.class);
 
         assertThatThrownBy(() -> authService.updateFcmToken(user, request))
@@ -409,7 +430,7 @@ class AuthServiceTest {
     void updatePhoneNumber_updatesWhenValidAndDifferent() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
 
-        User user = User.builder().id(1L).build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
         User managedUser = mock(User.class);
         given(managedUser.getPhoneNumber()).willReturn("010-0000-0000");
         given(userRepository.findById(1L)).willReturn(Optional.of(managedUser));
@@ -424,7 +445,7 @@ class AuthServiceTest {
     void updatePhoneNumber_doesNothingWhenSameAsCurrent() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
 
-        User user = User.builder().id(1L).build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
         User managedUser = mock(User.class);
         given(managedUser.getPhoneNumber()).willReturn("010-1234-5678");
         given(userRepository.findById(1L)).willReturn(Optional.of(managedUser));
@@ -440,7 +461,7 @@ class AuthServiceTest {
         given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(mockToken.getClaims()).willReturn(Map.of());
 
-        User user = User.builder().id(1L).build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
 
         assertThatThrownBy(() -> authService.updatePhoneNumber(user, "valid-token"))
                 .isInstanceOf(BadRequestException.class)
@@ -453,7 +474,7 @@ class AuthServiceTest {
     void updatePhoneNumber_throwsConflictWhenPhoneNumberExists() throws Exception {
         given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
 
-        User user = User.builder().id(1L).build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
         User managedUser = mock(User.class);
         given(managedUser.getPhoneNumber()).willReturn("010-0000-0000");
         given(userRepository.findById(1L)).willReturn(Optional.of(managedUser));
@@ -471,7 +492,7 @@ class AuthServiceTest {
         given(firebaseAuth.verifyIdToken("invalid-token", true))
                 .willThrow(mock(FirebaseAuthException.class));
 
-        User user = User.builder().id(1L).build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
 
         assertThatThrownBy(() -> authService.updatePhoneNumber(user, "invalid-token"))
                 .isInstanceOf(UnauthorizedException.class)
@@ -485,7 +506,7 @@ class AuthServiceTest {
         given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
         given(userRepository.findById(99L)).willReturn(Optional.empty());
 
-        User user = User.builder().id(99L).build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(99L).build();
 
         assertThatThrownBy(() -> authService.updatePhoneNumber(user, "valid-token"))
                 .isInstanceOf(NotFoundException.class)

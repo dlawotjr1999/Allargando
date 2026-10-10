@@ -17,9 +17,9 @@ class ApplicationAccessPolicyTest {
 
     private final ApplicationAccessPolicy accessPolicy = new ApplicationAccessPolicy();
 
-    private final User applicant = User.builder().id(1L).nickname("applicant").firebaseUid("applicant-uid").build();
-    private final User recruiter = User.builder().id(2L).nickname("recruiter").firebaseUid("recruiter-uid").build();
-    private final User stranger = User.builder().id(3L).nickname("stranger").firebaseUid("stranger-uid").build();
+    private final User applicant = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("applicant").firebaseUid("applicant-uid").build();
+    private final User recruiter = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(2L).nickname("recruiter").firebaseUid("recruiter-uid").build();
+    private final User stranger = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(3L).nickname("stranger").firebaseUid("stranger-uid").build();
 
     private Application buildApplication() {
         Post post = Post.create(recruiter, PostInfo.builder().build());

@@ -33,9 +33,9 @@ class ApplicantPhoneMaskingTest {
     @ParameterizedTest
     @EnumSource(ApplicationStatus.class)
     void appResponse_masksPhoneOnlyForEndedApplications(ApplicationStatus status) {
-        User applicant = User.builder().id(1L).nickname("a").instrument("바이올린")
+        User applicant = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("a").instrument("바이올린")
                 .phoneNumber("010-1234-5678").build();
-        User recruiter = User.builder().id(2L).nickname("r").build();
+        User recruiter = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(2L).nickname("r").build();
         Post post = Post.create(recruiter, PostInfo.builder().category("앙상블").title("t")
                 .eventAt(LocalDateTime.now().plusDays(3)).location("l").region("서울").timetable("t").build());
         Application application = Application.builder().user(applicant).post(post)
@@ -51,9 +51,9 @@ class ApplicantPhoneMaskingTest {
     // 지원 악기(D9)는 프로필 악기와 달라도 지원서에 저장된 값이 응답의 instrument로 나간다
     @Test
     void appResponse_exposesAppliedInstrumentSeparatelyFromProfileInstrument() {
-        User applicant = User.builder().id(1L).nickname("a").instrument("바이올린")
+        User applicant = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("a").instrument("바이올린")
                 .phoneNumber("010-1234-5678").build();
-        User recruiter = User.builder().id(2L).nickname("r").build();
+        User recruiter = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(2L).nickname("r").build();
         Post post = Post.create(recruiter, PostInfo.builder().category("앙상블").title("t")
                 .eventAt(LocalDateTime.now().plusDays(3)).location("l").region("서울").timetable("t").build());
         Application application = Application.builder().user(applicant).post(post)

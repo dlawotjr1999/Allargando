@@ -67,7 +67,7 @@ class ReadApiSmokePostgresTest {
     }
 
     private User save(String key) {
-        return userRepository.save(User.builder().firebaseUid(PREFIX + key).phoneNumber(PREFIX + "p-" + key)
+        return userRepository.save(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).firebaseUid(PREFIX + key).phoneNumber(PREFIX + "p-" + key)
                 .nickname("smoke_" + key).instrument("바이올린").build());
     }
 

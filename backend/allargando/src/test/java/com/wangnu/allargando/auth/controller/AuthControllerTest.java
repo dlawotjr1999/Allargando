@@ -71,7 +71,7 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockUser = User.builder()
+        mockUser = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(1L)
                 .email("test@test.com")
                 .firebaseUid("test-uid")
@@ -96,7 +96,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "nickname": "tester",
+                                  "name": "홍길동", "agreedToTerms": true, "agreedToPrivacy": true, "nickname": "tester",
                                   "instrument": "바이올린",
                                   "careers": [
                                     { "organization": "서울시향", "contexts": "2023년 객원 연주" }
@@ -119,7 +119,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "nickname": "테스터",
+                                  "name": "홍길동", "agreedToTerms": true, "agreedToPrivacy": true, "nickname": "테스터",
                                   "instrument": "바이올린"
                                 }
                                 """))
@@ -134,9 +134,40 @@ class AuthControllerTest {
     void register_returns401WhenAuthorizationHeaderMissing() throws Exception {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"nickname\": \"tester\", \"instrument\": \"바이올린\" }"))
+                        .content("{ \"name\": \"홍길동\", \"agreedToTerms\": true, \"agreedToPrivacy\": true, \"nickname\": \"tester\", \"instrument\": \"바이올린\" }"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401));
+
+        verify(authService, never()).register(any(), any());
+    }
+
+    // 약관·개인정보 동의가 없으면 가입시키지 않는다(누락·false 모두 400). 서버가 동의 시각을 기록하므로 동의 없는 가입은 만들 수 없다
+    @Test
+    void register_returns400WhenConsentMissingOrFalse() throws Exception {
+        String[] bodies = {
+                "{ \"name\": \"홍길동\", \"nickname\": \"tester\", \"instrument\": \"바이올린\" }",
+                "{ \"name\": \"홍길동\", \"agreedToTerms\": false, \"agreedToPrivacy\": true, \"nickname\": \"tester\", \"instrument\": \"바이올린\" }",
+                "{ \"name\": \"홍길동\", \"agreedToTerms\": true, \"agreedToPrivacy\": false, \"nickname\": \"tester\", \"instrument\": \"바이올린\" }"
+        };
+        for (String body : bodies) {
+            mockMvc.perform(post("/api/auth/register")
+                            .header("Authorization", "Bearer test-token")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isBadRequest());
+        }
+
+        verify(authService, never()).register(any(), any());
+    }
+
+    // 이름은 필수다
+    @Test
+    void register_returns400WhenNameMissing() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .header("Authorization", "Bearer test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"agreedToTerms\": true, \"agreedToPrivacy\": true, \"nickname\": \"tester\", \"instrument\": \"바이올린\" }"))
+                .andExpect(status().isBadRequest());
 
         verify(authService, never()).register(any(), any());
     }
@@ -158,7 +189,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "nickname": "테스터",
+                                  "name": "홍길동", "agreedToTerms": true, "agreedToPrivacy": true, "nickname": "테스터",
                                   "instrument": "바이올린"
                                 }
                                 """))
@@ -188,7 +219,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "nickname": "tester"
+                                  "name": "홍길동", "agreedToTerms": true, "agreedToPrivacy": true, "nickname": "tester"
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
@@ -198,7 +229,7 @@ class AuthControllerTest {
         return mockMvc.perform(post("/api/auth/register")
                 .header("Authorization", "Bearer test-token")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{ \"nickname\": \"tester\", \"instrument\": \"바이올린\", \"careers\": " + careersJson + " }"));
+                .content("{ \"name\": \"홍길동\", \"agreedToTerms\": true, \"agreedToPrivacy\": true, \"nickname\": \"tester\", \"instrument\": \"바이올린\", \"careers\": " + careersJson + " }"));
     }
 
     // 가입 요청의 경력도 수정과 같은 검증을 받는다: 255자 초과·11개 초과는 400, 빈 값은 허용

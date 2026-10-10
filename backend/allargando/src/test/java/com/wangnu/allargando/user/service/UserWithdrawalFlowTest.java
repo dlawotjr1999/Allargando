@@ -49,7 +49,7 @@ class UserWithdrawalFlowTest {
     @Autowired UserService userService;
 
     private User newUser(String name) {
-        return em.persist(User.builder()
+        return em.persist(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .firebaseUid(name + "-uid")
                 .phoneNumber("010-0000-" + String.format("%04d", Math.abs(name.hashCode()) % 10000))
                 .nickname(name)
@@ -129,7 +129,7 @@ class UserWithdrawalFlowTest {
         em.flush();
         em.clear();
 
-        userService.deleteUser(User.builder().id(leaverId).build());
+        userService.deleteUser(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(leaverId).build());
         em.flush(); // 여기서 FK 위반이 있으면 예외가 난다
         em.clear();
 
@@ -168,7 +168,7 @@ class UserWithdrawalFlowTest {
         em.flush();
         em.clear();
 
-        userService.deleteUser(User.builder().id(id).build());
+        userService.deleteUser(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(id).build());
         em.flush();
         em.clear();
 

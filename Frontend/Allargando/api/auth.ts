@@ -5,6 +5,10 @@ import { CareerEntry } from "@/types/user";
 
 // 가입 요청 바디. 백엔드 RegisterRequestDTO와 대응 — 이메일·UID·전화번호는 ID 토큰에서 취하고 여기엔 프로필만 담는다.
 export interface RegisterRequest {
+  name: string;
+  // 약관·개인정보 수집 동의. 서버가 둘 다 true여야 가입시키고 동의 시각은 서버가 기록한다
+  agreedToTerms: boolean;
+  agreedToPrivacy: boolean;
   nickname: string;
   instrument: string;
   careers: CareerEntry[];

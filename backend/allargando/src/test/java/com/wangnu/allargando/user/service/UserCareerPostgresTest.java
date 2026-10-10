@@ -48,7 +48,7 @@ class UserCareerPostgresTest {
     }
 
     private User saveUser() {
-        return userRepository.saveAndFlush(User.builder().firebaseUid(PREFIX + "a").phoneNumber(PREFIX + "phone")
+        return userRepository.saveAndFlush(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).firebaseUid(PREFIX + "a").phoneNumber(PREFIX + "phone")
                 .nickname("it_career").instrument("바이올린").build());
     }
 
@@ -59,6 +59,7 @@ class UserCareerPostgresTest {
     private UserResponseDTO updateCareers(User me, List<CareerDTO> careers) {
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         when(request.getNickname()).thenReturn(me.getNickname());
+        when(request.getName()).thenReturn("홍길동");
         when(request.getInstrument()).thenReturn(me.getInstrument());
         when(request.getCareers()).thenReturn(careers);
         // 수동 생성한 서비스는 @Transactional 프록시가 아니므로 바깥 트랜잭션을 직접 열어 준다

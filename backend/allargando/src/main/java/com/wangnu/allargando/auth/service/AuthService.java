@@ -18,6 +18,7 @@ import com.wangnu.allargando.user.event.UserWithdrawalEvent;
 import com.wangnu.allargando.user.entity.User;
 import com.wangnu.allargando.user.repository.CareerRepository;
 import com.wangnu.allargando.user.repository.UserRepository;
+import com.wangnu.allargando.user.service.NamePolicy;
 import com.wangnu.allargando.user.service.NicknamePolicy;
 import com.wangnu.allargando.user.service.PhoneNumberPolicy;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -77,13 +79,16 @@ public class AuthService {
         }
         // 닉네임은 정규화·형식 검증(D3) 후 그 값으로 중복 검사·저장한다
         String nickname = NicknamePolicy.normalizeAndValidate(request.getNickname());
+        String name = NamePolicy.normalizeAndValidate(request.getName());
         requireNoDuplicateFields(email, phoneNumber, nickname);
 
         User user = User.builder()
                 .firebaseUid(firebaseUid)
                 .email(email)
+                .name(name)
                 .nickname(nickname)
                 .phoneNumber(phoneNumber)
+                .termsAgreedAt(LocalDateTime.now())
                 .instrument(request.getInstrument())
                 .build();
 

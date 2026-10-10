@@ -22,7 +22,7 @@ class UserFcmTokenRepositoryTest {
     @Autowired TestEntityManager em;
 
     private User save(String key, String token) {
-        User user = User.builder().firebaseUid("uid-" + key).phoneNumber("p-" + key)
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).firebaseUid("uid-" + key).phoneNumber("p-" + key)
                 .nickname("n_" + key).instrument("바이올린").build();
         user.updateFcmToken(token);
         return em.persistAndFlush(user);

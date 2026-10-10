@@ -172,6 +172,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 어느 경우든 가입 요청 직전에 토큰을 새로 받아 둔다
       await getIdToken(current, true);
       await registerUser({
+        name: input.name,
+        agreedToTerms: input.agreedToTerms,
+        agreedToPrivacy: input.agreedToPrivacy,
         nickname: input.nickname,
         instrument: input.instrument,
         careers: input.careers,

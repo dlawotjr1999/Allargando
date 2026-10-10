@@ -86,6 +86,7 @@ class AuthServiceRegisterPostgresTest {
     private RegisterRequestDTO request(String nickname, List<CareerDTO> careers) {
         RegisterRequestDTO r = mock(RegisterRequestDTO.class);
         when(r.getNickname()).thenReturn(nickname);
+        when(r.getName()).thenReturn("홍길동");
         when(r.getInstrument()).thenReturn("바이올린");
         when(r.getCareers()).thenReturn(careers);
         return r;

@@ -41,7 +41,7 @@ class PostInstrumentRemovalFlowTest {
     @Autowired PostService postService;
 
     private User newUser(String name) {
-        return em.persist(User.builder().firebaseUid(name + "-uid").phoneNumber("010-" + name)
+        return em.persist(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).firebaseUid(name + "-uid").phoneNumber("010-" + name)
                 .nickname(name).instrument("바이올린").build());
     }
 

@@ -13,6 +13,11 @@ export const NICKNAME_HINT = "한글·영문·숫자·_ 2~20자로 입력해 주
 const NICKNAME_RE = /^[가-힣A-Za-z0-9_]{2,20}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// 서버 NamePolicy와 같은 규칙: 한글(완성형)·영문과 단어 사이 공백 한 칸, 2~30자. 숫자·기호·이모지는 불허.
+export const NAME_HINT = "지원할 때 모집자에게만 보여요. 한글 또는 영문 2~30자로 입력해 주세요.";
+export const NAME_FORMAT_MESSAGE = "이름은 한글 또는 영문 2~30자로 입력해 주세요.";
+const NAME_RE = /^[가-힣A-Za-z]+(?: [가-힣A-Za-z]+)*$/;
+
 // 이메일 형식이 대략 맞는지 확인한다(공백 없이 "무언가@무언가.무언가"). 실제 사용 가능 여부는 Firebase가 판단한다
 export function isEmailFormat(email: string): boolean {
   return EMAIL_RE.test(email.trim());
@@ -21,6 +26,18 @@ export function isEmailFormat(email: string): boolean {
 // 앞뒤 공백을 지우고 NFC로 정규화한다(서버도 같은 정규화 뒤 검증·저장하므로 보내는 값을 미리 맞춘다)
 export function normalizeNickname(nickname: string): string {
   return nickname.trim().normalize("NFC");
+}
+
+// 앞뒤 공백을 지우고 NFC로 정규화한다(서버도 같은 정규화 뒤 검증·저장한다)
+export function normalizeName(name: string): string {
+  return name.trim().normalize("NFC");
+}
+
+// 이름 형식이 틀렸으면 안내 문구, 맞으면 null. 빈 값은 "아직 안 입력"이라 null(필수 여부는 호출부가 따로 본다)
+export function getNameError(name: string): string | null {
+  const value = normalizeName(name);
+  if (!value) return null;
+  return value.length >= 2 && value.length <= 30 && NAME_RE.test(value) ? null : NAME_FORMAT_MESSAGE;
 }
 
 // 닉네임 형식이 틀렸으면 안내 문구, 맞으면 null. 빈 값은 "아직 안 입력"이라 null(필수 여부는 호출부가 따로 본다)
@@ -91,6 +108,7 @@ export function validateAccountStep(values: AccountStepValues): string | null {
 }
 
 export interface ProfileStepValues {
+  name: string;
   nickname: string;
   phoneNumber: string;
   instrument: string;
@@ -98,10 +116,28 @@ export interface ProfileStepValues {
 
 // 2단계(프로필) 검증. 첫 번째로 틀린 항목의 안내 문구를 돌려준다(모두 맞으면 null)
 export function validateProfileStep(values: ProfileStepValues): string | null {
+  if (!normalizeName(values.name)) return "이름을 입력해 주세요.";
+  const nameError = getNameError(values.name);
+  if (nameError) return nameError;
   if (!normalizeNickname(values.nickname)) return "닉네임을 입력해 주세요.";
   const nicknameError = getNicknameError(values.nickname);
   if (nicknameError) return nicknameError;
   if (!formatPhoneNumber(values.phoneNumber)) return "휴대폰 번호를 010-0000-0000 형식으로 입력해 주세요.";
   if (!values.instrument) return "악기를 선택해 주세요.";
+  return null;
+}
+
+export interface ConsentValues {
+  agreeTerms: boolean;
+  agreePrivacy: boolean;
+  agreeAge: boolean;
+}
+
+// 약관 동의 검증. 가입 제출 직전에 한 번 더 확인한다 — 이어하기(이미 로그인된 계정)는 1단계의 동의 화면을
+// 거치지 않아 이 값이 비어 있을 수 있고, 서버는 동의 없이는 가입시키지 않는다
+export function validateConsent(values: ConsentValues): string | null {
+  if (!values.agreeTerms) return "이용약관에 동의해 주세요.";
+  if (!values.agreePrivacy) return "개인정보 수집·이용에 동의해 주세요.";
+  if (!values.agreeAge) return "만 14세 이상만 가입할 수 있어요.";
   return null;
 }

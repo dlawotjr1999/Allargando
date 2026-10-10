@@ -53,7 +53,7 @@ class GlobalExceptionHandlerPostgresTest {
     }
 
     private User saveUser(String key) {
-        return userRepository.saveAndFlush(User.builder().firebaseUid(PREFIX + key)
+        return userRepository.saveAndFlush(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).firebaseUid(PREFIX + key)
                 .phoneNumber(PREFIX + "phone-" + key).nickname("it_geh_" + key).instrument("바이올린").build());
     }
 
@@ -83,7 +83,7 @@ class GlobalExceptionHandlerPostgresTest {
     void duplicatePhoneNumber_returns409WithGenericDuplicateMessage() {
         saveUser("a");
 
-        ResponseEntity<APIResponse<Void>> response = handle(() -> userRepository.saveAndFlush(User.builder()
+        ResponseEntity<APIResponse<Void>> response = handle(() -> userRepository.saveAndFlush(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .firebaseUid(PREFIX + "other").phoneNumber(PREFIX + "phone-a").nickname("it_geh_other")
                 .instrument("바이올린").build()));
 
@@ -96,7 +96,7 @@ class GlobalExceptionHandlerPostgresTest {
     void duplicateNicknameDifferingInCase_returns409() {
         saveUser("a");
 
-        ResponseEntity<APIResponse<Void>> response = handle(() -> userRepository.saveAndFlush(User.builder()
+        ResponseEntity<APIResponse<Void>> response = handle(() -> userRepository.saveAndFlush(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .firebaseUid(PREFIX + "other").phoneNumber(PREFIX + "phone-other").nickname("IT_GEH_A")
                 .instrument("바이올린").build()));
 
@@ -123,7 +123,7 @@ class GlobalExceptionHandlerPostgresTest {
     // NOT NULL 위반 → 400 (입력 누락)
     @Test
     void nullRequiredColumn_returns400() {
-        ResponseEntity<APIResponse<Void>> response = handle(() -> userRepository.saveAndFlush(User.builder()
+        ResponseEntity<APIResponse<Void>> response = handle(() -> userRepository.saveAndFlush(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .firebaseUid(PREFIX + "a").phoneNumber(PREFIX + "phone-a").nickname(null)
                 .instrument("바이올린").build()));
 
@@ -134,7 +134,7 @@ class GlobalExceptionHandlerPostgresTest {
     // 컬럼 길이(255) 초과 → 409가 아니라 400 (경력 256자 입력이 일반 409로 나가던 문제의 근본 해소)
     @Test
     void valueLongerThanColumn_returns400() {
-        ResponseEntity<APIResponse<Void>> response = handle(() -> userRepository.saveAndFlush(User.builder()
+        ResponseEntity<APIResponse<Void>> response = handle(() -> userRepository.saveAndFlush(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .firebaseUid(PREFIX + "a").phoneNumber(PREFIX + "phone-a").nickname("n".repeat(256))
                 .instrument("바이올린").build()));
 

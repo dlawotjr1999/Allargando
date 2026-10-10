@@ -43,8 +43,8 @@ class ReportServiceTest {
 
     @BeforeEach
     void setUp() {
-        me = User.builder().id(1L).nickname("me").build();
-        other = User.builder().id(2L).nickname("other").build();
+        me = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("me").build();
+        other = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(2L).nickname("other").build();
         request = ReportRequestDTO.builder().reason(ReportReason.SPAM).detail("광고글입니다").build();
     }
 

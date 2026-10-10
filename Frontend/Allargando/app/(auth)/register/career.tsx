@@ -16,6 +16,8 @@ import {
   normalizeNickname,
   validateAccountStep,
   validateProfileStep,
+  normalizeName,
+  validateConsent,
 } from "@/utils/registerValidation";
 
 // 가입 3단계(활동 이력)와 제출. 제출하면 전화 인증한 계정에 이메일·비밀번호를 연결하고 서버에 가입한다
@@ -61,7 +63,8 @@ export default function RegisterStep3() {
   const submit = async (careers: CareerEntry[]) => {
     if (submitting) return;
     // 이어하기(이미 로그인된 계정)는 1단계를 거치지 않았으므로 계정 검증을 건너뛴다
-    const invalid = (!user ? validateAccountStep(form) : null) ?? validateProfileStep(form);
+    const invalid =
+      (!user ? validateAccountStep(form) : null) ?? validateProfileStep(form) ?? validateConsent(form);
     if (invalid) {
       Alert.alert("입력을 확인해 주세요", invalid);
       return;
@@ -71,6 +74,9 @@ export default function RegisterStep3() {
       await registerAccount({
         email: form.email.trim(),
         password: form.password,
+        name: normalizeName(form.name),
+        agreedToTerms: form.agreeTerms,
+        agreedToPrivacy: form.agreePrivacy,
         nickname: normalizeNickname(form.nickname),
         instrument: form.instrument,
         careers: careers.map((c) => ({ organization: c.organization.trim(), contexts: c.contexts.trim() })),

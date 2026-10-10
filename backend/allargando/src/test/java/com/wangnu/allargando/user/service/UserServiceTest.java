@@ -45,7 +45,7 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
-        mockUser = User.builder()
+        mockUser = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(1L)
                 .email("test@test.com")
                 .firebaseUid("test-uid")
@@ -118,6 +118,7 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn("duplicated");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(userRepository.existsByNicknameIgnoreCase("duplicated")).willReturn(true);
 
         assertThatThrownBy(() -> userService.updateMyInfo(mockUser, request))
@@ -127,7 +128,7 @@ class UserServiceTest {
 
     @Test
     void updateMyInfo_mapsEachFieldToMatchingProperty() {
-        User managedUser = User.builder()
+        User managedUser = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(1L)
                 .nickname("tester")
                 .instrument("바이올린")
@@ -136,9 +137,10 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn("tester"); // 닉네임 미변경 → 중복 체크 스킵
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(request.getInstrument()).willReturn("첼로");
 
-        User inputUser = User.builder().id(1L).build();
+        User inputUser = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
         UserResponseDTO result = userService.updateMyInfo(inputUser, request);
 
         assertThat(result.getInstrument()).isEqualTo("첼로");
@@ -151,6 +153,7 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(request.getInstrument()).willReturn("바이올린");
         given(request.getCareers()).willReturn(List.of(
                 CareerDTO.builder().organization("").contexts("").build(),
@@ -172,6 +175,7 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn("tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(request.getInstrument()).willReturn("바이올린");
         given(request.getCareers()).willReturn(null); // Mockito 목은 List를 빈 리스트로 돌려주므로 null을 명시한다
 
@@ -188,7 +192,9 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn("a/b");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
 
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         assertThatThrownBy(() -> userService.updateMyInfo(mockUser, request))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("사용할 수 없는 닉네임입니다");
@@ -204,6 +210,7 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn(java.text.Normalizer.normalize("한글", java.text.Normalizer.Form.NFD));
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(request.getInstrument()).willReturn("바이올린");
 
         UserResponseDTO result = userService.updateMyInfo(mockUser, request);
@@ -218,6 +225,7 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn("Tester");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(request.getInstrument()).willReturn("바이올린");
 
         UserResponseDTO result = userService.updateMyInfo(mockUser, request);
@@ -235,6 +243,7 @@ class UserServiceTest {
 
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         given(request.getNickname()).willReturn("newname");
+        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
         given(request.getInstrument()).willReturn("바이올린");
 
         assertThatThrownBy(() -> userService.updateMyInfo(mockUser, request))
@@ -292,7 +301,7 @@ class UserServiceTest {
     void deleteUser_throwsNotFoundWhenMissing() {
         given(userRepository.findById(99L)).willReturn(Optional.empty());
 
-        User missingUser = User.builder().id(99L).build();
+        User missingUser = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(99L).build();
 
         assertThatThrownBy(() -> userService.deleteUser(missingUser))
                 .isInstanceOf(NotFoundException.class)
@@ -304,8 +313,8 @@ class UserServiceTest {
     // — CareerRepository를 직접 주입받지 않고 UserService를 경유하게 해 도메인 경계를 지킴
     @Test
     void getCareersByUserIds_groupsCareersByUserId() {
-        User user1 = User.builder().id(1L).build();
-        User user2 = User.builder().id(2L).build();
+        User user1 = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
+        User user2 = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(2L).build();
         Career career1 = Career.builder().id(10L).user(user1).organization("서울시향").contexts("연주").build();
         Career career2 = Career.builder().id(11L).user(user2).organization("경기필하모닉").contexts("지도").build();
         given(careerRepository.findByUserIdIn(List.of(1L, 2L))).willReturn(List.of(career1, career2));

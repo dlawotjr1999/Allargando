@@ -37,8 +37,8 @@ class BlockServiceTest {
 
     @BeforeEach
     void setUp() {
-        me = User.builder().id(1L).nickname("me").instrument("바이올린").build();
-        target = User.builder().id(2L).nickname("target").instrument("첼로").build();
+        me = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("me").instrument("바이올린").build();
+        target = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(2L).nickname("target").instrument("첼로").build();
     }
 
     @Test

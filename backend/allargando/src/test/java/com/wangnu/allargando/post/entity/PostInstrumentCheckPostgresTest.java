@@ -55,7 +55,7 @@ class PostInstrumentCheckPostgresTest {
     }
 
     private Post newPost() {
-        User owner = userRepository.saveAndFlush(User.builder().firebaseUid(PREFIX + "owner")
+        User owner = userRepository.saveAndFlush(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).firebaseUid(PREFIX + "owner")
                 .phoneNumber(PREFIX + "phone").nickname("it_pic_owner").instrument("바이올린").build());
         return Post.create(owner, PostInfo.builder().category("앙상블").title("t")
                 .eventAt(LocalDateTime.now().plusDays(5)).location("l").region("서울").timetable("t").build());

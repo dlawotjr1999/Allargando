@@ -9,6 +9,7 @@ interface RegisterForm {
   agreeTerms: boolean;
   agreePrivacy: boolean;
   agreeAge: boolean;
+  name: string;
   nickname: string;
   phoneNumber: string;
   instrument: string;
@@ -28,6 +29,7 @@ const initialForm: RegisterForm = {
   agreeTerms: false,
   agreePrivacy: false,
   agreeAge: false,
+  name: "",
   nickname: "",
   phoneNumber: "",
   instrument: "",

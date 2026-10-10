@@ -50,7 +50,7 @@ class UserControllerTest {
             return null;
         }).when(firebaseAuthFilter).doFilter(any(), any(), any());
 
-        User mockUser = User.builder()
+        User mockUser = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(1L)
                 .email("test@test.com")
                 .firebaseUid("test-uid")
@@ -123,7 +123,7 @@ class UserControllerTest {
     }
 
     private String careersBody(String careersJson) {
-        return "{ \"nickname\": \"tester\", \"instrument\": \"바이올린\", \"careers\": " + careersJson + " }";
+        return "{ \"name\": \"홍길동\", \"nickname\": \"tester\", \"instrument\": \"바이올린\", \"careers\": " + careersJson + " }";
     }
 
     private static final String ONE_CAREER = "{\"organization\": \"o\", \"contexts\": \"c\"}";
@@ -215,7 +215,17 @@ class UserControllerTest {
     void updateMyInfo_returns200WhenCareersOmitted() throws Exception {
         stubUpdateOk();
 
-        putBody("{ \"nickname\": \"tester\", \"instrument\": \"첼로\" }").andExpect(status().isOk());
+        putBody("{ \"name\": \"홍길동\", \"nickname\": \"tester\", \"instrument\": \"첼로\" }").andExpect(status().isOk());
+    }
+
+    // 수정에서도 이름은 필수다(null·공백은 400)
+    @Test
+    void updateMyInfo_returns400WhenNameMissingOrBlank() throws Exception {
+        putBody("{ \"nickname\": \"tester\", \"instrument\": \"바이올린\" }").andExpect(status().isBadRequest());
+        putBody("{ \"name\": \"   \", \"nickname\": \"tester\", \"instrument\": \"바이올린\" }")
+                .andExpect(status().isBadRequest());
+
+        verify(userService, never()).updateMyInfo(any(), any());
     }
 
     @Test

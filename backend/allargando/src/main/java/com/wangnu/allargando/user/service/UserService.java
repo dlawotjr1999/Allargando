@@ -101,6 +101,7 @@ public class UserService {
         User managedUser = getManagedUserById(user.getId());
 
         // 닉네임은 정규화·형식 검증(D3). 대소문자만 바꾸는 변경은 본인 행이라 중복 검사를 건너뛴다
+        String name = NamePolicy.normalizeAndValidate(request.getName());
         String nickname = NicknamePolicy.normalizeAndValidate(request.getNickname());
         boolean nicknameChanged = !nickname.equals(managedUser.getNickname());
         if (nicknameChanged && !nickname.equalsIgnoreCase(managedUser.getNickname())) {
@@ -109,7 +110,7 @@ public class UserService {
         }
 
         // 유저 정보 수정
-        managedUser.updateInfo(nickname, request.getInstrument());
+        managedUser.updateInfo(name, nickname, request.getInstrument());
         if (nicknameChanged) {
             flushNicknameChange();
         }

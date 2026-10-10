@@ -74,6 +74,7 @@ export default function ApplicantCard({
       </View>
 
       <View style={styles.metaList}>
+        <IconText icon="person-outline" text={`이름 ${applicant.name}`} />
         <IconText icon="call-outline" text={applicant.phoneNumber} />
       </View>
 

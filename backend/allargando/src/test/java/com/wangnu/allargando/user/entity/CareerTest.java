@@ -8,7 +8,7 @@ class CareerTest {
 
     @Test
     void of_buildsCareerBoundToUser() {
-        User user = User.builder().id(1L).nickname("tester").firebaseUid("test-uid").build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("tester").firebaseUid("test-uid").build();
 
         Career career = Career.of(user, "서울시향", "2023년 객원 연주");
 

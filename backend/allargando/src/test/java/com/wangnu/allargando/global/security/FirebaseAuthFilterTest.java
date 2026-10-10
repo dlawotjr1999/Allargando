@@ -105,7 +105,7 @@ class FirebaseAuthFilterTest {
         FirebaseToken token = mock(FirebaseToken.class);
         given(token.getUid()).willReturn("uid-1");
         given(firebaseAuth.verifyIdToken("good")).willReturn(token);
-        User user = User.builder().id(1L).build();
+        User user = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).build();
         given(userRepository.findByFirebaseUid("uid-1")).willReturn(Optional.of(user));
         run();
         assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal()).isSameAs(user);

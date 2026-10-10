@@ -62,10 +62,10 @@ class ApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        applicant = User.builder()
+        applicant = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(1L).nickname("applicant").firebaseUid("applicant-uid").build();
 
-        recruiter = User.builder()
+        recruiter = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(2L).nickname("recruiter").firebaseUid("recruiter-uid").build();
 
         post = mock(Post.class);
@@ -108,7 +108,7 @@ class ApplicationServiceTest {
         given(applicationRepository.save(any(Application.class)))
                 .willAnswer(inv -> inv.getArgument(0));
 
-        User managedApplicant = User.builder()
+        User managedApplicant = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(applicant.getId()).nickname("managed-applicant").firebaseUid("applicant-uid").build();
         given(userService.getManagedUserById(applicant.getId())).willReturn(managedApplicant);
 
@@ -444,7 +444,7 @@ class ApplicationServiceTest {
     // 프론트가 아직 악기를 보내지 않는 동안의 호환 — 프로필 악기로 대신하고 같은 검증을 받는다
     @Test
     void submitApplication_fallsBackToProfileInstrumentWhenNotRequested() {
-        User violinist = User.builder().id(1L).nickname("applicant").firebaseUid("u").instrument("바이올린").build();
+        User violinist = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("applicant").firebaseUid("u").instrument("바이올린").build();
         stubOpenPostForSubmit();
         given(applicationRepository.save(any(Application.class))).willAnswer(inv -> inv.getArgument(0));
         given(userService.getManagedUserById(1L)).willReturn(violinist);

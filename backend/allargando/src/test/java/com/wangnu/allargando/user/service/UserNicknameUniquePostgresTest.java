@@ -49,7 +49,7 @@ class UserNicknameUniquePostgresTest {
     }
 
     private User saveUser(String key, String nickname) {
-        return userRepository.saveAndFlush(User.builder().firebaseUid(PREFIX + key)
+        return userRepository.saveAndFlush(User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).firebaseUid(PREFIX + key)
                 .phoneNumber(PREFIX + "phone-" + key).nickname(nickname).instrument("바이올린").build());
     }
 
@@ -85,6 +85,7 @@ class UserNicknameUniquePostgresTest {
         UserService svc = new UserService(precheckBypassed, careerRepository, mock(ApplicationEventPublisher.class));
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         when(request.getNickname()).thenReturn("IT_TAKEN");
+        when(request.getName()).thenReturn("홍길동");
         when(request.getInstrument()).thenReturn("바이올린");
 
         // 수동 생성한 서비스는 @Transactional 프록시가 아니므로 바깥 트랜잭션을 직접 열어 준다
@@ -101,6 +102,7 @@ class UserNicknameUniquePostgresTest {
         UserService svc = new UserService(userRepository, careerRepository, mock(ApplicationEventPublisher.class));
         UserUpdateRequestDTO request = mock(UserUpdateRequestDTO.class);
         when(request.getNickname()).thenReturn("It_Mine");
+        when(request.getName()).thenReturn("홍길동");
         when(request.getInstrument()).thenReturn("바이올린");
 
         new TransactionTemplate(tm).execute(s -> svc.updateMyInfo(me, request));

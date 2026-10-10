@@ -54,7 +54,7 @@ class ReportControllerTest {
             return null;
         }).when(firebaseAuthFilter).doFilter(any(), any(), any());
 
-        User mockUser = User.builder().id(1L).firebaseUid("test-uid").nickname("tester").build();
+        User mockUser = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).firebaseUid("test-uid").nickname("tester").build();
         auth = new UsernamePasswordAuthenticationToken(mockUser, null, List.of());
     }
 

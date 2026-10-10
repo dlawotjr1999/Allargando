@@ -41,7 +41,7 @@ class PracticeLogServiceTest {
 
     @BeforeEach
     void setUp() {
-        owner = User.builder()
+        owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(1L)
                 .email("test@test.com")
                 .firebaseUid("test-uid")
@@ -50,7 +50,7 @@ class PracticeLogServiceTest {
                 .instrument("바이올린")
                 .build();
 
-        other = User.builder()
+        other = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(2L)
                 .email("other@test.com")
                 .firebaseUid("other-uid")

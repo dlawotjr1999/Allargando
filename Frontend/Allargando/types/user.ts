@@ -20,6 +20,8 @@ export interface UserPublicProfile {
 // email은 선택 필드(CLAUDE.md §3.1)라 null일 수 있다.
 export interface UserProfile {
   id: number;
+  // 실명. 가입 때 받으며 모집자에게만 보인다(지원자 응답)
+  name: string;
   nickname: string;
   email: string | null;
   phoneNumber: string;
