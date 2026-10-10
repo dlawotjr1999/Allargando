@@ -71,7 +71,6 @@ public class AuthService {
         FirebaseToken decodedToken = verifyToken(idToken);
 
         String firebaseUid = decodedToken.getUid();
-        String email = decodedToken.getEmail();
         String phoneNumber = extractPhoneNumberClaim(decodedToken);
 
         // 멱등: 이미 가입된 uid면 기존 결과 반환
@@ -82,11 +81,10 @@ public class AuthService {
         // 닉네임은 정규화·형식 검증(D3) 후 그 값으로 중복 검사·저장한다
         String nickname = NicknamePolicy.normalizeAndValidate(request.getNickname());
         String name = NamePolicy.normalizeAndValidate(request.getName());
-        requireNoDuplicateFields(email, phoneNumber, nickname);
+        requireNoDuplicateFields(phoneNumber, nickname);
 
         User user = User.builder()
                 .firebaseUid(firebaseUid)
-                .email(email)
                 .name(name)
                 .nickname(nickname)
                 .phoneNumber(phoneNumber)
@@ -103,7 +101,7 @@ public class AuthService {
             if (concurrent.isPresent()) {
                 return RegisterResponseDTO.from(concurrent.get());
             }
-            requireNoDuplicateFields(email, phoneNumber, nickname);
+            requireNoDuplicateFields(phoneNumber, nickname);
             throw e; // 중복이 아닌 제약 위반(길이 등)은 그대로 올려 GlobalExceptionHandler에 맡긴다
         }
     }
@@ -118,13 +116,9 @@ public class AuthService {
         return saved;
     }
 
-    // email·전화번호·닉네임 중복 검사 — 사전 체크와 UNIQUE 경쟁 후 원인 구분에 같이 쓴다
-    private void requireNoDuplicateFields(String email, String phoneNumber, String nickname) {
-        // email은 선택 필드(§3.1) — null이면 existsByEmail(null)이 SQL상 항상 false로 무력화되므로 의미 없는 호출을 스킵
-        if (email != null) {
-            ConflictGuard.requireUnique(
-                    userRepository.existsByEmail(email), "이미 가입된 이메일입니다");
-        }
+    // 전화번호·닉네임 중복 검사 — 사전 체크와 UNIQUE 경쟁 후 원인 구분에 같이 쓴다.
+    // 이메일은 받지도 저장하지도 않는다(로그인 아이디는 Firebase에만 있다, §3.1)
+    private void requireNoDuplicateFields(String phoneNumber, String nickname) {
         // 전화번호 중복 확인 (계정 고유성 앵커)
         ConflictGuard.requireUnique(
                 userRepository.existsByPhoneNumber(phoneNumber), "이미 가입된 전화번호입니다");

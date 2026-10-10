@@ -47,7 +47,6 @@ class UserServiceTest {
     void setUp() {
         mockUser = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(1L)
-                .email("test@test.com")
                 .firebaseUid("test-uid")
                 .phoneNumber("010-1234-5678")
                 .nickname("tester")
@@ -62,7 +61,6 @@ class UserServiceTest {
         UserResponseDTO result = userService.getMyInfo(1L);
 
         assertThat(result.getNickname()).isEqualTo("tester");
-        assertThat(result.getEmail()).isEqualTo("test@test.com");
     }
 
     // 다른 도메인 서비스가 detached User(예: 필터에서 온 @AuthenticationPrincipal)를

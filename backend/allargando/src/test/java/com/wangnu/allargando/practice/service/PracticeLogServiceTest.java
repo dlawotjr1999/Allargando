@@ -43,7 +43,6 @@ class PracticeLogServiceTest {
     void setUp() {
         owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(1L)
-                .email("test@test.com")
                 .firebaseUid("test-uid")
                 .phoneNumber("010-1234-5678")
                 .nickname("tester")
@@ -52,7 +51,6 @@ class PracticeLogServiceTest {
 
         other = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(2L)
-                .email("other@test.com")
                 .firebaseUid("other-uid")
                 .nickname("other")
                 .build();

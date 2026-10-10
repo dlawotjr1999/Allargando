@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /*
- * 내 정보 응답 DTO — 본인 조회용이라 email·phoneNumber 등 비공개 필드까지 포함
+ * 내 정보 응답 DTO — 본인 조회용이라 phoneNumber 등 비공개 필드까지 포함
  */
 @Getter
 @Builder
@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class UserResponseDTO {
     private Long id;
-    private String email;
     private String phoneNumber;
     private String name;
     private String nickname;
@@ -32,7 +31,6 @@ public class UserResponseDTO {
     public static UserResponseDTO from(User user) {
         return UserResponseDTO.builder()
                 .id(user.getId())
-                .email(user.getEmail())
                 .phoneNumber(user.getPhoneNumber())
                 .name(user.getName())
                 .nickname(user.getNickname())

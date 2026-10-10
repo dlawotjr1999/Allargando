@@ -38,10 +38,6 @@ public class User {
     @Column(name = "user_id", nullable = false, unique = true)
     private Long id;
 
-    // 이메일 UNIQUE: 계정당 유일. null 허용(전화 인증 등 email 부재 케이스) — PostgreSQL도 UNIQUE에서 NULL끼리는 서로 다른 값으로 취급해 다중 NULL 허용
-    @Column(name = "email", unique = true)
-    private String email;
-
     // Firebase가 계정마다 발급하는 전역 유일 식별자. 조회 키이므로 UNIQUE는 정합성 필수 조건
     @Column(name = "firebase_uid", nullable = false, unique = true)
     private String firebaseUid;

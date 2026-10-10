@@ -52,7 +52,6 @@ class UserControllerTest {
 
         User mockUser = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .id(1L)
-                .email("test@test.com")
                 .firebaseUid("test-uid")
                 .phoneNumber("010-1234-5678")
                 .nickname("tester")
@@ -67,7 +66,6 @@ class UserControllerTest {
         UserResponseDTO response = UserResponseDTO.builder()
                 .id(1L)
                 .nickname("tester")
-                .email("test@test.com")
                 .phoneNumber("010-1234-5678")
                 .instrument("바이올린")
                 .careers(List.of())
@@ -81,7 +79,7 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.data.nickname").value("tester"))
-                .andExpect(jsonPath("$.data.email").value("test@test.com"));
+                .andExpect(jsonPath("$.data.email").doesNotExist());
     }
 
     @Test

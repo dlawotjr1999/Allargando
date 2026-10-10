@@ -74,11 +74,10 @@ class AuthServiceRegisterPostgresTest {
                 .forEach(userRepository::delete)); // careers는 cascade로 함께 삭제
     }
 
-    // 토큰 문자열마다 (uid, email, phone) 클레임을 가진 Firebase 토큰을 돌려주도록 Mock을 구성
-    private void givenToken(String token, String uid, String email, String phone) throws Exception {
+    // 토큰 문자열마다 (uid, phone) 클레임을 가진 Firebase 토큰을 돌려주도록 Mock을 구성
+    private void givenToken(String token, String uid, String phone) throws Exception {
         FirebaseToken decoded = mock(FirebaseToken.class);
         when(decoded.getUid()).thenReturn(PREFIX + uid);
-        when(decoded.getEmail()).thenReturn(email);
         when(decoded.getClaims()).thenReturn(Map.of("phone_number", phone));
         when(firebaseAuth.verifyIdToken(token, true)).thenReturn(decoded);
     }
@@ -139,7 +138,7 @@ class AuthServiceRegisterPostgresTest {
     // 같은 uid 동시 가입(더블탭): 둘 다 성공하고, 같은 가입 시각을 받고, Firebase 계정은 지워지지 않고, 행은 1개
     @Test
     void register_concurrentSameUid_bothSucceedWithoutDeletingFirebaseAccount() throws Exception {
-        givenToken("tok", "same", "same@t.com", "+821000000001");
+        givenToken("tok", "same", "+821000000001");
         RegisterRequestDTO req = request("it_same", null);
         AuthService svc = service(repositoryRacingAfterPreChecks(new CyclicBarrier(2)), careerRepository);
 
@@ -155,8 +154,8 @@ class AuthServiceRegisterPostgresTest {
     // 서로 다른 uid가 같은 전화번호로 경쟁: 한쪽만 가입되고 패자는 구체적인 409, 어느 쪽 Firebase 계정도 지우지 않는다
     @Test
     void register_concurrentSamePhoneNumber_loserGetsConflict() throws Exception {
-        givenToken("tokA", "a", "a@t.com", "+821000000002");
-        givenToken("tokB", "b", "b@t.com", "+821000000002");
+        givenToken("tokA", "a", "+821000000002");
+        givenToken("tokB", "b", "+821000000002");
         RegisterRequestDTO reqA = request("it_phone_a", null);
         RegisterRequestDTO reqB = request("it_phone_b", null);
         AuthService svc = service(repositoryRacingAfterPreChecks(new CyclicBarrier(2)), careerRepository);
@@ -174,8 +173,8 @@ class AuthServiceRegisterPostgresTest {
     // 대소문자만 다른 닉네임으로 경쟁(V7 lower(nickname) UNIQUE): 한쪽만 가입되고 패자는 닉네임 409, Firebase 계정은 지우지 않는다
     @Test
     void register_concurrentSameNicknameDifferentCase_loserGetsConflict() throws Exception {
-        givenToken("tokA", "na", "na@t.com", "+821000000005");
-        givenToken("tokB", "nb", "nb@t.com", "+821000000006");
+        givenToken("tokA", "na", "+821000000005");
+        givenToken("tokB", "nb", "+821000000006");
         RegisterRequestDTO reqA = request("It_Nick", null);
         RegisterRequestDTO reqB = request("it_nick", null);
         AuthService svc = service(repositoryRacingAfterPreChecks(new CyclicBarrier(2)), careerRepository);
@@ -193,7 +192,7 @@ class AuthServiceRegisterPostgresTest {
     // 같은 uid를 본문만 바꿔 다시 호출하면 첫 가입 결과가 그대로 나오고 프로필은 바뀌지 않는다
     @Test
     void register_calledAgainWithSameUid_returnsFirstResultAndIgnoresBody() throws Exception {
-        givenToken("tok", "again", "again@t.com", "+821000000003");
+        givenToken("tok", "again", "+821000000003");
         AuthService svc = service(userRepository, careerRepository);
 
         RegisterResponseDTO first = svc.register("tok", request("it_first", null));
@@ -208,7 +207,7 @@ class AuthServiceRegisterPostgresTest {
     // 경력 저장이 실패하면 유저 행도 함께 롤백된다(반쪽 가입 없음). 같은 토큰으로 재시도하면 경력까지 저장된다
     @Test
     void register_careerSaveFails_rollsBackUserAndRetryWithSameTokenSucceeds() throws Exception {
-        givenToken("tok", "career", "career@t.com", "+821000000004");
+        givenToken("tok", "career", "+821000000004");
         List<CareerDTO> careers = List.of(CareerDTO.builder().organization("오케스트라").contexts("바이올린").build());
         RegisterRequestDTO req = request("it_career", careers);
 

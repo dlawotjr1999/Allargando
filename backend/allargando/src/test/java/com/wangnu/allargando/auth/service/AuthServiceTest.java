@@ -56,7 +56,6 @@ class AuthServiceTest {
     void setUp() throws Exception {
         mockToken = mock(FirebaseToken.class);
         lenient().when(mockToken.getUid()).thenReturn("test-uid");
-        lenient().when(mockToken.getEmail()).thenReturn("test@test.com");
         lenient().when(mockToken.getClaims())
                 .thenReturn(Map.of("phone_number", "+821012345678"));
         // TransactionTemplate은 콜백을 그대로 실행하는 것으로 대체(트랜잭션 자체는 통합 테스트 영역)
@@ -270,23 +269,6 @@ class AuthServiceTest {
     }
 
     @Test
-    void register_throwsConflictWhenEmailExists() throws Exception {
-        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
-        given(userRepository.existsByEmail("test@test.com")).willReturn(true);
-
-        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
-        given(request.getNickname()).willReturn("tester");
-        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
-
-        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
-        assertThatThrownBy(() -> authService.register("valid-token", request))
-                .isInstanceOf(ConflictException.class)
-                .hasMessage("이미 가입된 이메일입니다");
-
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
     void register_throwsUnauthorizedWhenTokenInvalid() throws Exception {
         given(firebaseAuth.verifyIdToken("invalid-token", true))
                 .willThrow(mock(FirebaseAuthException.class));
@@ -298,23 +280,6 @@ class AuthServiceTest {
                 .hasMessage("유효하지 않은 Firebase 토큰입니다");
 
         verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    void register_skipsEmailCheckWhenEmailIsNull() throws Exception {
-        given(mockToken.getEmail()).willReturn(null);
-        given(firebaseAuth.verifyIdToken("valid-token", true)).willReturn(mockToken);
-        given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));
-
-        RegisterRequestDTO request = mock(RegisterRequestDTO.class);
-        given(request.getNickname()).willReturn("tester");
-        org.mockito.Mockito.lenient().when(request.getName()).thenReturn("홍길동");
-        given(request.getCareers()).willReturn(null);
-
-        authService.register("valid-token", request);
-
-        verify(userRepository, never()).existsByEmail(any());
-        verify(userRepository, times(1)).save(any(User.class));
     }
 
     @Test
