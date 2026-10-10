@@ -1,9 +1,14 @@
 // 백엔드 API 호출 공통 레이어. 모든 응답이 { status, message, data } 포맷(CLAUDE.md 4장)이라
 // 이 레이어에서 언랩하고, 실패 시 ApiError로 통일해 호출부가 매번 res.ok를 확인하지 않게 한다.
+import Constants from "expo-constants";
 import { getIdToken } from "@react-native-firebase/auth";
 import { auth } from "@/lib/firebase";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+
+// 서버가 "이 버전은 더 지원하지 않는다"(426)고 판단할 수 있도록 모든 요청에 앱 버전을 싣는다.
+// 헤더가 없는 요청은 서버가 통과시키므로, 버전을 알 수 없을 때는 보내지 않는다
+const APP_VERSION = Constants.expoConfig?.version;
 
 // 요청 하나의 제한 시간. 이 앱은 JSON 요청뿐이라 10초면 느린 망에서도 충분하고, 넘으면 재시도 UI로 넘긴다
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -40,11 +45,26 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   unauthorizedHandler = handler;
 }
 
+// 서버가 426(앱 업데이트 필요)을 줬을 때 부를 동작(루트가 "업데이트가 필요해요" 화면으로 등록).
+// 401과 달리 로그아웃시키지 않는다 — 세션은 멀쩡하고 앱 버전만 낡았다
+let upgradeRequiredHandler: (() => void) | null = null;
+
+export function setUpgradeRequiredHandler(handler: (() => void) | null) {
+  upgradeRequiredHandler = handler;
+}
+
 // path 하나를 백엔드에 요청하고 data만 반환. 실패하면 ApiError를 throw
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, requiresAuth = true, handleUnauthorized = true } = options;
 
+  // 운영 빌드에서 서버 주소가 비었거나 https가 아니면 요청을 보내지 않는다(평문 통신 방지, 설정 누락을 바로 드러냄).
+  // 개발 빌드는 LAN의 http 주소를 쓰므로 검사하지 않는다
+  if (!__DEV__ && !(BASE_URL ?? "").startsWith("https://")) {
+    throw new ApiError(0, "서버 주소 설정이 올바르지 않아요. 앱을 최신 버전으로 업데이트해 주세요.");
+  }
+
   const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (APP_VERSION) headers["X-App-Version"] = APP_VERSION;
 
   if (requiresAuth) {
     // 로그인한 사용자의 ID 토큰을 가져온다. 만료가 가까우면 네이티브 SDK가 자동으로 갱신해 준다
@@ -84,6 +104,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   if (!response.ok) {
+    if (response.status === 426) upgradeRequiredHandler?.();
     if (response.status === 401 && requiresAuth && handleUnauthorized) unauthorizedHandler?.();
     throw new ApiError(envelope?.status ?? response.status, envelope?.message ?? "요청을 처리할 수 없습니다");
   }
