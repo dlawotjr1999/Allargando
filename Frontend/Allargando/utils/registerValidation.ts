@@ -1,7 +1,7 @@
 // 가입·프로필 입력 검증. 순수 함수만 모음(외부 의존 없음).
 // 서버가 최종 검증을 하므로 여기서 통과해도 서버가 거절할 수 있다(예: 닉네임 예약어·중복).
 
-export const PASSWORD_MIN = 6; // Firebase 이메일 가입의 최소 길이
+export const PASSWORD_MIN = 8; // Firebase의 최소는 6자이지만 앱에서는 8자로 받는다
 
 // 활동 이력(경력) 입력 상한 — 서버 검증과 같다(단체명·설명 각 255자, 최대 10개)
 export const CAREER_MAX_COUNT = 10;
@@ -11,16 +11,51 @@ export const CAREER_MAX_LENGTH = 255;
 // 예약어(me·admin 등)는 목록을 서버가 관리하므로 여기서 걸러내지 않고 서버 응답(400)에 맡긴다
 export const NICKNAME_HINT = "한글·영문·숫자·_ 2~20자로 입력해 주세요. 공백·특수문자는 쓸 수 없어요.";
 const NICKNAME_RE = /^[가-힣A-Za-z0-9_]{2,20}$/;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // 서버 NamePolicy와 같은 규칙: 한글(완성형)·영문과 단어 사이 공백 한 칸, 2~30자. 숫자·기호·이모지는 불허.
 export const NAME_HINT = "지원할 때 모집자에게만 보여요. 한글 또는 영문 2~30자로 입력해 주세요.";
 export const NAME_FORMAT_MESSAGE = "이름은 한글 또는 영문 2~30자로 입력해 주세요.";
 const NAME_RE = /^[가-힣A-Za-z]+(?: [가-힣A-Za-z]+)*$/;
 
-// 이메일 형식이 대략 맞는지 확인한다(공백 없이 "무언가@무언가.무언가"). 실제 사용 가능 여부는 Firebase가 판단한다
-export function isEmailFormat(email: string): boolean {
-  return EMAIL_RE.test(email.trim());
+// ---- 아이디 ------------------------------------------------------------------------------------------
+// 로그인 아이디. Firebase는 이메일 형식의 로그인만 받으므로 아이디를 가짜 이메일로 바꿔 쓴다("violin_kim" →
+// "violin_kim@allargando.invalid"). 사용자는 가짜 이메일을 보지 못한다. 이메일을 수집하지 않으므로 서버에도 저장하지 않는다.
+// 이 도메인은 한 번 가입이 생기면 바꿀 수 없다 — 바꾸면 이미 가입한 사람이 로그인하지 못한다. 첫 빌드 전에 개발 프로젝트에서
+// Firebase가 이 도메인의 주소로 가입을 받아 주는지 확인하고, 받지 않으면 여기 한 곳만 고친다
+export const LOGIN_ID_EMAIL_DOMAIN = "allargando.invalid";
+
+export const LOGIN_ID_HINT = "영문 소문자로 시작하고, 영문 소문자·숫자·_ 4~20자로 입력해 주세요.";
+const LOGIN_ID_RE = /^[a-z][a-z0-9_]{3,19}$/;
+// 닉네임 예약어와 같은 취지 — 운영을 사칭하거나 시스템 계정처럼 보이는 아이디를 막는다(소문자로 비교)
+const LOGIN_ID_RESERVED = new Set([
+  "me", "admin", "administrator", "root", "system", "support", "official",
+  "allargando", "관리자", "운영자",
+]);
+
+// 앞뒤 공백을 지우고 소문자로 맞춘다(Firebase는 이메일을 소문자로 다루므로 입력도 같게 둔다)
+export function normalizeLoginId(loginId: string): string {
+  return loginId.trim().toLowerCase();
+}
+
+// 아이디 형식이 틀렸으면 안내 문구, 맞으면 null. 빈 값은 "아직 안 입력"이라 null(필수 여부는 호출부가 따로 본다)
+export function getLoginIdError(loginId: string): string | null {
+  const value = normalizeLoginId(loginId);
+  if (!value) return null;
+  if (!LOGIN_ID_RE.test(value)) return LOGIN_ID_HINT;
+  if (LOGIN_ID_RESERVED.has(value)) return "사용할 수 없는 아이디예요.";
+  return null;
+}
+
+// 아이디 → Firebase 로그인에 쓰는 가짜 이메일
+export function loginIdToEmail(loginId: string): string {
+  return `${normalizeLoginId(loginId)}@${LOGIN_ID_EMAIL_DOMAIN}`;
+}
+
+// 가짜 이메일 → 아이디. 이 앱이 만든 형식이 아니면(예전 이메일 계정 등) null
+export function emailToLoginId(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const suffix = `@${LOGIN_ID_EMAIL_DOMAIN}`;
+  return email.endsWith(suffix) ? email.slice(0, -suffix.length) : null;
 }
 
 // 앞뒤 공백을 지우고 NFC로 정규화한다(서버도 같은 정규화 뒤 검증·저장하므로 보내는 값을 미리 맞춘다)
@@ -67,15 +102,6 @@ export function toE164(input: string): string | null {
   return "+82" + formatted.replace(/\D/g, "").slice(1);
 }
 
-// 아이디 찾기 결과로 보여 줄 이메일 마스킹. 앞 2자만 남기고 나머지를 *로 가린다(예: test@test.com → te**@test.com)
-export function maskEmail(email: string): string {
-  const at = email.indexOf("@");
-  if (at <= 0) return email;
-  const local = email.slice(0, at);
-  const visible = local.slice(0, local.length <= 2 ? 1 : 2);
-  return `${visible}${"*".repeat(local.length - visible.length)}@${email.slice(at + 1)}`;
-}
-
 // 새 비밀번호 검증. 비밀번호 길이 기준은 가입과 같다. 틀린 항목의 안내 문구를 돌려준다(맞으면 null)
 export function validateNewPassword(password: string, confirm: string): string | null {
   if (password.length < PASSWORD_MIN) return `비밀번호는 ${PASSWORD_MIN}자 이상 입력해 주세요.`;
@@ -87,7 +113,7 @@ export function validateNewPassword(password: string, confirm: string): string |
 export const PHONE_CODE_LENGTH = 6;
 
 export interface AccountStepValues {
-  email: string;
+  loginId: string;
   password: string;
   passwordConfirm: string;
   agreeTerms: boolean;
@@ -97,8 +123,9 @@ export interface AccountStepValues {
 
 // 1단계(계정) 검증. 첫 번째로 틀린 항목의 안내 문구를 돌려준다(모두 맞으면 null)
 export function validateAccountStep(values: AccountStepValues): string | null {
-  if (!values.email.trim()) return "이메일을 입력해 주세요.";
-  if (!EMAIL_RE.test(values.email.trim())) return "이메일 형식을 확인해 주세요.";
+  if (!normalizeLoginId(values.loginId)) return "아이디를 입력해 주세요.";
+  const loginIdError = getLoginIdError(values.loginId);
+  if (loginIdError) return loginIdError;
   if (values.password.length < PASSWORD_MIN) return `비밀번호는 ${PASSWORD_MIN}자 이상 입력해 주세요.`;
   if (values.password !== values.passwordConfirm) return "비밀번호가 서로 달라요.";
   if (!values.agreeTerms) return "이용약관에 동의해 주세요.";

@@ -13,6 +13,7 @@ import CareerFormItem from "@/components/auth/CareerFormItem";
 import { CareerEntry } from "@/types/user";
 import {
   CAREER_MAX_COUNT,
+  normalizeLoginId,
   normalizeNickname,
   validateAccountStep,
   validateProfileStep,
@@ -20,7 +21,7 @@ import {
   validateConsent,
 } from "@/utils/registerValidation";
 
-// 가입 3단계(활동 이력)와 제출. 제출하면 전화 인증한 계정에 이메일·비밀번호를 연결하고 서버에 가입한다
+// 가입 3단계(활동 이력)와 제출. 제출하면 전화 인증한 계정에 아이디·비밀번호를 연결하고 서버에 가입한다
 // (AuthContext.registerAccount). 성공하면 인증 상태가 바뀌어 루트가 홈으로 보내므로 여기서 직접 이동하지 않는다.
 export default function RegisterStep3() {
   const { user, registerAccount } = useAuth();
@@ -72,7 +73,7 @@ export default function RegisterStep3() {
     setSubmitting(true);
     try {
       await registerAccount({
-        email: form.email.trim(),
+        loginId: normalizeLoginId(form.loginId),
         password: form.password,
         name: normalizeName(form.name),
         agreedToTerms: form.agreeTerms,

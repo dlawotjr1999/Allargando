@@ -17,7 +17,12 @@ import StepIndicator from "@/components/common/StepIndicator";
 import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
 import AgreementSection from "@/components/auth/AgreementSection";
-import { validateAccountStep } from "@/utils/registerValidation";
+import {
+  getLoginIdError,
+  LOGIN_ID_HINT,
+  normalizeLoginId,
+  validateAccountStep,
+} from "@/utils/registerValidation";
 
 // 가입 1단계(계정). 전화 인증만 하고 이메일 연결 전에 끊긴 계정(user가 있음)이 이어서 가입하는 경우에도 이 화면으로
 // 오며, 이때는 뒤로 갈 곳이 없으므로 뒤로 가기를 숨기고 다른 계정으로 로그인할 수 있게 한다.
@@ -26,6 +31,8 @@ export default function RegisterStep1() {
   const { user, signOut } = useAuth();
   const resuming = !!user;
   const { form, updateForm } = useRegisterForm();
+  // 입력 중에도 형식이 틀리면 안내문을 붉게 바꿔 바로 알려준다(빈 값은 안내문만)
+  const loginIdError = getLoginIdError(form.loginId);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -37,7 +44,7 @@ export default function RegisterStep1() {
       Alert.alert("입력을 확인해 주세요", invalid);
       return;
     }
-    updateForm({ email: form.email.trim() });
+    updateForm({ loginId: normalizeLoginId(form.loginId) });
     router.push("/(auth)/register/profile");
   };
 
@@ -53,27 +60,30 @@ export default function RegisterStep1() {
           title="계정 만들기"
           subtitle={
             resuming
-              ? "전화번호 인증은 끝났어요. 로그인에 쓸 이메일과 비밀번호를 정해주세요"
-              : "이메일과 비밀번호를 입력해주세요"
+              ? "전화번호 인증은 끝났어요. 로그인에 쓸 아이디와 비밀번호를 정해주세요"
+              : "아이디와 비밀번호를 입력해주세요"
           }
         />
         <StepIndicator total={3} current={1} />
 
         <ThemedInput
-          label="이메일"
-          icon="mail-outline"
-          placeholder="example@email.com"
-          value={form.email}
-          onChangeText={(v) => updateForm({ email: v })}
-          keyboardType="email-address"
+          label="아이디"
+          icon="person-outline"
+          placeholder="영문 소문자·숫자·_ 4~20자"
+          value={form.loginId}
+          onChangeText={(v) => updateForm({ loginId: v })}
           autoCapitalize="none"
           autoCorrect={false}
+          maxLength={20}
         />
+        <Text style={[styles.idHint, loginIdError ? styles.idHintError : null]}>
+          {LOGIN_ID_HINT}
+        </Text>
 
         <ThemedInput
           label="비밀번호"
           icon="lock-closed-outline"
-          placeholder="6자 이상 입력"
+          placeholder="8자 이상 입력"
           value={form.password}
           onChangeText={(v) => updateForm({ password: v })}
           secureTextEntry={!showPassword}
@@ -122,6 +132,17 @@ export default function RegisterStep1() {
 }
 
 const styles = StyleSheet.create({
+  // 입력줄(아래 여백 16)에 붙여 안내문을 입력칸 바로 밑에 둔다
+  idHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    lineHeight: 16,
+    marginTop: -10,
+    marginBottom: 16,
+  },
+  idHintError: {
+    color: colors.danger,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,

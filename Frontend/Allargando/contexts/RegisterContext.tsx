@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState } from "react";
 import { CareerEntry } from "@/types/user";
 
 interface RegisterForm {
-  email: string;
+  loginId: string;
   password: string;
   passwordConfirm: string;
   // 약관 동의(1단계). Play UGC 정책상 가입 전에 이용약관·개인정보 동의를 받아야 한다
@@ -23,7 +23,7 @@ interface RegisterContextType {
 }
 
 const initialForm: RegisterForm = {
-  email: "",
+  loginId: "",
   password: "",
   passwordConfirm: "",
   agreeTerms: false,

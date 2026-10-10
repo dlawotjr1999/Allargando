@@ -12,7 +12,6 @@ import {
   linkWithCredential,
   linkWithPhoneNumber,
   onAuthStateChanged,
-  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signOut as firebaseSignOut,
@@ -24,15 +23,15 @@ import { getMyInfo } from "@/api/user";
 import { registerUser, RegisterRequest } from "@/api/auth";
 import { ApiError, setUnauthorizedHandler } from "@/lib/apiClient";
 import { UserProfile } from "@/types/user";
-import { toE164 } from "@/utils/registerValidation";
+import { emailToLoginId, loginIdToEmail, toE164 } from "@/utils/registerValidation";
 
 // 인증번호를 보낸 뒤 돌려받는 확인 핸들. 화면이 사용자가 입력한 코드를 이 핸들로 확인한다
 export type PhoneConfirmation = Awaited<ReturnType<typeof signInWithPhoneNumber>>;
 
-// 가입 제출 입력. email·password는 Firebase 계정을 새로 만들 때만 쓴다 —
-// 가입 미완료로 이미 로그인된 상태에서 이어서 가입할 때는 필요 없다
+// 가입 제출 입력. loginId·password는 Firebase 계정에 로그인 정보를 처음 연결할 때만 쓴다 —
+// 이미 연결돼 있는 상태(가입 미완료로 이어서 가입)에서는 필요 없다
 export interface RegisterInput extends RegisterRequest {
-  email?: string;
+  loginId?: string;
   password?: string;
 }
 
@@ -53,9 +52,9 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   // 프로필 수정 응답처럼 이미 최신 값을 들고 있을 때 재조회 없이 바로 반영
   setProfile: (profile: UserProfile) => void;
-  signIn: (email: string, password: string) => Promise<void>;
+  // 아이디와 비밀번호로 로그인한다(아이디는 내부적으로 가짜 이메일로 바꿔 Firebase에 넘긴다)
+  signIn: (loginId: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
   registerAccount: (input: RegisterInput) => Promise<void>;
   // 전화번호(010-1234-5678 형식)로 인증번호 SMS를 보낸다. 반환된 핸들을 confirmPhoneCode에 넘겨 코드를 확인한다
   sendPhoneCode: (phoneNumber: string) => Promise<PhoneConfirmation>;
@@ -65,9 +64,9 @@ interface AuthContextType {
   abandonSignUp: () => Promise<void>;
   // 계정 찾기용 인증번호 발송. 가입 때와 달리 항상 "전화번호로 로그인"하는 방식으로 보낸다
   sendRecoveryCode: (phoneNumber: string) => Promise<PhoneConfirmation>;
-  // 계정 찾기용 인증번호 확인. 그 번호로 가입된 계정이 있어야 통과하고, 통과하면 그 계정의 이메일(없으면 null)을 돌려준다.
+  // 계정 찾기용 인증번호 확인. 그 번호로 가입된 계정이 있어야 통과하고, 통과하면 그 계정의 아이디(없으면 null)를 돌려준다.
   // 이후 비밀번호를 바꾸거나 화면을 벗어날 때까지 로그인 상태를 유지하며, 끝나면 endRecovery로 반드시 로그아웃해야 한다
-  confirmRecoveryCode: (confirmation: PhoneConfirmation, code: string) => Promise<{ email: string | null }>;
+  confirmRecoveryCode: (confirmation: PhoneConfirmation, code: string) => Promise<{ loginId: string | null }>;
   // 전화 인증을 마친 계정의 비밀번호를 새로 정하고 로그아웃한다
   changePasswordAfterRecovery: (newPassword: string) => Promise<void>;
   // 계정 찾기를 끝낸다(화면을 벗어나거나 완료했을 때). 전화번호로 들어간 임시 로그인을 무조건 로그아웃한다
@@ -134,8 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, refreshProfile]);
 
-  const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+  const signIn = async (loginId: string, password: string) => {
+    await signInWithEmailAndPassword(auth, loginIdToEmail(loginId), password);
   };
 
   const signOut = async () => {
@@ -145,14 +144,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await firebaseSignOut(auth);
   };
 
-  // 비밀번호 재설정 메일 발송(Firebase 제공). 가입 여부와 무관하게 호출부는 같은 안내를 보여준다
-  const resetPassword = async (email: string) => {
-    await sendPasswordResetEmail(auth, email);
-  };
-
-  // 가입 제출: 전화번호 인증으로 로그인된 계정에 이메일·비밀번호를 연결한 뒤 서버에 가입한다(POST /api/auth/register).
+  // 가입 제출: 전화번호 인증으로 로그인된 계정에 아이디·비밀번호를 연결한 뒤 서버에 가입한다(POST /api/auth/register).
   // 서버는 ID 토큰의 phone_number 값만 믿으므로 전화번호는 보내지 않는다 — 그래서 전화 인증을 마치지 않았으면 제출할 수 없다.
-  // 이미 이메일이 연결된 계정(이메일 연결까지 끝내고 서버 가입만 실패해 이어서 가입하는 경우)은 연결을 건너뛴다.
+  // 이미 아이디가 연결된 계정(연결까지 끝내고 서버 가입만 실패해 이어서 가입하는 경우)은 연결을 건너뛴다.
   // 서버 가입이 실패해도 Firebase 계정은 지우지 않는다 — 서버가 멱등이라 같은 토큰으로 재시도하면 되고,
   // 지우면 동시 요청으로 정상 가입된 계정까지 사라질 수 있다. 이때 로그인은 유지돼 끝에서 프로필을 다시 조회하면
   // 가입 미완료(404)로 확정되어 가입 화면으로 이어진다. 실패는 그대로 던지므로 호출부가 안내를 띄운다
@@ -165,10 +159,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw Object.assign(new Error("phone not verified"), { code: "auth/phone-not-verified" });
       }
       if (!current.email) {
-        await linkWithCredential(current, EmailAuthProvider.credential(input.email ?? "", input.password ?? ""));
+        await linkWithCredential(
+          current,
+          EmailAuthProvider.credential(loginIdToEmail(input.loginId ?? ""), input.password ?? "")
+        );
       }
-      // 서버는 ID 토큰에 든 이메일·전화번호를 읽는다. 이메일을 방금 연결했거나(토큰에 아직 이메일이 없음), 이메일 계정에
-      // 전화번호를 방금 연결한 이어하기 경우(토큰에 아직 전화번호가 없음)처럼 직전에 받아 둔 토큰이 낡았을 수 있으므로,
+      // 서버는 ID 토큰의 전화번호 값을 읽는다. 로그인 정보를 방금 연결했거나, 아이디 계정에 전화번호를 방금 연결한
+      // 이어하기 경우(토큰에 아직 전화번호가 없음)처럼 직전에 받아 둔 토큰이 낡았을 수 있으므로,
       // 어느 경우든 가입 요청 직전에 토큰을 새로 받아 둔다
       await getIdToken(current, true);
       await registerUser({
@@ -269,7 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await firebaseSignOut(auth).catch(() => {});
         throw Object.assign(new Error("signup incomplete"), { code: "auth/signup-incomplete" });
       }
-      return { email: auth.currentUser?.email ?? null };
+      return { loginId: emailToLoginId(auth.currentUser?.email) };
     } catch (err) {
       registeringRef.current = wasRegistering;
       setRegistering(wasRegistering);
@@ -322,7 +319,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile,
         signIn,
         signOut,
-        resetPassword,
         registerAccount,
         sendPhoneCode,
         confirmPhoneCode,

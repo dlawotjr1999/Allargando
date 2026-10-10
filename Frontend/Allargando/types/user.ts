@@ -17,13 +17,12 @@ export interface UserPublicProfile {
 }
 
 // 내 정보 조회(GET /api/users/me)·수정(PUT /api/users/me) 응답. 백엔드 UserResponseDTO와 1:1 대응.
-// email은 선택 필드(CLAUDE.md §3.1)라 null일 수 있다.
+// 이메일은 수집하지 않는다(로그인은 아이디). 서버도 이메일을 저장하지 않는다.
 export interface UserProfile {
   id: number;
   // 실명. 가입 때 받으며 모집자에게만 보인다(지원자 응답)
   name: string;
   nickname: string;
-  email: string | null;
   phoneNumber: string;
   instrument: string;
   careers: Career[];

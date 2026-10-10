@@ -22,7 +22,7 @@ export interface ApplicationPostSummary {
 }
 
 // 지원서 응답에 중첩되는 지원자 프로필. 백엔드 ApplicantResponseDTO와 1:1 대응(모집자가 소비).
-// email은 없음 — 모집자에게 지원자의 email이 노출되지 않도록 백엔드가 의도적으로 제외한 필드다.
+// 이메일은 수집하지 않아 없다. 이름·전화번호는 수락된 지원만 원문이다.
 export interface Applicant {
   // 실명·전화번호는 수락(ACCEPTED)된 지원만 원문이고, 대기·종료된 지원은 서버가 "홍**"·"010-****-5678"처럼 가려서 준다
   name: string;
