@@ -116,7 +116,12 @@ export default function HomeScreen() {
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : error ? (
-        <EmptyState icon="cloud-offline-outline" title="목록을 불러오지 못했어요" description={error} />
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="목록을 불러오지 못했어요"
+          description={error}
+          onRetry={() => loadFirstPage()}
+        />
       ) : (
         <FlatList
           data={posts}

@@ -17,7 +17,7 @@ import ActionMenu, { ActionMenuItem } from "@/components/common/ActionMenu";
 import ReportDialog from "@/components/report/ReportDialog";
 
 // 다른 유저의 공개 프로필 화면(GET /api/users/{nickname}). 닉네임·악기·활동 이력만 보인다 —
-// 전화번호·이메일은 서버가 내려주지 않는다. 신고·차단 진입점(앱 내 UGC 정책)도 여기에 둔다.
+// 전화번호·이름은 서버가 내려주지 않는다. 신고·차단 진입점(앱 내 UGC 정책)도 여기에 둔다.
 export default function UserProfileScreen() {
   const { nickname } = useLocalSearchParams<{ nickname: string }>();
   const router = useRouter();
@@ -89,6 +89,7 @@ export default function UserProfileScreen() {
           icon="person-outline"
           title="프로필을 찾을 수 없어요"
           description={error ?? "탈퇴했거나 존재하지 않는 사용자예요."}
+          onRetry={error ? () => load() : undefined}
         />
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

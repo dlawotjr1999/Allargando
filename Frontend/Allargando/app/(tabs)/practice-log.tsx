@@ -30,6 +30,8 @@ export default function PracticeLogScreen() {
   const [selectedLog, setSelectedLog] = useState<PracticeLogDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // 오류 화면의 "다시 시도"가 올리는 번호. 올라가면 아래 포커스 효과가 처음부터 다시 조회한다
+  const [reloadKey, setReloadKey] = useState(0);
 
   // 이 탭이 포커스될 때마다 0페이지부터 다시 조회한다(currentPage/hasNext도 그 응답 기준으로 리셋).
   // 최초 진입은 물론, "작성하기"에서 등록을 마치고 router.back()으로 돌아왔을 때도
@@ -60,7 +62,9 @@ export default function PracticeLogScreen() {
       return () => {
         cancelled = true;
       };
-    }, [])
+      // reloadKey는 콜백 안에서 읽지 않지만 값이 바뀌면 포커스 효과를 다시 돌리려고 의존성에 둔다("다시 시도" 버튼)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reloadKey])
   );
 
   // 무한스크롤 다음 페이지 — FlatList의 onEndReached에서 호출된다.
@@ -158,7 +162,12 @@ export default function PracticeLogScreen() {
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : error ? (
-        <EmptyState icon="cloud-offline-outline" title="목록을 불러오지 못했어요" description={error} />
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="목록을 불러오지 못했어요"
+          description={error}
+          onRetry={() => setReloadKey((k) => k + 1)}
+        />
       ) : (
         <FlatList
           data={logs}

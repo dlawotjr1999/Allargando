@@ -2,12 +2,25 @@ import { useEffect, useState } from "react";
 import { Stack, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
+import ConnectionErrorScreen from "@/components/common/ConnectionErrorScreen";
 import LoadingScreen from "@/components/common/LoadingScreen";
+import UpgradeRequiredScreen from "@/components/common/UpgradeRequiredScreen";
 import PushSetup from "@/components/push/PushSetup";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { RegisterProvider } from "@/contexts/RegisterContext";
+import { setUpgradeRequiredHandler } from "@/lib/apiClient";
 
 export default function RootLayout() {
+  // 서버가 이 앱 버전을 더 지원하지 않는다고 하면(426) 앱 전체를 업데이트 안내 화면으로 바꾼다.
+  // 로그인 세션은 건드리지 않는다
+  const [upgradeRequired, setUpgradeRequired] = useState(false);
+  useEffect(() => {
+    setUpgradeRequiredHandler(() => setUpgradeRequired(true));
+    return () => setUpgradeRequiredHandler(null);
+  }, []);
+
+  if (upgradeRequired) return <UpgradeRequiredScreen />;
+
   return (
     <AuthProvider>
       {/* 가입 폼 상태는 루트에 둔다 — 가입 실패 뒤 화면이 다시 만들어져도 입력한 값이 남아 있어야 한다 */}
@@ -20,13 +33,17 @@ export default function RootLayout() {
 
 // 인증 상태에 따라 3갈래로 보낸다:
 //  · 로그인 안 함 → 로그인 화면
-//  · 로그인했는데 서버에 가입 정보가 없음(가입을 못 끝낸 계정) → 가입 이어하기. 전화 인증만 하고 이메일 연결 전에 끊긴
-//    계정(이메일이 없음)은 이메일·비밀번호를 정하는 1단계부터, 이메일은 있는 계정은 프로필 단계부터 이어간다
+//  · 로그인했는데 서버에 가입 정보가 없음(가입을 못 끝낸 계정) → 가입 이어하기. 전화 인증만 하고 아이디 연결 전에 끊긴
+//    계정(Firebase에 로그인 이메일이 없음)은 아이디·비밀번호를 정하는 1단계부터, 연결된 계정은 프로필 단계부터 이어간다
+//    (아이디는 가짜 이메일로 연결되므로 user.email의 유무가 곧 아이디 연결 여부다)
 //  · 로그인 + 프로필 있음 → 홈 탭
 type Destination = "/(auth)/login" | "/(auth)/register" | "/(auth)/register/profile" | "/(tabs)/home";
 
 function RootNavigator() {
-  const { user, loading, profile, profilePending, unregistered, registering } = useAuth();
+  const { user, loading, profile, profileError, profilePending, unregistered, registering, refreshProfile, signOut } =
+    useAuth();
+  // 연결 확인 화면에서 다시 시도하는 동안(그 사이 profileError가 비워지므로) 같은 화면에 머물게 하는 표시
+  const [retrying, setRetrying] = useState(false);
 
   const resumeDestination: Destination = user?.email ? "/(auth)/register/profile" : "/(auth)/register";
   const target: Destination = !user ? "/(auth)/login" : unregistered ? resumeDestination : "/(tabs)/home";
@@ -48,6 +65,25 @@ function RootNavigator() {
 
   // 부팅 이후 프로필 조회 중에는 홈으로 먼저 보내지 않고(깜빡임·가입 화면 튕김 방지) 로그인 화면에 둔다
   const href = registering ? heldTarget : booted && profilePending ? "/(auth)/login" : target;
+
+  // 로그인했는데 내 정보를 확인하지 못했고(네트워크·서버 장애) 가입 미완료도 아니면, 홈으로 보내지 않고 연결 확인 화면을 보여 준다.
+  // 가입 미완료(404)는 profileError가 아니라 unregistered로 구분돼 위에서 가입 이어하기로 간다
+  if (user && !profile && !unregistered && !registering && (profileError !== null || retrying)) {
+    return (
+      <>
+        <ConnectionErrorScreen
+          message={profileError}
+          retrying={retrying}
+          onRetry={() => {
+            setRetrying(true);
+            refreshProfile().finally(() => setRetrying(false));
+          }}
+          onSwitchAccount={() => signOut().catch(() => {})}
+        />
+        <StatusBar style="dark" />
+      </>
+    );
+  }
 
   if (loading || (profilePending && !booted)) {
     return (

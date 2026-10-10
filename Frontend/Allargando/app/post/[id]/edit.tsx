@@ -35,8 +35,12 @@ export default function PostEditScreen() {
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // 오류 화면의 "다시 시도"가 올리는 번호. 올라가면 아래 효과가 글을 다시 불러온다
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     (async () => {
       try {
         setPost(await getPost(Number(id)));
@@ -46,7 +50,7 @@ export default function PostEditScreen() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, reloadKey]);
 
   if (loading) return <LoadingScreen />;
 
@@ -60,6 +64,7 @@ export default function PostEditScreen() {
           icon="alert-circle-outline"
           title="수정할 수 없는 모집글이에요"
           description={error ?? "내가 작성한 모집글만 수정할 수 있어요."}
+          onRetry={error ? () => setReloadKey((k) => k + 1) : undefined}
         />
       </SafeAreaView>
     );
