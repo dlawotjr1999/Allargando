@@ -1,5 +1,6 @@
 package com.wangnu.allargando.post.controller;
 
+import com.wangnu.allargando.global.ratelimit.RateLimit;
 import com.wangnu.allargando.global.common.APIResponse;
 import com.wangnu.allargando.global.common.PageSupport;
 import com.wangnu.allargando.global.common.PageResponse;
@@ -43,6 +44,7 @@ public class PostController {
     private final PostService postService;
 
     // 모집글 등록 (등록 성공 시 전체 broadcast 알림)
+    @RateLimit(limit = 10, windowSeconds = 3600)  // 등록마다 전체 푸시가 나가므로 시간당 10건
     @PostMapping
     public ResponseEntity<APIResponse<PostResponseDTO>> createPost(
             @AuthenticationPrincipal User user,
@@ -98,6 +100,7 @@ public class PostController {
     }
 
     // 모집글 수정 (작성자만). 대기·수락 지원자에게 수정 알림 발송
+    @RateLimit(limit = 20, windowSeconds = 600)  // 수정마다 지원자에게 푸시가 나갈 수 있다
     @PutMapping("/{id}")
     public ResponseEntity<APIResponse<PostResponseDTO>> updatePost(
             @AuthenticationPrincipal User user,

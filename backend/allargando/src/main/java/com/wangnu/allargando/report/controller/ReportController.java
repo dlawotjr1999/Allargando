@@ -1,5 +1,6 @@
 package com.wangnu.allargando.report.controller;
 
+import com.wangnu.allargando.global.ratelimit.RateLimit;
 import com.wangnu.allargando.global.common.APIResponse;
 import com.wangnu.allargando.report.dto.ReportRequestDTO;
 import com.wangnu.allargando.report.service.ReportService;
@@ -29,6 +30,7 @@ public class ReportController {
     private final ReportService reportService;
 
     // 모집글 신고
+    @RateLimit(limit = 20, windowSeconds = 3600)
     @PostMapping("/posts/{postId}")
     public ResponseEntity<APIResponse<Void>> reportPost(
             @AuthenticationPrincipal User user,
@@ -39,6 +41,7 @@ public class ReportController {
     }
 
     // 유저 신고
+    @RateLimit(limit = 20, windowSeconds = 3600)
     @PostMapping("/users/{nickname}")
     public ResponseEntity<APIResponse<Void>> reportUser(
             @AuthenticationPrincipal User user,

@@ -6,6 +6,7 @@ import org.hibernate.JDBCException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -62,6 +63,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(APIResponse.error(409, e.getMessage()));
+    }
+
+    /*
+     * 429 Too Many Requests
+     * 호출 빈도 제한을 넘었을 때 — Retry-After(초)로 다시 시도할 수 있는 시점을 알려준다
+     */
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<APIResponse<Void>> handleTooManyRequestsException(TooManyRequestsException e) {
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))
+                .body(APIResponse.error(429, e.getMessage()));
     }
 
     /*
