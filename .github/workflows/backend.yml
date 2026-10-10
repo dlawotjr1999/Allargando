@@ -9,11 +9,17 @@ on:
       - "feat/**" # feature 브랜치도 포함
     paths:
       - "backend/**" # backend 폴더 변경 시에만 실행
+      - ".github/workflows/backend.yml" # 워크플로 자체를 고쳤을 때도 검증한다
   pull_request:
     branches:
       - main
     paths:
       - "backend/**"
+      - ".github/workflows/backend.yml"
+
+# 이 워크플로는 저장소를 읽기만 한다. 기본 토큰에 쓰기 권한을 주지 않는다
+permissions:
+  contents: read
 
 # ── 잡 정의 ───────────────────────────────────────────────────
 jobs:
@@ -102,6 +108,8 @@ jobs:
   # Dockerfile이 깨지면 배포 시점이 아니라 PR에서 잡히도록 빌드만 해본다(푸시·배포는 하지 않음)
   docker-build:
     runs-on: ubuntu-latest
+    # 이미지 빌드는 테스트를 건너뛰므로(-x test) 테스트를 통과한 커밋에서만 만들어지게 한다
+    needs: test
 
     steps:
       - name: 코드 체크아웃
