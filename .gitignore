@@ -17,6 +17,7 @@ CLAUDE.md
 AGENTS.md
 BACKLOG.md
 spring-diagnostic-prompt.md
+.claude/skills/*
 
 # 로그 및 임시 파일
 *.log
@@ -39,5 +40,5 @@ application-local.yml
 application-local.yaml
 
 # Firebase 안드로이드 설정(앱 전용) — 어느 폴더에 있어도 커밋 제외
-google-services.json
+google-services*.json
 GoogleService-Info.plist
