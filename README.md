@@ -1,6 +1,6 @@
 # Allargando
 
-악기 취미생이 앙상블·버스킹 멤버를 **무보수로** 모집하는 서비스. Spring Boot 백엔드 + Expo(React Native) 프론트엔드 모노레포이며, 1인 개발로 기획부터 백엔드 설계, 인증 연동, 프론트 API 연동, CI 구축까지 전체 라이프사이클을 진행했다.
+악기 취미생이 앙상블·버스킹 멤버를 **무보수로** 모집하는 서비스. Spring Boot 백엔드 + Expo(React Native) 프론트엔드 모노레포이며, 2인 개발로 기획부터 백엔드 설계, 인증 연동, 프론트 API 연동, CI 구축까지 전체 라이프사이클을 진행했다.
 
 - 백엔드 실행: [`backend/README.md`](backend/README.md)
 - 프론트엔드 실행: [`Frontend/Allargando/README.md`](Frontend/Allargando/README.md)
