@@ -19,7 +19,7 @@ class PostTest {
 
     @BeforeEach
     void setUp() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
 
         post = Post.create(owner, PostInfo.builder().build());
         post.addInstrument(PostInstrument.of(post, "바이올린", 2));
@@ -78,10 +78,13 @@ class PostTest {
                 .isInstanceOf(BadRequestException.class);
     }
 
-    // 시나리오 1.4: 지원자 전공이 모집 목록에 없으면 수락 허용(자리 미반영, 상태만 변경) — 예외 아님
+    // 지원은 모집 악기만 고를 수 있다(D9). 지원 뒤 글 수정으로 악기가 빠진 지원이 남아 있어도 조용히 수락하지 않고 거절한다
+    // (옛 동작은 자리에 반영하지 않은 채 상태만 수락으로 바꿨다 — 정원 불변식 밖의 수락이 생기는 경로였다)
     @Test
-    void confirmInstrument_nonRecruitedInstrument_keepsStatusAndSeats() {
-        post.confirmInstrument("트럼펫"); // 모집 목록에 없는 악기 → 무동작
+    void confirmInstrument_nonRecruitedInstrument_throwsAndKeepsStatusAndSeats() {
+        assertThatThrownBy(() -> post.confirmInstrument("트럼펫"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("모집하지 않는 악기입니다");
 
         assertThat(post.getStatus()).isEqualTo(PostStatus.OPEN);
         assertThat(instrument("바이올린").getConfirmed()).isEqualTo(0);
@@ -331,7 +334,7 @@ class PostTest {
     // BACKLOG.md #34: 모집글 상세 "설명" 섹션에 대응하는 필드
     @Test
     void create_setsDescriptionFromInfo() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
 
         Post created = Post.create(owner, PostInfo.builder().description("공연 설명입니다").build());
 
@@ -340,7 +343,7 @@ class PostTest {
 
     @Test
     void updateInfo_updatesDescription() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
         Post created = Post.create(owner, PostInfo.builder().description("기존 설명").build());
 
         created.updateInfo(PostInfo.builder().description("수정된 설명").build());
@@ -351,7 +354,7 @@ class PostTest {
     // BACKLOG.md #38: location 자유텍스트와 분리된 지역 필터 전용 컬럼
     @Test
     void create_setsRegionFromInfo() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
 
         Post created = Post.create(owner, PostInfo.builder().region("서울").build());
 
@@ -360,7 +363,7 @@ class PostTest {
 
     @Test
     void updateInfo_updatesRegion() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
         Post created = Post.create(owner, PostInfo.builder().region("서울").build());
 
         created.updateInfo(PostInfo.builder().region("경기").build());
@@ -372,7 +375,7 @@ class PostTest {
     // 소유자 판단 로직 자체를 Post로 이관(Tell-Don't-Ask)
     @Test
     void isOwnedBy_trueWhenSameUser() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
         Post created = Post.create(owner, PostInfo.builder().build());
 
         assertThat(created.isOwnedBy(owner)).isTrue();
@@ -380,8 +383,8 @@ class PostTest {
 
     @Test
     void isOwnedBy_falseWhenDifferentUser() {
-        User owner = User.builder().id(1L).nickname("owner").firebaseUid("owner-uid").build();
-        User other = User.builder().id(2L).nickname("other").firebaseUid("other-uid").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").firebaseUid("owner-uid").build();
+        User other = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(2L).nickname("other").firebaseUid("other-uid").build();
         Post created = Post.create(owner, PostInfo.builder().build());
 
         assertThat(created.isOwnedBy(other)).isFalse();

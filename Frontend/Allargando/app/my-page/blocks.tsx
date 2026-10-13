@@ -66,7 +66,12 @@ export default function BlocksScreen() {
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : error ? (
-        <EmptyState icon="cloud-offline-outline" title="목록을 불러오지 못했어요" description={error} />
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="목록을 불러오지 못했어요"
+          description={error}
+          onRetry={() => load()}
+        />
       ) : (
         <FlatList
           data={blocks}

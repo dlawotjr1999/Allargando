@@ -1,5 +1,6 @@
 package com.wangnu.allargando.application.controller;
 
+import com.wangnu.allargando.global.ratelimit.RateLimit;
 import com.wangnu.allargando.application.dto.AppRequestDTO;
 import com.wangnu.allargando.application.dto.AppResponseDTO;
 import com.wangnu.allargando.application.service.ApplicationService;
@@ -41,6 +42,7 @@ public class ApplicationController {
     private final ApplicationService applicationService;
 
     // 지원서 제출
+    @RateLimit(limit = 20, windowSeconds = 600)  // 지원·취소·재지원 반복으로 모집자 알림을 쌓지 못하게
     @PostMapping("/submit")
     public ResponseEntity<APIResponse<AppResponseDTO>> submitApplication(
         @AuthenticationPrincipal User user,
@@ -92,6 +94,7 @@ public class ApplicationController {
     }
 
     // 지원 취소 (지원자, PENDING → CANCELLED)
+    @RateLimit(limit = 20, windowSeconds = 600)
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<APIResponse<Void>> cancelApplication(
         @AuthenticationPrincipal User user,

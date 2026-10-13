@@ -23,8 +23,8 @@ interface ApplicationSubmitModalProps {
   onClose: () => void;
 }
 
-// 지원 제출 전 지원할 악기(필수)와 어필 문구(선택)를 입력받는 모달. 지원서가 접수되면 전화번호가
-// 모집자에게 공개되므로 제출 버튼 위에 그 사실을 안내한다.
+// 지원 제출 전 지원할 악기(필수)와 어필 문구(선택)를 입력받는 모달. 모집자가 수락하면 이름과 전화번호가
+// 모집자에게 공개되므로 제출 버튼 위에 그 사실을 안내한다(대기 중에는 서버가 가려서 준다).
 export default function ApplicationSubmitModal({
   visible,
   postTitle,
@@ -114,7 +114,7 @@ export default function ApplicationSubmitModal({
 
               <View style={styles.notice}>
                 <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
-                <Text style={styles.noticeText}>지원하면 내 전화번호가 모집자에게 공개됩니다.</Text>
+                <Text style={styles.noticeText}>모집자가 수락하면 내 이름과 전화번호가 모집자에게 공개됩니다.</Text>
               </View>
 
               <ThemedButton

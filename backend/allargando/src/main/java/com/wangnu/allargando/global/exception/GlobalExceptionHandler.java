@@ -6,6 +6,7 @@ import org.hibernate.JDBCException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -62,6 +63,29 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(APIResponse.error(409, e.getMessage()));
+    }
+
+    /*
+     * 426 Upgrade Required
+     * 앱 버전이 서버의 최소 지원 버전보다 낮을 때 — 앱이 업데이트 안내 화면을 띄운다
+     */
+    @ExceptionHandler(UpgradeRequiredException.class)
+    public ResponseEntity<APIResponse<Void>> handleUpgradeRequiredException(UpgradeRequiredException e) {
+        return ResponseEntity
+                .status(HttpStatus.UPGRADE_REQUIRED)
+                .body(APIResponse.error(426, e.getMessage()));
+    }
+
+    /*
+     * 429 Too Many Requests
+     * 호출 빈도 제한을 넘었을 때 — Retry-After(초)로 다시 시도할 수 있는 시점을 알려준다
+     */
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<APIResponse<Void>> handleTooManyRequestsException(TooManyRequestsException e) {
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))
+                .body(APIResponse.error(429, e.getMessage()));
     }
 
     /*
@@ -244,6 +268,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(APIResponse.error(401, e.getMessage()));
+    }
+
+    /*
+     * 503 Service Unavailable
+     * 외부 서비스(Firebase 등)에 닿지 못해 처리할 수 없을 때 — 요청이 틀린 것이 아니므로 401·400과 구분한다
+     */
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<APIResponse<Void>> handleServiceUnavailableException(ServiceUnavailableException e) {
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(APIResponse.error(503, e.getMessage()));
     }
 
     /*

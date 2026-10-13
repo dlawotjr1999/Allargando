@@ -110,6 +110,14 @@ export default function PostDetailScreen() {
           icon="alert-circle-outline"
           title="모집글을 찾을 수 없어요"
           description={error ?? "삭제되었거나 존재하지 않는 모집글입니다."}
+          onRetry={
+            error
+              ? () => {
+                  setLoading(true);
+                  loadPost();
+                }
+              : undefined
+          }
         />
       </SafeAreaView>
     );

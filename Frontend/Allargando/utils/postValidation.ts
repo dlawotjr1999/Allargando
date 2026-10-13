@@ -6,10 +6,12 @@
 export const POST_TITLE_MAX = 255;
 export const POST_LOCATION_MAX = 255;
 export const POST_TIMETABLE_MAX = 255;
-export const POST_DESCRIPTION_MAX = 2000;
+export const POST_DESCRIPTION_MAX = 300;
 // 서버 @Min/@Max — 악기별 모집 인원
 export const POST_PEOPLE_MIN = 1;
 export const POST_PEOPLE_MAX = 100;
+// 서버 @Size(max)와 같은 값 — 모집 악기는 최대 10개
+export const POST_INSTRUMENTS_MAX = 10;
 
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TIME_RE = /^(\d{2}):(\d{2})$/;

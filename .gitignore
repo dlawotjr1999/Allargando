@@ -18,6 +18,7 @@ AGENTS.md
 BACKLOG.md
 spring-diagnostic-prompt.md
 .claude/skills/*
+.codex/*
 
 # 로그 및 임시 파일
 *.log

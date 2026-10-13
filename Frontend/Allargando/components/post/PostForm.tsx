@@ -19,6 +19,7 @@ import { ApiError } from "@/lib/apiClient";
 import { PostCreateRequest } from "@/types/post";
 import {
   POST_DESCRIPTION_MAX,
+  POST_INSTRUMENTS_MAX,
   POST_LOCATION_MAX,
   POST_TIMETABLE_MAX,
   POST_TITLE_MAX,
@@ -254,10 +255,12 @@ export default function PostForm({ mode, initial, onSubmit }: PostFormProps) {
                 removable={instruments.length > 1}
               />
             ))}
-            <TouchableOpacity style={styles.addButton} onPress={handleInstrumentAdd}>
-              <Ionicons name="add" size={18} color={colors.textMuted} />
-              <Text style={styles.addButtonText}>악기 추가</Text>
-            </TouchableOpacity>
+            {instruments.length < POST_INSTRUMENTS_MAX && (
+              <TouchableOpacity style={styles.addButton} onPress={handleInstrumentAdd}>
+                <Ionicons name="add" size={18} color={colors.textMuted} />
+                <Text style={styles.addButtonText}>악기 추가</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
 

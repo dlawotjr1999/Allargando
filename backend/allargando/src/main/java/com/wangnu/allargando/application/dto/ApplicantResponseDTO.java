@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 @Getter
 @Builder
 public class ApplicantResponseDTO {
+    private String name;
     private String nickname;
     private String instrument;
     private String phoneNumber;
@@ -35,17 +36,26 @@ public class ApplicantResponseDTO {
     }
 
     // maskPhone이 true면 전화번호를 마스킹해 내려 준다(종료된 지원, D13)
-    public static ApplicantResponseDTO from(User user, List<CareerDTO> careers, boolean maskPhone) {
+    public static ApplicantResponseDTO from(User user, List<CareerDTO> careers, boolean maskContact) {
         return ApplicantResponseDTO.builder()
+                .name(maskContact ? maskName(user.getName()) : user.getName())
                 .nickname(user.getNickname())
                 .instrument(user.getInstrument())
-                .phoneNumber(maskPhone ? maskPhoneNumber(user.getPhoneNumber()) : user.getPhoneNumber())
+                .phoneNumber(maskContact ? maskPhoneNumber(user.getPhoneNumber()) : user.getPhoneNumber())
                 .careers(careers)
                 .build();
     }
 
     // 앞 3자와 뒤 4자만 남기고 사이의 숫자를 *로 가린다(010-1234-5678 → 010-****-5678, +821012345678 → +82*****5678).
     // 7자 이하의 짧은 값은 숫자를 전부 가린다. 하이픈 같은 구분자는 그대로 둔다
+    // 수락되지 않은 지원(대기·거절·취소·철회)의 이름은 전화번호처럼 가린다 — 첫 글자만 남긴다(홍길동 → 홍**)
+    public static String maskName(String name) {
+        if (name == null || name.isEmpty()) {
+            return name;
+        }
+        return name.substring(0, 1) + "*".repeat(name.length() - 1);
+    }
+
     public static String maskPhoneNumber(String phoneNumber) {
         if (phoneNumber == null) {
             return null;

@@ -1,5 +1,6 @@
 package com.wangnu.allargando.user.controller;
 
+import com.wangnu.allargando.global.ratelimit.RateLimit;
 import com.wangnu.allargando.global.common.APIResponse;
 import com.wangnu.allargando.user.dto.UserPublicProfileDTO;
 import com.wangnu.allargando.user.dto.UserResponseDTO;
@@ -48,6 +49,7 @@ public class UserController {
      * 내 정보 수정
      * 모든 필드가 유효한 경우에만 수정 가능 (PUT)
      */
+    @RateLimit(limit = 20, windowSeconds = 600)
     @PutMapping("/me")
     public ResponseEntity<APIResponse<UserResponseDTO>> updateMyInfo(
             @AuthenticationPrincipal User user,
@@ -72,6 +74,7 @@ public class UserController {
      * 닉네임 중복 체크
      * 인증이 필요 없는 경로 (SecurityConfig에서 permitAll 설정)
      */
+    @RateLimit(limit = 30, windowSeconds = 60, by = RateLimit.By.IP)  // 인증 없는 경로 — 닉네임 대량 조회 방지
     @GetMapping("/check/{nickname}")
     public ResponseEntity<APIResponse<Map<String, Boolean>>> checkNickname(
             @PathVariable String nickname) {

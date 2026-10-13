@@ -53,11 +53,11 @@ public class PostCreateRequestDTO {
     private String timetable;
 
     // 모집글 상세 설명 (선택 입력) — BACKLOG.md #34
-    @Size(max = 2000, message = "설명은 2000자 이내여야 합니다")
+    @Size(max = 300, message = "설명은 300자 이내여야 합니다")
     private String description;
 
     @NotNull(message = "모집 악기를 입력해 주세요")
-    @Size(min = 1, message = "모집 악기를 1개 이상 입력해 주세요")
+    @Size(min = 1, max = 10, message = "모집 악기는 1개 이상 10개 이하로 입력해 주세요")
     @Valid
     private List<InstrumentItem> instruments;
 

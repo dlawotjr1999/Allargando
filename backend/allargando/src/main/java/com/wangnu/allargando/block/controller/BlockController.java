@@ -1,5 +1,6 @@
 package com.wangnu.allargando.block.controller;
 
+import com.wangnu.allargando.global.ratelimit.RateLimit;
 import com.wangnu.allargando.block.dto.BlockRequestDTO;
 import com.wangnu.allargando.block.dto.BlockedUserResponseDTO;
 import com.wangnu.allargando.block.service.BlockService;
@@ -35,6 +36,7 @@ public class BlockController {
     private final BlockService blockService;
 
     // 유저 차단
+    @RateLimit(limit = 30, windowSeconds = 3600)
     @PostMapping
     public ResponseEntity<APIResponse<Void>> block(
             @AuthenticationPrincipal User user,

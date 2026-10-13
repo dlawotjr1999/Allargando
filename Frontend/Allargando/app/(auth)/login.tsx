@@ -25,23 +25,23 @@ const LOGO_HEIGHT = LOGO_WIDTH * (srcH / srcW);
 
 export default function LoginScreen() {
   const { signIn, profilePending } = useAuth();
-  const [email, setEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogin = async () => {
     if (isSubmitting) return;
-    if (!email.trim() || !password) {
-      Alert.alert("로그인", "이메일과 비밀번호를 입력해주세요.");
+    if (!loginId.trim() || !password) {
+      Alert.alert("로그인", "아이디와 비밀번호를 입력해주세요.");
       return;
     }
     setIsSubmitting(true);
     try {
-      await signIn(email.trim(), password);
+      await signIn(loginId, password);
       // 로그인 성공 시 RootLayout의 useAuth 구독이 자동으로 이동시킨다(프로필이 있으면 홈, 가입 미완료면 가입 이어하기)
     } catch (err) {
-      // 계정 없음·비밀번호 오류는 같은 문구(Firebase 이메일 열거 방지), 형식·네트워크·횟수 제한은 따로 안내
+      // 계정 없음·비밀번호 오류는 같은 문구(Firebase 계정 열거 방지), 형식·네트워크·횟수 제한은 따로 안내
       Alert.alert("로그인 실패", describeAuthError(err, "login"));
     } finally {
       setIsSubmitting(false);
@@ -65,12 +65,11 @@ export default function LoginScreen() {
 
         <View style={styles.form}>
           <ThemedInput
-            label="이메일"
-            icon="mail-outline"
-            placeholder="example@email.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
+            label="아이디"
+            icon="person-outline"
+            placeholder="아이디를 입력하세요"
+            value={loginId}
+            onChangeText={setLoginId}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -96,7 +95,7 @@ export default function LoginScreen() {
             }
           />
 
-          {/* 이메일이나 비밀번호를 잊은 경우 계정 찾기 화면(아이디 찾기·비밀번호 찾기)으로 보낸다 */}
+          {/* 아이디나 비밀번호를 잊은 경우 계정 찾기 화면(아이디 찾기·비밀번호 찾기)으로 보낸다 */}
           <Link href="/(auth)/find-account" asChild>
             <TouchableOpacity style={styles.forgotPassword}>
               <Text style={styles.forgotPasswordText}>아이디·비밀번호 찾기</Text>

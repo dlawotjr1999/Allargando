@@ -6,6 +6,7 @@ import { CareerEntry, UserProfile, UserPublicProfile } from "@/types/user";
 // 내 정보 수정(PUT /api/users/me) 요청 바디. 백엔드 UserUpdateRequestDTO와 대응 —
 // careers는 부분 수정이 아니라 "전체 교체"(서버가 기존 경력을 전부 지우고 다시 저장)라 항상 전체 목록을 보낸다.
 export interface UserUpdateRequest {
+  name: string;
   nickname: string;
   instrument: string;
   careers: CareerEntry[];

@@ -2,6 +2,7 @@ package com.wangnu.allargando.global.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wangnu.allargando.global.common.APIResponse;
+import com.wangnu.allargando.global.security.FirebaseAuthFailures;
 import com.wangnu.allargando.global.security.FirebaseAuthFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -95,10 +96,15 @@ public class SecurityConfig {
      * 기본 Http403ForbiddenEntryPoint(403 + 빈 바디) 대신 명세의 401 + APIResponse 형식으로 응답
      * 단, 토큰은 유효한데 가입된 유저가 없는 경우(필터가 표식을 남김)는 404 — 클라이언트가 "토큰 만료"와
      * "가입 미완료"를 구분해 가입 화면으로 보낼 수 있게 한다(D18)
+     * Firebase·DB 장애로 인증을 판정하지 못한 경우(필터가 표식을 남김)는 503 — 앱이 401을 받고 로그아웃시키지 않게 한다
      */
     @Bean
     public AuthenticationEntryPoint authenticationEntryPoint() {
         return (request, response, authException) -> {
+            if (request.getAttribute(FirebaseAuthFilter.AUTH_UNAVAILABLE_ATTRIBUTE) != null) {
+                writeError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, FirebaseAuthFailures.UNAVAILABLE_MESSAGE);
+                return;
+            }
             if (request.getAttribute(FirebaseAuthFilter.UNREGISTERED_USER_ATTRIBUTE) != null) {
                 writeError(response, HttpServletResponse.SC_NOT_FOUND, "가입되지 않은 사용자입니다");
                 return;

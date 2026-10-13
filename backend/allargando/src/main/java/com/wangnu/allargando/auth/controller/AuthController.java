@@ -1,5 +1,6 @@
 package com.wangnu.allargando.auth.controller;
 
+import com.wangnu.allargando.global.ratelimit.RateLimit;
 import com.wangnu.allargando.auth.dto.FCMTokenUpdateRequestDTO;
 import com.wangnu.allargando.auth.dto.RegisterRequestDTO;
 import com.wangnu.allargando.auth.dto.RegisterResponseDTO;
@@ -37,6 +38,7 @@ public class AuthController {
      * @param request       닉네임, 악기, 경력 등 추가 정보
      * @return 가입 시각(createdAt)만 포함한 응답
      */
+    @RateLimit(limit = 10, windowSeconds = 3600, by = RateLimit.By.IP)  // 인증 전 경로 — 본문 파싱 전에 막는다
     @PostMapping("/register")
     public ResponseEntity<APIResponse<RegisterResponseDTO>> register(
             @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -57,6 +59,7 @@ public class AuthController {
      * @param request 새 FCM 토큰
      * @return 성공 메시지
      */
+    @RateLimit(limit = 30, windowSeconds = 3600)
     @PatchMapping("/fcm-token")
     public ResponseEntity<APIResponse<Void>> updateFcmToken(
             @AuthenticationPrincipal User user,
@@ -83,6 +86,7 @@ public class AuthController {
      * @param user          현재 로그인한 유저 (SecurityContext에서 추출)
      * @return 성공 메시지
      */
+    @RateLimit(limit = 5, windowSeconds = 3600)
     @PatchMapping("/phone-number")
     public ResponseEntity<APIResponse<Void>> updatePhoneNumber(
             @RequestHeader(value = "Authorization", required = false) String authorization,

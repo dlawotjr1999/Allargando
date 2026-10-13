@@ -5,7 +5,8 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { colors } from "@/constants/theme";
 import { getMyPosts } from "@/api/post";
 import { cancelApplication, getMyApplications } from "@/api/application";
-import { releasePush } from "@/lib/push";
+import Constants from "expo-constants";
+import { releasePush, syncPush } from "@/lib/push";
 import { usePushSetting } from "@/lib/usePushSetting";
 import { deleteMyAccount } from "@/api/user";
 import { ApiError } from "@/lib/apiClient";
@@ -120,6 +121,8 @@ export default function MyPageScreen() {
     try {
       await signOut();
     } catch {
+      // 로그아웃이 안 됐으면 이 계정이 그대로 쓰이므로 방금 푼 푸시 연결을 되살린다(알림을 끄지 않은 사용자만)
+      await syncPush().catch(() => {});
       Alert.alert("로그아웃 실패", "잠시 후 다시 시도해주세요.");
     }
   };
@@ -132,6 +135,8 @@ export default function MyPageScreen() {
       await deleteMyAccount();
     } catch (err) {
       if (__DEV__) console.warn("[탈퇴] 서버 삭제 실패", err);
+      // 계정이 남아 있으므로 방금 푼 푸시 연결(서버 토큰·새 모집글 토픽)을 되살린다. 사용자가 알림을 꺼 둔 경우는 syncPush가 건너뛴다
+      await syncPush().catch(() => {});
       Alert.alert("탈퇴 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
       return;
     }
@@ -173,7 +178,15 @@ export default function MyPageScreen() {
             postsLoading ? (
               <ActivityIndicator style={styles.tabSpinner} color={colors.primary} />
             ) : postsError ? (
-              <Text style={styles.emptyText}>{postsError}</Text>
+              <View style={styles.profileError}>
+                <Text style={styles.emptyText}>{postsError}</Text>
+                <ThemedButton
+                  title="다시 시도"
+                  variant="outline"
+                  onPress={() => loadMyPosts()}
+                  style={styles.retryButton}
+                />
+              </View>
             ) : myPosts.length === 0 ? (
               <Text style={styles.emptyText}>등록한 모집글이 없어요.</Text>
             ) : (
@@ -190,7 +203,15 @@ export default function MyPageScreen() {
             applicationsLoading ? (
               <ActivityIndicator style={styles.tabSpinner} color={colors.primary} />
             ) : applicationsError ? (
-              <Text style={styles.emptyText}>{applicationsError}</Text>
+              <View style={styles.profileError}>
+                <Text style={styles.emptyText}>{applicationsError}</Text>
+                <ThemedButton
+                  title="다시 시도"
+                  variant="outline"
+                  onPress={() => loadApplications()}
+                  style={styles.retryButton}
+                />
+              </View>
             ) : applications.length === 0 ? (
               <Text style={styles.emptyText}>지원한 모집글이 없어요.</Text>
             ) : (
@@ -216,7 +237,7 @@ export default function MyPageScreen() {
           onWithdraw={handleWithdraw}
         />
 
-        <Text style={styles.versionText}>v0.1.0</Text>
+        <Text style={styles.versionText}>v{Constants.expoConfig?.version ?? ""}</Text>
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>

@@ -10,6 +10,8 @@ import com.wangnu.allargando.auth.dto.RegisterResponseDTO;
 import com.wangnu.allargando.global.exception.BadRequestException;
 import com.wangnu.allargando.global.exception.ConflictGuard;
 import com.wangnu.allargando.global.exception.NotFoundException;
+import com.wangnu.allargando.global.exception.ServiceUnavailableException;
+import com.wangnu.allargando.global.security.FirebaseAuthFailures;
 import com.wangnu.allargando.global.exception.UnauthorizedException;
 import com.wangnu.allargando.notification.event.StaleFcmTokensEvent;
 import com.wangnu.allargando.user.dto.CareerDTO;
@@ -18,6 +20,7 @@ import com.wangnu.allargando.user.event.UserWithdrawalEvent;
 import com.wangnu.allargando.user.entity.User;
 import com.wangnu.allargando.user.repository.CareerRepository;
 import com.wangnu.allargando.user.repository.UserRepository;
+import com.wangnu.allargando.user.service.NamePolicy;
 import com.wangnu.allargando.user.service.NicknamePolicy;
 import com.wangnu.allargando.user.service.PhoneNumberPolicy;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +33,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,7 +71,6 @@ public class AuthService {
         FirebaseToken decodedToken = verifyToken(idToken);
 
         String firebaseUid = decodedToken.getUid();
-        String email = decodedToken.getEmail();
         String phoneNumber = extractPhoneNumberClaim(decodedToken);
 
         // 멱등: 이미 가입된 uid면 기존 결과 반환
@@ -77,13 +80,15 @@ public class AuthService {
         }
         // 닉네임은 정규화·형식 검증(D3) 후 그 값으로 중복 검사·저장한다
         String nickname = NicknamePolicy.normalizeAndValidate(request.getNickname());
-        requireNoDuplicateFields(email, phoneNumber, nickname);
+        String name = NamePolicy.normalizeAndValidate(request.getName());
+        requireNoDuplicateFields(phoneNumber, nickname);
 
         User user = User.builder()
                 .firebaseUid(firebaseUid)
-                .email(email)
+                .name(name)
                 .nickname(nickname)
                 .phoneNumber(phoneNumber)
+                .termsAgreedAt(LocalDateTime.now())
                 .instrument(request.getInstrument())
                 .build();
 
@@ -96,7 +101,7 @@ public class AuthService {
             if (concurrent.isPresent()) {
                 return RegisterResponseDTO.from(concurrent.get());
             }
-            requireNoDuplicateFields(email, phoneNumber, nickname);
+            requireNoDuplicateFields(phoneNumber, nickname);
             throw e; // 중복이 아닌 제약 위반(길이 등)은 그대로 올려 GlobalExceptionHandler에 맡긴다
         }
     }
@@ -111,13 +116,9 @@ public class AuthService {
         return saved;
     }
 
-    // email·전화번호·닉네임 중복 검사 — 사전 체크와 UNIQUE 경쟁 후 원인 구분에 같이 쓴다
-    private void requireNoDuplicateFields(String email, String phoneNumber, String nickname) {
-        // email은 선택 필드(§3.1) — null이면 existsByEmail(null)이 SQL상 항상 false로 무력화되므로 의미 없는 호출을 스킵
-        if (email != null) {
-            ConflictGuard.requireUnique(
-                    userRepository.existsByEmail(email), "이미 가입된 이메일입니다");
-        }
+    // 전화번호·닉네임 중복 검사 — 사전 체크와 UNIQUE 경쟁 후 원인 구분에 같이 쓴다.
+    // 이메일은 받지도 저장하지도 않는다(로그인 아이디는 Firebase에만 있다, §3.1)
+    private void requireNoDuplicateFields(String phoneNumber, String nickname) {
         // 전화번호 중복 확인 (계정 고유성 앵커)
         ConflictGuard.requireUnique(
                 userRepository.existsByPhoneNumber(phoneNumber), "이미 가입된 전화번호입니다");
@@ -220,10 +221,17 @@ public class AuthService {
     // 살아 있는 계정은 DB 행이 없어도 통과하므로 재가입은 허용된다(D14).
     // IllegalArgumentException까지 잡는 이유: verifyIdToken은 토큰이 비어 있으면 FirebaseAuthException이
     // 아니라 IllegalArgumentException을 던진다. 놓치면 401이어야 할 요청이 500으로 새어 나간다.
+    // Firebase에 닿지 못해 판정하지 못한 경우(공개키 조회·폐기 확인 실패)는 토큰이 틀린 것이 아니므로 로그를 남기고 503으로 응답한다.
     private FirebaseToken verifyToken(String idToken) {
         try {
             return firebaseAuth.verifyIdToken(idToken, true);
-        } catch (FirebaseAuthException | IllegalArgumentException e) {
+        } catch (FirebaseAuthException e) {
+            if (FirebaseAuthFailures.isServiceFailure(e)) {
+                log.warn("Firebase 토큰 검증 불가 — Firebase 장애로 보임 ({})", FirebaseAuthFailures.describe(e));
+                throw new ServiceUnavailableException(FirebaseAuthFailures.UNAVAILABLE_MESSAGE);
+            }
+            throw new UnauthorizedException("유효하지 않은 Firebase 토큰입니다");
+        } catch (IllegalArgumentException e) {
             throw new UnauthorizedException("유효하지 않은 Firebase 토큰입니다");
         }
     }

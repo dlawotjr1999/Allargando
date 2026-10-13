@@ -11,7 +11,7 @@ import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
 
 // 비밀번호 찾기(전화번호). 가입 때 인증한 전화번호로 인증번호를 확인하면 그 계정으로 잠시 로그인되고, 곧바로 새
-// 비밀번호를 정해 바꾼다. 이메일을 몰라도 쓸 수 있고, 방금 전화로 인증했으므로 재로그인을 요구받지 않는다.
+// 비밀번호를 정해 바꾼다. 아이디를 몰라도 쓸 수 있고, 방금 전화로 인증했으므로 재로그인을 요구받지 않는다.
 // 비밀번호를 바꾸면 로그아웃하고 로그인 화면으로 보낸다(새 비밀번호로 직접 로그인하게 한다). 도중에 이 영역을 벗어나면
 // 전화번호로 들어간 임시 로그인을 로그아웃해, 비밀번호를 정하지 않은 채 로그인된 상태가 남지 않게 한다.
 export default function ResetPasswordByPhoneSection() {
@@ -34,7 +34,7 @@ export default function ResetPasswordByPhoneSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 인증번호 확인. 이메일은 이 화면에서 필요 없으므로 버리고, 통과 여부만 폼에 알린다(실패는 오류로 던져 폼이 안내한다)
+  // 인증번호 확인. 아이디는 이 화면에서 필요 없으므로 버리고, 통과 여부만 폼에 알린다(실패는 오류로 던져 폼이 안내한다)
   const confirmCode = async (confirmation: PhoneConfirmation, code: string) => {
     await confirmRecoveryCode(confirmation, code);
   };

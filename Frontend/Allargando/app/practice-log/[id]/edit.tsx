@@ -29,6 +29,8 @@ export default function PracticeLogEditScreen() {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  // 오류 화면의 "다시 시도"가 올리는 번호. 올라가면 아래 효과가 일지를 다시 불러온다
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
@@ -41,6 +43,8 @@ export default function PracticeLogEditScreen() {
   // 상세 모달과 이 화면이 별도 진입점이라 항상 최신 값을 보장하려는 것(PracticeLogDetailModal과 동일한 이유).
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
     (async () => {
       try {
         const log = await getPracticeLog(Number(id));
@@ -59,7 +63,7 @@ export default function PracticeLogEditScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   const canSubmit = title.trim() !== "" && date !== "" && Number(durationMinutes) > 0;
 
@@ -101,6 +105,9 @@ export default function PracticeLogEditScreen() {
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.centerFill}>
           <Text style={styles.errorText}>연습일지를 불러오지 못했어요.</Text>
+          <View style={styles.retryButton}>
+            <ThemedButton title="다시 시도" variant="outline" onPress={() => setReloadKey((k) => k + 1)} />
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -277,5 +284,9 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     color: colors.textMuted,
+  },
+  retryButton: {
+    marginTop: 16,
+    minWidth: 140,
   },
 });

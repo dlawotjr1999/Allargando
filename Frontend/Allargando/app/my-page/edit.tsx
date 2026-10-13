@@ -26,6 +26,9 @@ import {
   getNicknameError,
   NICKNAME_HINT,
   normalizeNickname,
+  getNameError,
+  NAME_HINT,
+  normalizeName,
 } from "@/utils/registerValidation";
 
 // 프로필 수정 화면. 프로필은 마이페이지에서 이미 불러온 AuthContext 값이라 보통 곧바로 있지만,
@@ -41,6 +44,7 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
   const router = useRouter();
   const { setProfile } = useAuth();
 
+  const [name, setName] = useState(profile.name);
   const [nickname, setNickname] = useState(profile.nickname);
   const [instrument, setInstrument] = useState(profile.instrument);
   const [careers, setCareers] = useState<CareerEntry[]>(
@@ -50,6 +54,7 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
   // 입력 중에도 형식이 틀리면 바로 알려준다. 이미 규칙에 안 맞는 기존 닉네임은 그대로 둘 수 있어
   // 바꾸지 않았다면 검사하지 않는다(서버도 새 입력만 검증한다)
   const nicknameError = normalizeNickname(nickname) === profile.nickname ? null : getNicknameError(nickname);
+  const nameError = normalizeName(name) === profile.name ? null : getNameError(name);
 
   // 배열 index는 항목 삭제 시 뒤 요소가 앞으로 당겨져 재사용되므로,
   // React key로 쓰기 위한 항목별 안정적인 로컬 id를 별도로 관리한다.
@@ -109,6 +114,14 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
   // 응답이 곧 최신 프로필이라 재조회 없이 AuthContext에 바로 반영한다. 실패하면 이 화면에 남아 재시도할 수 있다.
   const handleSave = async () => {
     if (saving) return;
+    if (!normalizeName(name)) {
+      Alert.alert("입력을 확인해 주세요", "이름을 입력해 주세요.");
+      return;
+    }
+    if (nameError) {
+      Alert.alert("입력을 확인해 주세요", nameError);
+      return;
+    }
     if (!normalizeNickname(nickname)) {
       Alert.alert("입력을 확인해 주세요", "닉네임을 입력해 주세요.");
       return;
@@ -120,6 +133,7 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
     setSaving(true);
     try {
       const updated = await updateMyInfo({
+        name: normalizeName(name),
         nickname: normalizeNickname(nickname),
         instrument,
         careers: careers.map((c) => ({ organization: c.organization.trim(), contexts: c.contexts.trim() })),
@@ -153,6 +167,17 @@ function EditProfileForm({ profile }: { profile: UserProfile }) {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
+        <ThemedInput
+          label="이름"
+          icon="person-outline"
+          placeholder="실명 입력"
+          value={name}
+          onChangeText={setName}
+          autoCorrect={false}
+          maxLength={30}
+        />
+        <Text style={[styles.nicknameHint, nameError ? styles.hintError : null]}>{NAME_HINT}</Text>
+
         <View style={styles.nicknameRow}>
           <View style={styles.nicknameInput}>
             <ThemedInput

@@ -12,6 +12,7 @@ import ThemedInput from "@/components/common/ThemedInput";
 import ThemedButton from "@/components/common/ThemedButton";
 import ChipSelect from "@/components/common/ChipSelect";
 import PhoneVerification from "@/components/auth/PhoneVerification";
+import AgreementSection from "@/components/auth/AgreementSection";
 import { isNicknameDuplicated } from "@/api/user";
 import {
   formatPhoneNumber,
@@ -19,6 +20,10 @@ import {
   NICKNAME_HINT,
   normalizeNickname,
   validateProfileStep,
+  getNameError,
+  NAME_HINT,
+  normalizeName,
+  validateConsent,
 } from "@/utils/registerValidation";
 
 // 가입 2단계(프로필). 가입을 못 끝낸 채 로그인된 계정(user가 있음)은 1단계(계정)를 건너뛰고 이 화면으로 와서
@@ -30,7 +35,10 @@ export default function RegisterStep2() {
   const resuming = !!user;
 
   // 입력 중에도 형식이 틀리면 바로 알려준다(빈 값은 안내문만)
+  const nameError = getNameError(form.name);
   const nicknameError = getNicknameError(form.nickname);
+  // 1단계(약관 동의 화면)를 거치지 않고 이어서 가입하는 경우엔 동의가 비어 있으므로 여기서 받는다
+  const needsConsent = resuming && !(form.agreeTerms && form.agreePrivacy && form.agreeAge);
 
   // 닉네임 중복 확인 (GET /api/users/check/{nickname}, 인증 불필요). 형식·예약어 위반은 서버가 400으로 알려준다
   const handleCheckNickname = async () => {
@@ -66,7 +74,13 @@ export default function RegisterStep2() {
       Alert.alert("전화번호 인증", "전화번호 인증을 완료해 주세요.");
       return;
     }
+    const consentInvalid = validateConsent(form);
+    if (consentInvalid) {
+      Alert.alert("입력을 확인해 주세요", consentInvalid);
+      return;
+    }
     updateForm({
+      name: normalizeName(form.name),
       nickname: normalizeNickname(form.nickname),
       phoneNumber: formatPhoneNumber(form.phoneNumber) ?? form.phoneNumber,
     });
@@ -88,6 +102,17 @@ export default function RegisterStep2() {
           }
         />
         <StepIndicator total={3} current={2} />
+
+        <ThemedInput
+          label="이름"
+          icon="person-outline"
+          placeholder="실명 입력"
+          value={form.name}
+          onChangeText={(v) => updateForm({ name: v })}
+          autoCorrect={false}
+          maxLength={30}
+        />
+        <Text style={[styles.nicknameHint, nameError ? styles.hintError : null]}>{NAME_HINT}</Text>
 
         <View style={styles.nicknameRow}>
           <View style={styles.nicknameInput}>
@@ -118,6 +143,8 @@ export default function RegisterStep2() {
           selected={form.instrument}
           onSelect={(v) => updateForm({ instrument: v })}
         />
+
+        {needsConsent && <AgreementSection form={form} onChange={updateForm} />}
 
         <View style={styles.bottom}>
           <ThemedButton title="다음" onPress={handleNext} />

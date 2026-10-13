@@ -43,7 +43,7 @@ class PostSpecificationTest {
 
     @BeforeEach
     void setUp() {
-        owner = User.builder()
+        owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .firebaseUid("owner-uid")
                 .phoneNumber("010-0000-0000")
                 .nickname("owner")
@@ -112,13 +112,13 @@ class PostSpecificationTest {
     // 조회하는 유저가 차단한 작성자의 글은 목록에서 빠지고, 다른 작성자의 글과 차단하지 않은 유저의 시점은 영향받지 않는다
     @Test
     void filter_excludesPostsOfAuthorsBlockedByViewer() {
-        User blockedAuthor = User.builder()
+        User blockedAuthor = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .firebaseUid("blocked-uid").phoneNumber("010-1111-1111").nickname("blocked").instrument("첼로").build();
         entityManager.persist(blockedAuthor);
-        User viewer = User.builder()
+        User viewer = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .firebaseUid("viewer-uid").phoneNumber("010-2222-2222").nickname("viewer").instrument("피아노").build();
         entityManager.persist(viewer);
-        User bystander = User.builder()
+        User bystander = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .firebaseUid("bystander-uid").phoneNumber("010-3333-3333").nickname("bystander").instrument("플루트").build();
         entityManager.persist(bystander);
 
@@ -140,7 +140,7 @@ class PostSpecificationTest {
     // 차단은 방향이 있다 — 내가 상대를 차단했다고 상대 시점에서 내 글이 사라지지는 않는다
     @Test
     void filter_blockIsDirectional() {
-        User blocker = User.builder()
+        User blocker = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now())
                 .firebaseUid("blocker-uid").phoneNumber("010-4444-4444").nickname("blocker").instrument("첼로").build();
         entityManager.persist(blocker);
         persistPostBy(blocker, "차단한 사람의 글");

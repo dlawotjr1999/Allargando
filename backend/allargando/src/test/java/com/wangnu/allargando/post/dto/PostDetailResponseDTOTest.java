@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PostDetailResponseDTOTest {
 
     private Post manuallyClosedPost() {
-        User owner = User.builder().id(1L).nickname("owner").instrument("바이올린").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").instrument("바이올린").build();
         Post post = Post.create(owner, PostInfo.builder()
                 .category("앙상블").title("t").location("서울").region("서울").timetable("13:00")
                 .eventAt(LocalDateTime.now().plusDays(3)).build());
@@ -40,7 +40,7 @@ class PostDetailResponseDTOTest {
     // 자동 마감(정원 충족)은 수동 마감이 아니므로 작성자에게도 false — "모집 재개" 메뉴가 뜨지 않는다
     @Test
     void from_reportsFalseForOwnerWhenClosedByCapacityOnly() {
-        User owner = User.builder().id(1L).nickname("owner").instrument("바이올린").build();
+        User owner = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("owner").instrument("바이올린").build();
         Post post = Post.create(owner, PostInfo.builder()
                 .category("앙상블").title("t").location("서울").region("서울").timetable("13:00")
                 .eventAt(LocalDateTime.now().plusDays(3)).build());

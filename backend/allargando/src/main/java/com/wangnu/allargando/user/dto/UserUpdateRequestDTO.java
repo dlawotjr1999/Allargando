@@ -17,6 +17,9 @@ import java.util.List;
 public class UserUpdateRequestDTO {
 
     // 형식(한글·영문·숫자·_ 2~20자)·예약어 검증은 NFC 정규화 뒤에 해야 하므로 DTO가 아니라 NicknamePolicy가 한다
+    @NotBlank(message = "이름을 입력해주세요")
+    private String name;
+
     @NotBlank(message = "닉네임을 입력해주세요")
     private String nickname;
 

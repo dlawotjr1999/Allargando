@@ -11,8 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 // 지원자/모집자 판단 로직 자체를 Application으로 이관(Tell-Don't-Ask)
 class ApplicationTest {
 
-    private final User applicant = User.builder().id(1L).nickname("applicant").firebaseUid("applicant-uid").build();
-    private final User recruiter = User.builder().id(2L).nickname("recruiter").firebaseUid("recruiter-uid").build();
+    private final User applicant = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(1L).nickname("applicant").firebaseUid("applicant-uid").build();
+    private final User recruiter = User.builder().name("테스터").termsAgreedAt(java.time.LocalDateTime.now()).id(2L).nickname("recruiter").firebaseUid("recruiter-uid").build();
 
     private Application buildApplication() {
         Post post = Post.create(recruiter, PostInfo.builder().build());
