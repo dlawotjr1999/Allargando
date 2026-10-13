@@ -1,125 +1,216 @@
 # Allargando
 
-악기 취미생이 앙상블·버스킹 멤버를 **무보수로** 모집하는 서비스. Spring Boot 백엔드 + Expo(React Native) 프론트엔드 모노레포이며, 2인 개발로 기획부터 백엔드 설계, 인증 연동, 프론트 API 연동, CI 구축까지 전체 라이프사이클을 진행했다.
+악기 취미생이 앙상블·버스킹 멤버를 **무보수로** 모집하고 지원하는 모바일 앱.
 
-- 백엔드 실행: [`backend/README.md`](backend/README.md)
-- 프론트엔드 실행: [`Frontend/Allargando/README.md`](Frontend/Allargando/README.md)
-- 코드 규칙·아키텍처 상세: [`CLAUDE.md`](CLAUDE.md)
+## 개요
 
-## 프로젝트 배경 — 왜 피벗했는가
+| 항목 | 내용 |
+| --- | --- |
+| 대상 | 악기를 취미로 하는 사람(전공·경력 무관) |
+| 플랫폼 | Android — Google Play 출시 준비 중 |
+| 구성 | Spring Boot API 서버 + Expo(React Native) 앱 모노레포 |
+| 인원 | 2인(기획·백엔드·앱·배포 전 과정) |
 
-원래는 음대생이 결혼식·행사 연주 아르바이트 구인글을 올리고 지원하는 **유료** 매칭 플랫폼 "Obri"로 기획·구현했다. 개발 도중 실제 운영 중인 동명의 서비스(obri.co.kr, 직업정보제공사업 신고 업체)와 이름·유료 구인구직 모델이 겹친다는 것을 확인했고, 콩쿠르 정보 노출에 쓰던 크롤링 대상 사이트의 이용약관(정보 재배포 금지 조항)도 함께 리스크로 잡혔다.
+- 백엔드 실행·배포: [`backend/README.md`](backend/README.md)
+- 앱 실행: [`Frontend/Allargando/README.md`](Frontend/Allargando/README.md)
+- 코드 규칙·설계 결정 상세: [`CLAUDE.md`](CLAUDE.md)
 
-기존에 구현해 둔 자산(낙관적 락 기반 동시성 제어, Firebase 인증, 알림, Post/Application 도메인 구조)은 그대로 살릴 수 있는 방향을 찾아, 대상을 **음대생 → 악기 취미생 전반**으로 넓히고 핵심 기능을 **유료 구인구직 → 무보수 앙상블·버스킹 멤버 모집**으로 전환했다. 구체적으로:
+## 사용 흐름
 
-- `Post`에서 출연료(`pay`) 필드 제거 — 유료 알선으로 보일 소지 자체를 없앰
-- "구인" 계열 용어를 백엔드 메시지·프론트 문구 전체에서 "모집"으로 교체
-- 콩쿠르 크롤러(contest.co.kr) → **KOPIS(공연예술통합전산망) 공식 오픈API** 기반 연주회 정보 조회로 교체(계속 대중음악·클래식 공연 알림을 준다는 앱 가치는 유지하면서 법적 리스크는 제거)
-- 음대생 전용 프로필 필드(학교·졸업여부·학교이메일 인증) 제거
+1. 모집자가 공연 일시·장소와 **악기별 모집 인원**을 적어 모집글을 올림
+2. 지원자가 악기를 고르고 어필 문구를 적어 지원함
+3. 모집자가 닉네임·악기·활동 이력·어필 문구를 보고 수락 또는 거절함
+4. **수락된 지원만** 모집자에게 이름·전화번호가 공개됨. 앱 안에 채팅은 없고 이후 연락은 당사자끼리 함
+5. 악기 정원이 차면 그 악기는 자동 마감되고, 같은 악기의 남은 대기 지원은 자동 거절
 
-## 기술 스택
 
-**Backend**
-- Java 21, Spring Boot 3.5, Spring Data JPA, Spring Security
-- PostgreSQL 16 (로컬은 Docker Compose), Flyway (스키마 마이그레이션)
-- Firebase Admin SDK (인증), Jsoup (KOPIS XML 파싱), springdoc-openapi (Swagger)
-- JUnit5 + Mockito + AssertJ, H2(테스트 전용), GitHub Actions CI
+## 핵심 기능
 
-**Frontend**
-- Expo (React Native, React 19), expo-router (파일 기반 라우팅)
-- Firebase JS SDK (Auth), TypeScript
+| 기능 | 내용 |
+| --- | --- |
+| 모집글 | 제목·분류·공연 일시·장소·지역·타임테이블·설명과 악기별 정원(악기 최대 10개)을 등록. 분류·악기·지역·기간·상태로 걸러 보고, 작성자는 수정·수동 마감·재개·삭제 가능 |
+| 지원·수락 | 악기를 골라 지원, 대기 중에는 취소 가능하고 취소한 글에는 다시 지원 가능. 모집자는 수락·거절·수락 철회. 정원이 차면 자동 마감 |
+| 연락처 보호 | 지원자 이름·전화번호는 수락 전까지 `홍**`·`010-****-5678`로 가려짐. 글만 올려 연락처를 모으는 남용 방지 목적 |
+| 연주회 정보 | KOPIS(공연예술통합전산망) 오픈API를 하루 한 번 동기화해 클래식·국악·대중음악 공연을 분류·지역·기간으로 조회 |
+| 연습 일지 | 날짜·연습 시간(분)·제목·내용을 기록하는 개인 일지 |
+| 푸시 알림 | 새 모집글, 내 글에 들어온 지원, 지원 결과(수락·거절), 지원한 글의 수정·삭제 |
+| 신고·차단 | 모집글·유저 신고(사유 5종), 유저 차단. 차단하면 그 유저의 글이 목록에서 빠지고 그 유저는 내 글에 지원할 수 없음 |
+| 계정 | 전화번호 문자 인증으로 1인 1계정. 아이디·비밀번호 로그인, 전화 인증으로 아이디 찾기·비밀번호 재설정. 탈퇴하면 남긴 데이터 전부 삭제 |
 
-**Infra / Tooling**
-- Docker Compose(로컬 PostgreSQL), GitHub Actions(백엔드 CI), Gradle
+## 화면 구성
 
-## 아키텍처
+| 탭 | 화면 내용 |
+| --- | --- |
+| 연습 일지 | 내 일지 목록(무한 스크롤), 카드를 누르면 상세 모달, 작성·수정 화면으로 이동 |
+| 홈 | 모집글 목록. 상단 필터(분류·악기·지역·기간), 무한 스크롤, 당겨서 새로고침, 글 등록 버튼 |
+| 연주회 | 연주회 목록. 필터(분류·지역·기간), 카드를 누르면 상세 모달 |
+| 마이 페이지 | 내 프로필, 내가 올린 모집글, 내가 낸 지원(취소 가능), 설정(내 정보 수정·차단 목록·로그아웃·탈퇴) |
 
-### 도메인 구조
+탭 밖의 화면은 아래와 같음.
+
+| 화면 | 내용 |
+| --- | --- |
+| 로그인 | 아이디·비밀번호 로그인, 가입·계정 찾기 진입 |
+| 회원가입 | 아이디·비밀번호·약관 동의 → 이름·닉네임(중복 확인)·악기·전화번호 문자 인증 → 활동 이력(선택) 입력 후 제출. 중간에 끊긴 계정은 다음 로그인 때 끊긴 단계부터 이어감 |
+| 계정 찾기 | 전화번호 인증 후 아이디 확인 또는 새 비밀번호 설정 |
+| 모집글 상세 | 글 내용과 악기별 모집 현황. 지원자에게는 지원 버튼과 내 지원 상태, 작성자에게는 수정·마감·재개·삭제와 지원자 관리 진입. 신고 메뉴 |
+| 모집글 작성·수정 | 글 정보와 악기별 정원 입력 |
+| 지원자 관리 | 작성자 전용. 지원자별 악기·활동 이력·어필 문구를 보고 수락·거절·철회 |
+| 유저 프로필 | 닉네임·악기·활동 이력만 공개. 신고·차단 메뉴 |
+| 내 정보 수정 · 차단 목록 | 닉네임·악기·활동 이력 수정, 차단 해제 |
+| 업데이트 안내 | 서버가 더 지원하지 않는 버전이면 앱 전체가 스토어 안내 화면으로 바뀜 |
+
+## 시스템 구성
+
+```mermaid
+flowchart LR
+    App["모바일 앱<br/>Expo · React Native"]
+    Auth["Firebase Authentication"]
+    FCM["Firebase Cloud Messaging"]
+    KOPIS["KOPIS 오픈API"]
+
+    subgraph Server["서버 1대"]
+        Proxy["리버스 프록시<br/>HTTPS"]
+        subgraph Docker["Docker"]
+            API["API 서버 컨테이너<br/>Spring Boot"]
+            DB[("PostgreSQL 컨테이너")]
+        end
+    end
+
+    App -- "전화 인증 · 로그인" --> Auth
+    App -- "REST + ID 토큰" --> Proxy
+    Proxy --> API
+    API --> DB
+    API -- "토큰 검증 · 계정 삭제" --> Auth
+    API -- "푸시 발송" --> FCM
+    FCM -- "알림" --> App
+    API -- "하루 1회 동기화" --> KOPIS
 ```
-com.wangnu.allargando
-├── global        공통 응답 포맷 · 예외 처리 · Security 설정 · Firebase 설정
-├── auth          Firebase 토큰 검증 · 회원가입/로그인
-├── user          유저 · 경력(Career)
-├── post          모집글 · 모집 악기(PostInstrument)
-├── application   지원서 · 지원 상태 · 인가 정책
-├── practice      연습일지
-├── concert       연주회 정보(KOPIS 공공 오픈API 동기화)
-└── notification  FCM 푸시 알림 이벤트/리스너
+
+### 기술 스택
+
+| 영역 | 사용 기술 |
+| --- | --- |
+| 백엔드 | Java 21, Spring Boot 3.5, Spring Data JPA, Spring Security, Flyway, springdoc-openapi |
+| 데이터 | PostgreSQL 16 |
+| 앱 | Expo SDK 57, React Native 0.86, React 19, expo-router, TypeScript |
+| 외부 서비스 | Firebase Authentication(전화·아이디 로그인), Firebase Cloud Messaging, KOPIS 오픈API |
+| 테스트 | JUnit 5, Mockito, `@WebMvcTest`, H2, 실제 PostgreSQL 대상 통합 테스트 |
+| CI·배포 | GitHub Actions(백엔드 테스트·이미지 빌드, 앱 타입 검사·린트), Docker, EAS Build |
+
+**※ 저장소 구조** 
+
 ```
-도메인 간 직접 의존을 지양하고, 마이페이지형 조회(`GET /api/posts/me`, `GET /api/applications/me`)는 User가 컬렉션을 갖는 대신 각 도메인이 소유자 기준 조회를 제공하도록 설계했다. User→Post/Application 역방향 의존을 제거하고 Post·Application이 User를 단방향 `@ManyToOne`으로 참조하는 방향으로 정리했다(양방향 연관은 User-Career, Post-PostInstrument로만 한정).
+backend/allargando     API 서버
+Frontend/Allargando    모바일 앱
+web                    약관·개인정보처리방침·계정 삭제 안내 페이지
+```
 
-### 인증 — Firebase + 내부 PK 분리
-- 비밀번호를 자체 저장하지 않고 Firebase Authentication에 위임. 내부 식별자(`id BIGINT`)와 외부 식별자(`firebase_uid`)를 분리해, 비즈니스 로직·FK는 항상 내부 id를 기준으로 삼는다.
-- 요청 흐름: `Authorization: Bearer <ID Token>` → `FirebaseAuthFilter`(`OncePerRequestFilter`)가 토큰 검증 → `firebase_uid`로 User 조회 → `SecurityContext`에 저장 → 컨트롤러는 `@AuthenticationPrincipal User`로 사용.
-- 전화번호는 자체 OTP 대신 **Firebase Phone Auth**로 검증하고, 검증된 ID Token의 `phone_number` claim만 신뢰(요청 바디의 평문 문자열은 신뢰하지 않음). DB에 UNIQUE 제약을 걸어 1인 1계정 판단의 앵커로 사용.
+## 핵심 흐름
 
-### 계층 간 데이터 원칙
-- Service는 URL에서 온 리소스(Post, Application)는 ID로 받아 내부에서 조회하고, 필터가 이미 인증 과정에서 조회해 둔 User는 엔티티로 받는다.
-- 단, 컨트롤러에서 넘어온 User는 필터가 조회한 **detached 인스턴스**이므로, 쓰기 서비스는 진입 직후 `findById(user.getId())`로 **managed 인스턴스를 재조회**한 뒤 그 인스턴스를 변경한다. 재조회 없이 detached 엔티티를 그대로 고치면 dirty checking 대상이 아니어서 커밋해도 DB에 조용히 반영되지 않는 문제가 있어(예외조차 발생하지 않음), `PostService`·`UserService`·`AuthService`의 모든 쓰기 메서드에 이 패턴을 일관 적용했다.
+### 지원 상태
 
-### 인가 — Policy 컴포넌트로 분리
-`ApplicationAccessPolicy` 같은 전담 Policy 컴포넌트가 "누가 할 수 있는가"만 판단하고, 실제 판단 로직(`post.isOwnedBy(user)`, `application.isRecruiter(user)` 등)은 Tell-Don't-Ask 원칙에 따라 엔티티에 위임했다. 서비스나 정책 클래스가 `getUser().getId().equals(...)` 같은 다단 체인을 직접 다루지 않도록 캡슐화한 것이 포인트. 상태 변경(수락/거절/취소/철회)도 의도별 엔드포인트(`PATCH /api/applications/{id}/{accept|reject|cancel|revoke}`)로 나눠 인가를 라우트 단위로 고정했다.
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: 지원
+    PENDING --> ACCEPTED: 수락(모집자)
+    PENDING --> REJECTED: 거절(모집자) 또는 정원 마감 자동 거절
+    PENDING --> CANCELLED: 취소(지원자)
+    ACCEPTED --> REVOKED: 철회(모집자)
+    CANCELLED --> PENDING: 재지원
+```
 
-### 알림 — 트랜잭션 커밋 이후 발송
-도메인 서비스는 `NotificationService`를 직접 호출하지 않고 `ApplicationEventPublisher.publishEvent()`로 이벤트만 발행한다. `NotificationEventListener`가 `@TransactionalEventListener(phase = AFTER_COMMIT)`로 커밋 후에만 실제 FCM 발송을 수행하도록 분리해, 트랜잭션이 롤백되면 이벤트 자체가 버려져 "존재하지 않는 리소스에 대한 유령 알림"이 나가지 않도록 했다. 이벤트는 엔티티가 아닌 원시값(id, 토큰 등)만 담아 detach 문제와도 무관하게 만들었다.
+| 상태 | 의미 | 연락처 공개 |
+| --- | --- | --- |
+| `PENDING` | 대기 | 가려짐 |
+| `ACCEPTED` | 수락. 그 악기의 확정 인원이 1 늘어남 | **공개** |
+| `REJECTED` | 거절. 다시 지원할 수 없음 | 가려짐 |
+| `CANCELLED` | 지원자가 취소. 같은 지원을 되살려 다시 지원 가능 | 가려짐 |
+| `REVOKED` | 수락 철회. 확정 인원이 1 줄고 자리가 다시 열림 | 가려짐 |
 
-### 동시성 제어
-- 중복 지원 방지: `(post_id, user_id)` UNIQUE 제약 + `existsByPostIdAndUserId()` 사전 체크로 `409 Conflict` 응답.
-- 낙관적 락(`@Version`)을 `PostInstrument`, `Application`에 적용해 동시 수정 충돌을 감지하고, `GlobalExceptionHandler`에서 `ObjectOptimisticLockingFailureException`을 409로 매핑.
+- 상태 변경은 `accept`·`reject`·`cancel`·`revoke` 엔드포인트로 나뉘어 있어 누가 호출할 수 있는지가 경로 단위로 고정
+- 공연일이 지난 글은 수락·철회 불가(거절·취소는 가능)
 
-### 공통 응답 · 예외 처리
-모든 API가 `{ status, message, data }` 포맷(`APIResponse<T>`)을 따르며, `@RestControllerAdvice` 기반 `GlobalExceptionHandler`가 도메인 예외(`NotFoundException`, `ForbiddenException`, `ConflictException` 등)부터 프레임워크 예외(`DataIntegrityViolationException`, `MethodArgumentNotValidException`, `HttpMessageNotReadableException` 등)까지 하나의 포맷으로 변환한다. 중복 체크처럼 반복되는 로직은 `ConflictGuard.requireUnique(...)` 유틸로 모아 UNIQUE 필드별 분기 코드를 없앴다.
 
-### 연주회 정보 — KOPIS 공공 오픈API 동기화
-스케줄러가 KOPIS(공연예술통합전산망) 오픈API를 주기 호출해 연주회 정보를 upsert한다. 역할을 Client(HTTP)·Parser(XML 파싱, 네트워크 없이 단위테스트 가능)·Service(동기화·중복 방지)·Scheduler로 분리했고, 스케줄러와 수동 트리거 엔드포인트가 동기화 로직을 공유하므로 `AtomicBoolean`으로 동시 실행을 차단했다.
+### 가입
 
-## 잘한 점 / 설계 결정
+1. 앱이 Firebase 전화 인증(문자)으로 로그인함
+2. 그 계정에 아이디·비밀번호를 연결함. 아이디는 Firebase 이메일 로그인에 내부 형식으로 넣을 뿐이고 서버 DB에는 없음
+3. 앱이 ID 토큰과 프로필(이름·닉네임·악기·활동 이력·약관 동의)로 가입 요청을 보냄
+4. 서버가 토큰을 검증하고 토큰 안의 전화번호를 꺼내 저장함. 같은 계정으로 다시 요청이 오면 기존 결과를 그대로 돌려줌(멱등)
 
-- **인증 식별자와 비즈니스 식별자 분리**: Firebase UID(외부)와 내부 PK를 분리해, 향후 인증 공급자가 바뀌어도 FK·비즈니스 로직이 영향받지 않도록 설계.
-- **Tell-Don't-Ask 인가 모델**: 인가 판단을 Policy 컴포넌트 + 엔티티 메서드로 캡슐화해 "누가 무엇을 할 수 있는가"가 서비스 코드 곳곳에 흩어지지 않게 함.
-- **이벤트 기반 알림으로 트랜잭션 경계와 발송 시점 분리**: `AFTER_COMMIT` 리스너 패턴으로 롤백 시 유령 알림이 나가는 사고를 구조적으로 차단.
-- **DTO 오버로딩으로 N+1 방지 경로를 명시적으로 분기**: 단건 조회는 지연 로딩을 그대로 쓰고, 목록 조회는 배치 조회 결과를 주입하는 별도 팩토리 메서드(`from(application, user, careers)`)를 둬서, 호출부가 실수로 N+1 경로를 타는 걸 타입 시그니처 수준에서 방지.
-- **CI에서 Flyway와 Hibernate 역할을 명확히 분리**: 운영/CI는 Flyway가 스키마를 만들고 Hibernate는 `ddl-auto=validate`로 엔티티 매핑과의 일치만 검증하도록 해, 마이그레이션 자체가 검증되지 않는 구멍을 없앰.
-- **법적 리스크를 코드 설계로 흡수**: 사업모델 충돌이 발견된 뒤 기존 도메인 구조(Post/Application의 상태 전이·동시성 제어)는 그대로 두고 필드·용어·외부 연동만 갈아끼우는 방식으로 피벗해, 재작성 비용을 최소화.
-- **프론트 API 계층에서 멱등성을 명시**: `api/*.ts`의 각 함수에 실제 백엔드 검증 로직(예: PENDING 상태에서만 허용되는 수락/거절)을 근거로 멱등 여부를 주석으로 남겨, 연속 탭 방지 같은 화면단 방어가 필요한 지점을 코드 레벨에서 드러냄.
+## API 구조
+
+모든 응답은 `{ status, message, data }` 형식이며, 전체 엔드포인트와 요청·응답은 Swagger에서 확인
+
+| 도메인 | 경로 | 하는 일 |
+| --- | --- | --- |
+| Auth | `/api/auth` | 가입, 푸시 토큰 등록·해제, 전화번호 변경 |
+| User | `/api/users` | 내 정보 조회·수정, 탈퇴, 닉네임 확인, 공개 프로필 |
+| Post | `/api/posts` | 모집글 등록·목록·상세·수정·마감·재개·삭제, 내가 올린 글 |
+| Application | `/api/applications` | 지원, 내 지원 목록, 글별 지원자 목록, 수락·거절·취소·철회 |
+| Concert | `/api/concerts` | 연주회 목록·상세 |
+| Practice | `/api/practice-logs` | 연습 일지 등록·목록·상세·수정·삭제 |
+| Report | `/api/reports` | 모집글·유저 신고 |
+| Block | `/api/blocks` | 차단·차단 목록·해제 |
+
+**공통 규약**
+
+- 목록은 무한 스크롤용으로 `hasNext`·`currentPage`만 내려줌. 정렬은 서버가 정한 값만 받음(클라이언트가 임의 컬럼으로 정렬 불가)
+- 오류 코드: 400 잘못된 요청 / 401 토큰 / 403 권한 / 404 없음·미가입 / 409 중복 / 426 앱 업데이트 필요 / 429 호출 빈도 초과 / 503 인증 서버 장애
+- 호출 빈도 제한: 사용자당 분당 120회 기본, 글 등록 등은 엔드포인트별 한도 추가
+- 강제 업데이트: 앱이 보내는 `X-App-Version`이 서버의 최소 버전보다 낮으면 426
+
+## 기술 상세
+
+- **인증** — 비밀번호·문자 인증은 Firebase가 맡고, 서버는 비밀번호를 저장하지 않음. 앱이 받은 ID 토큰을 요청마다 싣고 서버가 검증함
+- **전화번호** — 요청 본문이 아니라 **검증된 토큰의 `phone_number` 값만** 신뢰함. 이 번호에 UNIQUE를 걸어 1인 1계정의 기준으로 씀
+- **알림** — DB 커밋이 끝난 뒤 별도 스레드에서 발송함. 롤백된 작업의 알림은 나가지 않고, FCM이 느려도 요청 응답을 붙잡지 않음
+- **운영 전제** — 서버 1대 전제임(호출 제한 카운터, 동기화 중복 실행 방지가 인스턴스 메모리에 있음)
 
 ## 트러블슈팅
 
-### 1. 회원가입 보상 트랜잭션이 실행되지 않던 버그
-**증상**: MySQL 저장이 UNIQUE 제약 위반으로 실패해도 Firebase 계정 롤백(`firebaseAuth.deleteUser()`)이 실행되지 않아 고아 Firebase 계정이 남음.
-**원인**: `userRepository.save()`의 flush가 트랜잭션 커밋 시점(메서드 반환 이후)까지 지연되기 때문에, UNIQUE 위반 예외가 애초에 작성한 `try-catch` 블록 **밖에서** 터짐.
-**해결**: `saveAndFlush()`로 바꿔 flush를 즉시 트리거해 예외를 catch 블록 안에서 잡히게 하고, 롤백 자체가 실패하는 경우도 `log.error`로 남기도록 보강. 회귀 방지를 위해 "저장 실패 시 Firebase 롤백 호출 검증", "롤백까지 실패해도 원래 예외로 던져지는지 검증" 두 개의 유닛 테스트를 추가.
+### 1. 가입 요청이 겹치면 정상 계정까지 지워질 수 있던 문제
 
-### 2. 지원자 목록 조회 N+1
-**증상**: 지원자 목록/내 지원 목록 조회 시 지원자마다 `user.getCareers()` 지연 로딩이 개별 쿼리로 나가 페이지 크기만큼 쿼리가 증가.
-**해결**: 페이지 안의 지원자 id를 모아 `CareerRepository.findByUserIdIn()`으로 배치 조회한 뒤 `Map<userId, List<CareerDTO>>`로 그룹화해 DTO 변환 시 주입. 다른 도메인이 `CareerRepository`를 직접 찌르지 않도록 배치 조회 메서드를 `UserService`에 두어 도메인 경계를 유지.
+**증상** — 더블탭·재시도로 같은 계정의 가입 요청이 겹치면 한쪽이 UNIQUE 위반으로 실패함. 이때 실패한 쪽의 보상 처리(Firebase 계정 삭제)가 **먼저 성공한 쪽의 계정까지 지울 수 있었음**
 
-### 3. 악기명 중복 등록 시 예외
-**증상**: 모집글에 같은 악기명을 중복으로 등록하고 이후 글을 수정하면 `replaceInstruments`(이름을 키로 기존/신규 악기를 병합하는 로직)가 `Collectors.toMap`의 기본 동작(키 중복 시 `IllegalStateException`)에 걸려 500 에러 발생.
-**해결**: 근본 원인인 "중복 악기명이 애초에 저장 가능했던 것"을 막기 위해 `PostCreateRequestDTO`에 `@AssertTrue` 검증(`isInstrumentsUnique`)을 추가해 등록 시점에 400으로 차단. 동시에 `toMap`의 merge function을 `(a, b) -> a`로 지정해, 검증 도입 이전에 이미 유입된 레거시 중복 데이터에 대해서도 방어적으로 동작하도록 함(레거시 데이터 시나리오를 재현하는 회귀 테스트 별도 추가).
+**원인** — 보상 삭제는 "실패한 요청만 그 계정을 쓴다"고 가정했는데, 두 요청은 같은 Firebase 계정을 씀
 
-### 4. 콩쿠르 크롤러 페이지네이션 오작동 *(해당 도메인은 이후 KOPIS 공식 API로 대체됨 — 법적 리스크 회피)*
-**증상**: 목록이 접수마감일 기준으로 정렬되어 있어 신규 항목이 뒤쪽 페이지에도 나타날 수 있는데, 기존 로직은 "한 페이지가 전부 중복이면 그 페이지에서 크롤링을 중단"하는 전제로 동작해 신규 항목을 누락할 가능성이 있었음. 또한 목록 URL의 경로 세그먼트를 페이지 번호로 오인해 실제로는 페이지 이동 없이 같은 카테고리를 반복 조회하고 있었음.
-**해결**: 목록 페이지의 페이지네이션 링크(`pg=` 쿼리 파라미터)에서 총 페이지 수를 파싱해 전체 페이지를 순회하도록 변경하고, 페이지 단위 조기 종료 로직을 제거(개별 항목의 title+url 기준 중복 체크로 대체). 대상 사이트에 대한 예의상 요청 간 지연(300ms)을 추가하고, 총 페이지 파싱값이 비정상적으로 크게 나오는 경우를 대비한 상한(`HARD_CAP_PAGE`)을 별도로 둠.
+**해결** — 보상 삭제를 없애고 가입을 멱등으로 바꿈. 저장이 UNIQUE 위반으로 실패하면 같은 계정을 다시 조회해, 이미 가입돼 있으면 그 결과를 그대로 반환
 
-### 5. CI가 처음부터 깨진 채로 계속 병합되던 문제
-**증상**: `PostSpecificationTest`(`@DataJpaTest`) 4건이 CI에서 항상 실패.
-**원인 분석**: `@DataJpaTest`의 기본 `ddl-auto`는 `create-drop`이지만, `application.properties`의 `spring.jpa.hibernate.ddl-auto=validate`가 이를 덮어쓰고 있었음(CI도 `SPRING_JPA_HIBERNATE_DDL_AUTO=validate`를 환경변수로 주입). 그 결과 테스트가 빈 H2 스키마를 `validate`하려다 `SchemaManagementException`으로 실패. 커밋 이력을 추적한 결과 이 테스트가 도입된 시점부터 이미 깨져 있었고, 이후 여러 PR이 **red 상태인 채로 계속 병합**되어 온 것을 확인.
-**해결**: 해당 테스트 클래스에 `@TestPropertySource`로 `ddl-auto=create-drop`을 명시해 전역 설정을 오버라이드. 근본 원인(전역 설정과 테스트 슬라이스 기본값의 충돌)을 커밋 메시지에 남겨 재발 시 추적 가능하도록 기록.
+**검증** — 실제 PostgreSQL에 동시 가입을 보내는 테스트(`AuthServiceRegisterPostgresTest`)
 
-### 6. Firebase 필터에서 던진 예외가 JSON이 아닌 컨테이너 기본 에러로 나가던 문제
-**증상**: `Authorization: Bearer ` 헤더에서 토큰 부분이 빈 문자열이면 `verifyIdToken()`이 `IllegalArgumentException`을 던지는데, 이 예외가 `DispatcherServlet` **이전** 단계(Security 필터 체인)에서 발생해 `GlobalExceptionHandler`가 잡을 수 없고, 컨테이너 기본 에러 페이지(비-JSON, 500)로 응답이 나감.
-**해결**: `FirebaseAuthFilter`에서 `idToken.isBlank()`를 사전에 체크해, 빈 토큰이면 검증 자체를 시도하지 않고 다음 필터로 넘겨 미인증 상태로 처리(인증이 필요한 경로는 이후 `AuthenticationEntryPoint`가 401 + 표준 응답 포맷으로 처리).
+### 2. 정원보다 많이 수락되거나, 찬 악기가 열려 보이던 문제
 
-## 테스트
+**증상** — 수락을 철회하면 악기가 무조건 다시 열렸고, 글 수정으로 정원을 수락 인원 밑으로 줄일 수도 있었음. 그래서 확정 인원이 정원을 넘거나, 찬 악기가 모집 중으로 남을 수 있었음
 
-- 백엔드 27개 테스트 클래스: Service는 Mockito 기반 단위 테스트(DB·Firebase Mock으로 격리), Controller는 `@WebMvcTest` + `@Import(SecurityConfig.class)` + `MockMvc`로 인가 로직까지 검증.
-- 인증이 필요한 컨트롤러 테스트는 `FirebaseAuthFilter`를 `@MockitoBean`으로 대체하고 `doAnswer`로 필터 체인을 그대로 통과시키는 패턴을 표준화해 재사용.
-- GitHub Actions에서 PostgreSQL 16 서비스 컨테이너를 띄워 실제 운영 DB와 동일한 엔진으로 CI를 구성(Flyway가 스키마 생성 → Hibernate `validate`로 매핑 일치 검증).
+**해결** — 악기별 `0 <= 확정 인원 <= 정원`을 세 겹으로 지킴
 
-## 향후 계획 (백로그)
+1. 수락 인원 밑으로 정원을 줄이는 수정은 400으로 거부
+2. 철회 때 마감 여부를 `확정 인원 >= 정원`으로 다시 계산
+3. DB에 CHECK 제약 추가(앱 검증을 거치지 않는 경로의 마지막 방어선)
 
-- `ApplicationService`에 남아있는 `PostService → ApplicationService` 서비스 계층 의존 제거.
-- Auth 회원가입 응답(`POST /api/auth/register`)을 명세(`createdAt`만 반환)에 맞게 경량화.
-- 앱 이름을 "Obri"에서 "Allargando"로 변경 완료(백엔드·프론트 패키지·폴더·표기 반영).
-- 소셜 로그인, 연습 피드백(LLM), 맞춤 모집글 추천, 매너 점수, 연주회 찜하기 기능.
+동시에 들어온 수락은 `@Version`(낙관적 락)이 한쪽을 409로 떨어뜨림
+
+**검증** — 여러 스레드가 동시에 수락하는 PostgreSQL 테스트(`ApplicationAcceptConcurrencyPostgresTest`). `@Version`을 빼면 실패하는 것까지 확인함
+
+### 3. 인증 서버가 잠깐 불안정하면 전원 로그아웃될 수 있던 문제
+
+**증상** — Firebase 장애나 DB 조회 실패로 토큰을 확인하지 못한 경우에도 401로 응답했음. 앱은 401이면 로그아웃시키므로, 일시 장애가 접속 중인 사용자 전원의 로그아웃으로 번질 수 있었음
+
+**해결** — "토큰이 틀림"과 "인증 서버에 닿지 못함"을 구분해, 뒤쪽은 로그를 남기고 **503**으로 응답함. 앱은 401일 때만 로그아웃시키므로 세션이 유지됨
+
+### 4. CI가 처음부터 깨진 채로 병합되던 문제
+
+**증상** — `PostSpecificationTest` 4건이 CI에서 항상 실패했고, 그 상태로 여러 PR이 병합됐음
+
+**원인** — `@DataJpaTest`의 기본 `ddl-auto`(`create-drop`)를 전역 설정의 `validate`가 덮어써, 빈 H2 스키마를 검증하다 실패함. 테스트가 들어온 시점부터 깨져 있었음
+
+**해결** — 해당 테스트에 `ddl-auto=create-drop`을 명시함. H2로 검증되지 않는 마이그레이션·제약은 PostgreSQL 대상 테스트로 따로 확인함
+
+## 향후 계획
+
+- 소셜 로그인
+- 앱 내 채팅 기능 구현
+- 연습 일지 기반 LLM 피드백
+- 맞춤 모집글 추천
