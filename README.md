@@ -37,7 +37,7 @@
 | 신고·차단 | 모집글·유저 신고(사유 5종), 유저 차단. 차단하면 그 유저의 글이 목록에서 빠지고 그 유저는 내 글에 지원할 수 없음 |
 | 계정 | 전화번호 문자 인증으로 1인 1계정. 아이디·비밀번호 로그인, 전화 인증으로 아이디 찾기·비밀번호 재설정. 탈퇴하면 남긴 데이터 전부 삭제 |
 
-## 화면 구성
+## 주요 화면
 
 | 탭 | 화면 내용 |
 | --- | --- |
@@ -46,7 +46,7 @@
 | 연주회 | 연주회 목록. 필터(분류·지역·기간), 카드를 누르면 상세 모달 |
 | 마이 페이지 | 내 프로필, 내가 올린 모집글, 내가 낸 지원(취소 가능), 설정(내 정보 수정·차단 목록·로그아웃·탈퇴) |
 
-탭 밖의 화면은 아래와 같음.
+## 전체 화면 구성
 
 | 화면 | 내용 |
 | --- | --- |
@@ -62,30 +62,7 @@
 
 ## 시스템 구성
 
-```mermaid
-flowchart LR
-    App["모바일 앱<br/>Expo · React Native"]
-    Auth["Firebase Authentication"]
-    FCM["Firebase Cloud Messaging"]
-    KOPIS["KOPIS 오픈API"]
-
-    subgraph Server["서버 1대"]
-        Proxy["리버스 프록시<br/>HTTPS"]
-        subgraph Docker["Docker"]
-            API["API 서버 컨테이너<br/>Spring Boot"]
-            DB[("PostgreSQL 컨테이너")]
-        end
-    end
-
-    App -- "전화 인증 · 로그인" --> Auth
-    App -- "REST + ID 토큰" --> Proxy
-    Proxy --> API
-    API --> DB
-    API -- "토큰 검증 · 계정 삭제" --> Auth
-    API -- "푸시 발송" --> FCM
-    FCM -- "알림" --> App
-    API -- "하루 1회 동기화" --> KOPIS
-```
+<img width="1672" height="941" alt="Image" src="https://github.com/user-attachments/assets/9089ae12-2ff7-408b-a15d-7a19dd4f86b7" />
 
 ### 기술 스택
 
@@ -110,15 +87,7 @@ web                    약관·개인정보처리방침·계정 삭제 안내 �
 
 ### 지원 상태
 
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING: 지원
-    PENDING --> ACCEPTED: 수락(모집자)
-    PENDING --> REJECTED: 거절(모집자) 또는 정원 마감 자동 거절
-    PENDING --> CANCELLED: 취소(지원자)
-    ACCEPTED --> REVOKED: 철회(모집자)
-    CANCELLED --> PENDING: 재지원
-```
+<img width="479" height="370" alt="Image" src="https://github.com/user-attachments/assets/01874f03-aabc-4e3e-85bd-eaa12e3c2c6b" />
 
 | 상태 | 의미 | 연락처 공개 |
 | --- | --- | --- |
