@@ -12,7 +12,7 @@ Desktop.ini
 .settings/
 
 # 문서 파일
-docs/*
+docs/code_docs/*
 CLAUDE.md
 AGENTS.md
 BACKLOG.md
