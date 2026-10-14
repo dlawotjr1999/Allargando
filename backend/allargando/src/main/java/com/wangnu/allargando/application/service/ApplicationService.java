@@ -22,6 +22,8 @@ import com.wangnu.allargando.user.event.UserWithdrawalEvent;
 import com.wangnu.allargando.user.service.UserService;
 
 import com.wangnu.allargando.user.dto.CareerDTO;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -61,6 +63,7 @@ public class ApplicationService {
     private final ApplicationEventPublisher eventPublisher;
     private final ApplicationAccessPolicy accessPolicy;
     private final BlockService blockService;
+    private final EntityManager entityManager;
 
     // 지원서 제출
     @Transactional
@@ -196,6 +199,7 @@ public class ApplicationService {
         accessPolicy.requireRecruiter(user, application, "모집자만 수락 또는 거절할 수 있습니다");
         requirePending(application);
         requireEventNotPassed(application.getPost(), "이미 종료된 공연의 지원은 수락할 수 없습니다");
+        forcePostVersionIncrement(application.getPost());
         application.getPost().confirmInstrument(application.getInstrument());
         application.updateStatus(ApplicationStatus.ACCEPTED);
         // AFTER_COMMIT 이후 발송 — @Version 충돌로 이 트랜잭션이 롤백돼도 유령 "수락" 알림 없음
@@ -251,8 +255,17 @@ public class ApplicationService {
             throw new BadRequestException("수락된 지원만 철회할 수 있습니다");
         }
         requireEventNotPassed(application.getPost(), "이미 종료된 공연의 수락은 철회할 수 없습니다");
+        forcePostVersionIncrement(application.getPost());
         application.getPost().revokeInstrument(application.getInstrument());
         application.updateStatus(ApplicationStatus.REVOKED);
+    }
+
+    // 악기 확정 인원을 바꾸는 트랜잭션은 글의 @Version을 강제로 올린다. 글 상태(status)는 모든 악기의 마감 여부에서
+    // 파생되는데, 악기 행(PostInstrument)의 @Version은 같은 악기끼리만 충돌시킨다. 다른 악기의 마지막 자리를 동시에
+    // 수락하면 각 트랜잭션이 상대 악기를 열린 상태로 읽고 같은 PARTIALLY_CLOSED를 다시 대입해 글이 dirty가 되지 않으므로,
+    // 둘 다 커밋되어 모든 악기가 마감됐는데 글은 부분 마감으로 남았다. 버전을 올리면 둘 중 하나가 충돌(409)로 롤백된다
+    private void forcePostVersionIncrement(Post post) {
+        entityManager.lock(post, LockModeType.OPTIMISTIC_FORCE_INCREMENT);
     }
 
     private Application findApplicationOrThrow(Long id) {
@@ -305,7 +318,10 @@ public class ApplicationService {
         List<Application> mine = applicationRepository.findByUserId(event.userId());
         mine.stream()
                 .filter(application -> application.getStatus() == ApplicationStatus.ACCEPTED)
-                .forEach(application -> application.getPost().revokeInstrument(application.getInstrument()));
+                .forEach(application -> {
+                    forcePostVersionIncrement(application.getPost());
+                    application.getPost().revokeInstrument(application.getInstrument());
+                });
         applicationRepository.deleteAll(mine);
     }
 

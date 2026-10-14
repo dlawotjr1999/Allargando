@@ -34,6 +34,8 @@ import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import jakarta.persistence.EntityManager;
+
 import java.util.Map;
 import java.util.Optional;
 
@@ -53,6 +55,7 @@ class ApplicationServiceTest {
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock ApplicationAccessPolicy accessPolicy;
     @Mock BlockService blockService;
+    @Mock EntityManager entityManager;
 
     @InjectMocks ApplicationService applicationService;
 

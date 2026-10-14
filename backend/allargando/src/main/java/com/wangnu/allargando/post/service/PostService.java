@@ -19,6 +19,8 @@ import com.wangnu.allargando.post.repository.PostSort;
 import com.wangnu.allargando.post.repository.PostSpecification;
 import com.wangnu.allargando.user.entity.User;
 import com.wangnu.allargando.user.event.UserWithdrawalEvent;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -48,6 +50,7 @@ public class PostService {
     // 쓰기(수정·삭제 시 지원자 처리)는 notifyApplicantsOfPostUpdate·handlePostDeletion에 위임 — BACKLOG.md #12
     private final ApplicationService applicationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final EntityManager entityManager;
 
     // 모집글 등록 — 악기 목록을 함께 저장하고 전체 broadcast 알림 발송
     @Transactional
@@ -99,6 +102,9 @@ public class PostService {
     public PostResponseDTO updatePost(Long postId, User user, PostCreateRequestDTO request) {
         Post post = findPostOrThrow(postId);
         requireOwner(post, user);
+        // 정원만 바꾸는 수정은 악기 행만 갱신해 글이 dirty가 아닐 수 있다. 다른 악기의 수락과 겹쳐도 글 상태가 어긋나지
+        // 않도록 글의 @Version을 강제로 올려 둘 중 하나를 충돌(409)시킨다 — ApplicationService.forcePostVersionIncrement와 같은 이유
+        entityManager.lock(post, LockModeType.OPTIMISTIC_FORCE_INCREMENT);
 
         PostInfo info = toPostInfo(request);
         List<PostInstrument> newInstruments = request.getInstruments().stream()

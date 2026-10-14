@@ -28,6 +28,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 
+import jakarta.persistence.EntityManager;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +48,7 @@ class PostServiceTest {
     @Mock private PostRepository postRepository;
     @Mock private ApplicationService applicationService;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private EntityManager entityManager;
     @InjectMocks private PostService postService;
 
     private User owner;
