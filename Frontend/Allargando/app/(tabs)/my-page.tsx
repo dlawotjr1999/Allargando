@@ -6,7 +6,7 @@ import { colors } from "@/constants/theme";
 import { getMyPosts } from "@/api/post";
 import { cancelApplication, getMyApplications } from "@/api/application";
 import Constants from "expo-constants";
-import { releasePush, syncPush } from "@/lib/push";
+import { discardDeviceToken, releasePush, syncPush } from "@/lib/push";
 import { usePushSetting } from "@/lib/usePushSetting";
 import { deleteMyAccount } from "@/api/user";
 import { ApiError } from "@/lib/apiClient";
@@ -140,6 +140,8 @@ export default function MyPageScreen() {
       Alert.alert("탈퇴 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
       return;
     }
+    // 서버 삭제가 끝났으므로 이 기기의 FCM 토큰도 폐기한다(실패해도 탈퇴는 이미 끝났다)
+    await discardDeviceToken();
     try {
       await signOut();
     } catch {

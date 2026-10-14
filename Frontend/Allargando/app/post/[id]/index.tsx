@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { closePost, deletePost, getPost, reopenPost } from "@/api/post";
 import { submitApplication } from "@/api/application";
+import { APPLY_CONSENT_VERSION } from "@/constants/consent";
 import { ApiError } from "@/lib/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApplicationStatus } from "@/types/application";
@@ -157,7 +158,7 @@ export default function PostDetailScreen() {
   // 지원 제출. 성공하면 모달을 닫고 단건 조회를 다시 실행해 myApplicationStatus·applicationCount를
   // 서버 최신 값으로 갱신한다(로컬에서 낙관적으로 바꾸지 않는 이유: applicationCount처럼
   // 이 화면이 직접 계산할 수 없는 값도 같이 바뀌므로, 재조회가 더 단순하고 정확하다).
-  const handleSubmitApplication = async (instrument: string, additionalInfo: string) => {
+  const handleSubmitApplication = async (instrument: string, additionalInfo: string, agreedToThirdParty: boolean) => {
     if (submittingApplication) return; // 제출은 POST라 비멱등 — 연속 탭 시 지원이 두 번 생기지 않도록 잠금
     setSubmittingApplication(true);
     try {
@@ -165,6 +166,8 @@ export default function PostDetailScreen() {
         postId: post.id,
         instrument,
         additionalInfo: additionalInfo.trim() || undefined,
+        agreedToThirdPartyProvision: agreedToThirdParty,
+        consentVersion: APPLY_CONSENT_VERSION,
       });
       setApplyModalVisible(false);
       await loadPost();

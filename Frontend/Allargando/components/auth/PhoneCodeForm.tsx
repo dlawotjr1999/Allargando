@@ -98,6 +98,12 @@ export default function PhoneCodeForm({
         hint={hint}
       />
 
+      {!verified && (
+        <Text style={styles.notice}>
+          인증을 위해 전화번호가 Google(Firebase)로 전송되며, Google의 스팸·악용 방지에 이용될 수 있습니다.
+        </Text>
+      )}
+
       {verified ? (
         <View style={styles.verifiedRow}>
           <Ionicons name="checkmark-circle" size={16} color={colors.success} />
@@ -134,6 +140,13 @@ export default function PhoneCodeForm({
 }
 
 const styles = StyleSheet.create({
+  // 인증번호 요청 버튼 바로 위 — 개인정보처리방침 제6조가 "인증 진행 전에 안내한다"고 한 내용
+  notice: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
   codeArea: {
     marginTop: 4,
   },

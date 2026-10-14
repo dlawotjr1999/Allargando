@@ -104,6 +104,13 @@ export async function releasePush(): Promise<void> {
   await unsubscribeFromTopic(messaging, NEW_POST_TOPIC).catch(() => {});
 }
 
+// 회원탈퇴 직후 이 기기의 FCM 토큰을 폐기한다. 서버가 계정과 토큰 연결을 이미 지웠더라도 FCM에는 이 설치의 토큰이
+// 남아 있으므로 폐기를 요청해 처리방침의 "탈퇴 시 삭제" 범위를 맞춘다. 알림 설정(autoInit)은 건드리지 않아 같은 기기에서
+// 다른 계정으로 가입해도 새 토큰이 자동으로 발급된다. 실패해도 탈퇴 결과를 바꾸지 않는다
+export async function discardDeviceToken(): Promise<void> {
+  await deleteToken(messaging).catch(() => {});
+}
+
 // 알림에 담긴 데이터(type·postId 등)를 해석해 눌렀을 때 열 화면을 정한다. 알 수 없는 알림은 null(앱만 열고 이동하지 않음).
 //  · 새 모집글·글 수정: 그 글의 상세
 //  · 새 지원 도착(모집자): 그 글의 지원자 목록
