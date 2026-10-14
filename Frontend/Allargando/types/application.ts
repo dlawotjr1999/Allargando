@@ -50,8 +50,12 @@ export interface ApplicationSummary {
 // 지원서 제출 요청 바디. 백엔드 AppRequestDTO와 1:1 대응.
 // instrument는 지원자가 그 글의 모집 악기 중에서 고른다(서버는 보내지 않으면 프로필 악기로 대신하지만,
 // 이 앱은 항상 보낸다). 모집 악기가 아니거나 정원이 찬 악기는 400.
+// agreedToThirdPartyProvision·consentVersion은 개인정보 제3자 제공 동의(이름·전화번호를 수락된 모집자에게 공개)다.
+// 서버는 동의가 true가 아니거나 문안 버전이 현재와 다르면 400으로 거절한다.
 export interface ApplicationCreateRequest {
   postId: number;
   instrument: string;
   additionalInfo?: string;
+  agreedToThirdPartyProvision: boolean;
+  consentVersion: string;
 }

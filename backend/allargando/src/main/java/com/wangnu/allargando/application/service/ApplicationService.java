@@ -22,6 +22,8 @@ import com.wangnu.allargando.user.event.UserWithdrawalEvent;
 import com.wangnu.allargando.user.service.UserService;
 
 import com.wangnu.allargando.user.dto.CareerDTO;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -61,10 +63,14 @@ public class ApplicationService {
     private final ApplicationEventPublisher eventPublisher;
     private final ApplicationAccessPolicy accessPolicy;
     private final BlockService blockService;
+    private final EntityManager entityManager;
 
     // 지원서 제출
     @Transactional
     public AppResponseDTO submitApplication(User user, AppRequestDTO requestDto) {
+        // 이름·전화번호가 수락 시 모집자에게 공개되므로 지원 자체에 제3자 제공 동의가 필요하다(동의 문안 버전까지 확인)
+        requireThirdPartyConsent(requestDto);
+
         Post post = postRepository.findById(requestDto.getPostId())
             .orElseThrow(() -> new NotFoundException("모집글을 찾을 수 없습니다"));
 
@@ -103,7 +109,8 @@ public class ApplicationService {
         if (previous.isPresent()) {
             // 취소했던 지원 복구 — 같은 행을 PENDING으로 되돌리고 악기·어필 문구를 새 값으로 갱신(변경 감지로 저장)
             application = previous.get();
-            application.reapply(instrument, requestDto.getAdditionalInfo());
+            application.reapply(instrument, requestDto.getAdditionalInfo(),
+                    requestDto.getConsentVersion(), LocalDateTime.now());
         } else {
             // 지원 악기를 저장한다(수락 시 모집 악기 정원과 매칭에 사용)
             application = applicationRepository.save(Application.builder()
@@ -111,6 +118,8 @@ public class ApplicationService {
                 .post(post)
                 .instrument(instrument)
                 .additionalInfo(requestDto.getAdditionalInfo())
+                .thirdPartyConsentedAt(LocalDateTime.now())
+                .consentVersion(requestDto.getConsentVersion())
                 .status(ApplicationStatus.PENDING)
                 .build());
         }
@@ -126,6 +135,17 @@ public class ApplicationService {
         User managedUser = userService.getManagedUserById(user.getId());
 
         return AppResponseDTO.from(application, managedUser);
+    }
+
+    // 개인정보 제3자 제공 동의 검사 — 동의하지 않았거나(null 포함) 앱이 보여 준 문안이 현재 버전이 아니면 400.
+    // 동의 일시는 요청으로 받지 않고 서버가 처리 시각을 기록한다
+    private void requireThirdPartyConsent(AppRequestDTO requestDto) {
+        if (!Boolean.TRUE.equals(requestDto.getAgreedToThirdPartyProvision())) {
+            throw new BadRequestException("개인정보 제3자 제공에 동의해야 지원할 수 있습니다");
+        }
+        if (!Application.CONSENT_VERSION.equals(requestDto.getConsentVersion())) {
+            throw new BadRequestException("동의 문안이 변경되었습니다. 앱을 최신 버전으로 업데이트해 주세요");
+        }
     }
 
     // 지원 악기 결정 — 요청에 있으면 그 값(앞뒤 공백 제거), 없으면 프로필 악기
@@ -196,6 +216,7 @@ public class ApplicationService {
         accessPolicy.requireRecruiter(user, application, "모집자만 수락 또는 거절할 수 있습니다");
         requirePending(application);
         requireEventNotPassed(application.getPost(), "이미 종료된 공연의 지원은 수락할 수 없습니다");
+        forcePostVersionIncrement(application.getPost());
         application.getPost().confirmInstrument(application.getInstrument());
         application.updateStatus(ApplicationStatus.ACCEPTED);
         // AFTER_COMMIT 이후 발송 — @Version 충돌로 이 트랜잭션이 롤백돼도 유령 "수락" 알림 없음
@@ -251,8 +272,17 @@ public class ApplicationService {
             throw new BadRequestException("수락된 지원만 철회할 수 있습니다");
         }
         requireEventNotPassed(application.getPost(), "이미 종료된 공연의 수락은 철회할 수 없습니다");
+        forcePostVersionIncrement(application.getPost());
         application.getPost().revokeInstrument(application.getInstrument());
         application.updateStatus(ApplicationStatus.REVOKED);
+    }
+
+    // 악기 확정 인원을 바꾸는 트랜잭션은 글의 @Version을 강제로 올린다. 글 상태(status)는 모든 악기의 마감 여부에서
+    // 파생되는데, 악기 행(PostInstrument)의 @Version은 같은 악기끼리만 충돌시킨다. 다른 악기의 마지막 자리를 동시에
+    // 수락하면 각 트랜잭션이 상대 악기를 열린 상태로 읽고 같은 PARTIALLY_CLOSED를 다시 대입해 글이 dirty가 되지 않으므로,
+    // 둘 다 커밋되어 모든 악기가 마감됐는데 글은 부분 마감으로 남았다. 버전을 올리면 둘 중 하나가 충돌(409)로 롤백된다
+    private void forcePostVersionIncrement(Post post) {
+        entityManager.lock(post, LockModeType.OPTIMISTIC_FORCE_INCREMENT);
     }
 
     private Application findApplicationOrThrow(Long id) {
@@ -305,7 +335,10 @@ public class ApplicationService {
         List<Application> mine = applicationRepository.findByUserId(event.userId());
         mine.stream()
                 .filter(application -> application.getStatus() == ApplicationStatus.ACCEPTED)
-                .forEach(application -> application.getPost().revokeInstrument(application.getInstrument()));
+                .forEach(application -> {
+                    forcePostVersionIncrement(application.getPost());
+                    application.getPost().revokeInstrument(application.getInstrument());
+                });
         applicationRepository.deleteAll(mine);
     }
 

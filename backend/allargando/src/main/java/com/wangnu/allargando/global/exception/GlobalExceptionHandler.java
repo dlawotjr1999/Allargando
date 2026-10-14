@@ -1,6 +1,7 @@
 package com.wangnu.allargando.global.exception;
 
 import com.wangnu.allargando.global.common.APIResponse;
+import com.wangnu.allargando.global.web.RequestBodyTooLargeException;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.JDBCException;
 import org.hibernate.exception.ConstraintViolationException;
@@ -242,6 +243,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<APIResponse<Void>> handleHttpMessageNotReadableException(
             HttpMessageNotReadableException e) {
+        // chunked 요청이 본문 상한을 넘어 읽기가 끊긴 경우(RequestBodySizeFilter)는 형식 오류가 아니라 413이다
+        for (Throwable cause = e.getCause(); cause != null; cause = cause.getCause()) {
+            if (cause instanceof RequestBodyTooLargeException) {
+                return ResponseEntity
+                        .status(HttpStatus.PAYLOAD_TOO_LARGE)
+                        .body(APIResponse.error(413, "요청 본문이 너무 큽니다"));
+            }
+        }
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(APIResponse.error(400, "요청 본문을 읽을 수 없습니다"));

@@ -4,10 +4,12 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.wangnu.allargando.application.entity.Application;
 import com.wangnu.allargando.application.entity.ApplicationStatus;
 import com.wangnu.allargando.application.repository.ApplicationRepository;
+import com.wangnu.allargando.post.dto.PostCreateRequestDTO;
 import com.wangnu.allargando.post.entity.Post;
 import com.wangnu.allargando.post.entity.PostInfo;
 import com.wangnu.allargando.post.entity.PostInstrument;
 import com.wangnu.allargando.post.repository.PostRepository;
+import com.wangnu.allargando.post.service.PostService;
 import com.wangnu.allargando.user.entity.User;
 import com.wangnu.allargando.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -19,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +51,7 @@ class ApplicationAcceptConcurrencyPostgresTest {
     private static final int ROUNDS = 10;
 
     @Autowired ApplicationService applicationService;
+    @Autowired PostService postService;
     @Autowired UserRepository userRepository;
     @Autowired PostRepository postRepository;
     @Autowired ApplicationRepository applicationRepository;
@@ -88,17 +92,24 @@ class ApplicationAcceptConcurrencyPostgresTest {
 
     // 각 지원을 서로 다른 스레드에서 동시에 수락한다. 성공한 건수를 돌려주고 예외는 삼킨다(충돌·마감 400은 정상 경로)
     private int acceptAllConcurrently(Seed seed) throws Exception {
-        ExecutorService pool = Executors.newFixedThreadPool(seed.applicationIds().size());
-        CountDownLatch ready = new CountDownLatch(seed.applicationIds().size());
+        return runConcurrently(seed.applicationIds().stream()
+                .<Runnable>map(applicationId -> () -> applicationService.accept(seed.owner(), applicationId))
+                .toList());
+    }
+
+    // 작업들을 서로 다른 스레드에서 동시에 시작한다. 성공한 건수를 돌려주고 예외는 삼킨다(충돌·마감 400은 정상 경로)
+    private int runConcurrently(List<Runnable> tasks) throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(tasks.size());
+        CountDownLatch ready = new CountDownLatch(tasks.size());
         CountDownLatch go = new CountDownLatch(1);
         List<Future<Boolean>> results = new ArrayList<>();
         try {
-            for (Long applicationId : seed.applicationIds()) {
+            for (Runnable task : tasks) {
                 results.add(pool.submit(() -> {
                     ready.countDown();
                     go.await(10, TimeUnit.SECONDS);
                     try {
-                        applicationService.accept(seed.owner(), applicationId);
+                        task.run();
                         return true;
                     } catch (RuntimeException expected) {
                         return false;
@@ -157,6 +168,89 @@ class ApplicationAcceptConcurrencyPostgresTest {
             assertThat(succeeded).as("정원 3석에 수락은 최대 3건").isLessThanOrEqualTo(3);
             assertInvariant(seed, 3, succeeded);
         }
+    }
+
+    // 첼로는 이미 만석(PARTIALLY_CLOSED)이고 바이올린·비올라가 각각 마지막 1석인 글과, 두 악기에 한 건씩 PENDING 지원을 만든다
+    private Seed seedLastSeatsOfDifferentInstruments(String key) {
+        User owner = saveUser(key + "-owner");
+        Post post = Post.create(owner, PostInfo.builder().category("앙상블").title("다른 악기 동시 수락")
+                .eventAt(LocalDateTime.now().plusDays(7)).location("서울").region("서울").timetable("13:00").build());
+        post.addInstrument(PostInstrument.of(post, "첼로", 1));
+        post.addInstrument(PostInstrument.of(post, "바이올린", 1));
+        post.addInstrument(PostInstrument.of(post, "비올라", 1));
+        post.confirmInstrument("첼로");
+        Long postId = postRepository.save(post).getId();
+        List<Long> applicationIds = new ArrayList<>();
+        for (String instrument : List.of("바이올린", "비올라")) {
+            User applicant = saveUser(key + "-" + applicationIds.size());
+            applicationIds.add(applicationRepository.save(Application.builder().user(applicant).post(post)
+                    .instrument(instrument).status(ApplicationStatus.PENDING).build()).getId());
+        }
+        return new Seed(owner, postId, applicationIds);
+    }
+
+    @Test
+    void accept_keepsPostStatusInSyncWhenLastSeatsOfDifferentInstrumentsAreAcceptedConcurrently() throws Exception {
+        for (int round = 0; round < ROUNDS; round++) {
+            cleanUp();
+            Seed seed = seedLastSeatsOfDifferentInstruments("diff-" + round);
+
+            acceptAllConcurrently(seed);
+
+            assertPostStatusMatchesInstruments(seed.postId(), round);
+        }
+    }
+
+    // 첼로 만석, 바이올린 마지막 1석(대기 지원 1건), 비올라 2석 중 1석 확정인 PARTIALLY_CLOSED 글을 만든다.
+    // 공연일시는 초 단위로 잘라 둔다 — 수정 요청과 값이 같아야 글 본문이 바뀌지 않은(dirty가 아닌) 수정이 된다
+    private Seed seedForUpdateRace(String key, LocalDateTime eventAt) {
+        User owner = saveUser(key + "-owner");
+        Post post = Post.create(owner, PostInfo.builder().category("앙상블").title("수정과 수락")
+                .eventAt(eventAt).location("서울").region("서울").timetable("13:00").build());
+        post.addInstrument(PostInstrument.of(post, "첼로", 1));
+        post.addInstrument(PostInstrument.of(post, "바이올린", 1));
+        post.addInstrument(PostInstrument.of(post, "비올라", 2));
+        post.confirmInstrument("첼로");
+        post.confirmInstrument("비올라");
+        Long postId = postRepository.save(post).getId();
+        User applicant = saveUser(key + "-a");
+        Long applicationId = applicationRepository.save(Application.builder().user(applicant).post(post)
+                .instrument("바이올린").status(ApplicationStatus.PENDING).build()).getId();
+        return new Seed(owner, postId, List.of(applicationId));
+    }
+
+    @Test
+    void updatePost_keepsPostStatusInSyncWhenRacingWithAcceptOfAnotherInstrument() throws Exception {
+        for (int round = 0; round < ROUNDS; round++) {
+            cleanUp();
+            LocalDateTime eventAt = LocalDateTime.now().plusDays(7).truncatedTo(ChronoUnit.SECONDS);
+            Seed seed = seedForUpdateRace("upd-" + round, eventAt);
+            // 본문은 그대로 두고 비올라 정원만 확정 인원(1)까지 줄여 비올라를 마감시킨다
+            PostCreateRequestDTO request = PostCreateRequestDTO.builder().category("앙상블").title("수정과 수락")
+                    .eventAt(eventAt).location("서울").region("서울").timetable("13:00")
+                    .instruments(List.of(
+                            new PostCreateRequestDTO.InstrumentItem("첼로", 1),
+                            new PostCreateRequestDTO.InstrumentItem("바이올린", 1),
+                            new PostCreateRequestDTO.InstrumentItem("비올라", 1)))
+                    .build();
+
+            runConcurrently(List.of(
+                    () -> applicationService.accept(seed.owner(), seed.applicationIds().get(0)),
+                    () -> postService.updatePost(seed.postId(), seed.owner(), request)));
+
+            assertPostStatusMatchesInstruments(seed.postId(), round);
+        }
+    }
+
+    // 악기 행끼리는 충돌하지 않으므로, 글 상태가 악기별 마감 상태에서 파생한 값과 같은지 본다
+    private void assertPostStatusMatchesInstruments(Long postId, int round) {
+        List<Map<String, Object>> instruments = jdbcTemplate.queryForList(
+                "select closed from post_instrument where post_id = ?", postId);
+        long closedCount = instruments.stream().filter(row -> (Boolean) row.get("closed")).count();
+        String expected = closedCount == instruments.size() ? "CLOSED"
+                : closedCount > 0 ? "PARTIALLY_CLOSED" : "OPEN";
+        String status = jdbcTemplate.queryForObject("select status from post where post_id = ?", String.class, postId);
+        assertThat(status).as("round %d: 글 상태는 악기별 마감 상태에서 파생된 값", round).isEqualTo(expected);
     }
 
     private record Seed(User owner, Long postId, List<Long> applicationIds) {}

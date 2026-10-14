@@ -24,6 +24,7 @@ spring-diagnostic-prompt.md
 *.log
 *.tmp
 *.temp
+*.tar
 .cache/
 
 # Node (루트 임시 설치물) 

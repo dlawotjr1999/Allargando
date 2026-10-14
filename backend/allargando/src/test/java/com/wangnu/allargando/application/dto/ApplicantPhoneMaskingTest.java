@@ -39,13 +39,30 @@ class ApplicantPhoneMaskingTest {
         Post post = Post.create(recruiter, PostInfo.builder().category("앙상블").title("t")
                 .eventAt(LocalDateTime.now().plusDays(3)).location("l").region("서울").timetable("t").build());
         Application application = Application.builder().user(applicant).post(post)
-                .instrument("바이올린").status(status).build();
+                .instrument("바이올린").status(status).thirdPartyConsentedAt(LocalDateTime.now()).build();
 
         AppResponseDTO response = AppResponseDTO.from(application, applicant, List.of());
 
         boolean accepted = status == ApplicationStatus.ACCEPTED;
         assertThat(response.getApplicant().getPhoneNumber()).isEqualTo(accepted ? "010-1234-5678" : "010-****-5678");
         assertThat(response.getApplicant().getName()).isEqualTo(accepted ? "홍길동" : "홍**");
+    }
+
+    // 제3자 제공 동의 기록이 없는 지원(동의 기능 이전의 행)은 수락돼도 연락처를 공개하지 않는다
+    @Test
+    void appResponse_masksContactOfAcceptedApplicationWithoutConsentRecord() {
+        User applicant = User.builder().name("홍길동").termsAgreedAt(LocalDateTime.now()).id(1L).nickname("a")
+                .instrument("바이올린").phoneNumber("010-1234-5678").build();
+        User recruiter = User.builder().name("테스터").termsAgreedAt(LocalDateTime.now()).id(2L).nickname("r").build();
+        Post post = Post.create(recruiter, PostInfo.builder().category("앙상블").title("t")
+                .eventAt(LocalDateTime.now().plusDays(3)).location("l").region("서울").timetable("t").build());
+        Application application = Application.builder().user(applicant).post(post)
+                .instrument("바이올린").status(ApplicationStatus.ACCEPTED).build();
+
+        AppResponseDTO response = AppResponseDTO.from(application, applicant, List.of());
+
+        assertThat(response.getApplicant().getPhoneNumber()).isEqualTo("010-****-5678");
+        assertThat(response.getApplicant().getName()).isEqualTo("홍**");
     }
 
     // 지원 악기(D9)는 프로필 악기와 달라도 지원서에 저장된 값이 응답의 instrument로 나간다

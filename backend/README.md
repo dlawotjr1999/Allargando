@@ -60,6 +60,9 @@ cd allargando
 | `CORS_ALLOWED_ORIGINS` | 아니오 | 비우면 전 오리진 차단. 모바일 앱만 쓰면 비워 둔다 |
 | `SWAGGER_ENABLED` · `KOPIS_SYNC_MANUAL_TRIGGER_ENABLED` | 아니오 | 기본 `false`. 운영에서 켜지 않는다 |
 | `SLOW_QUERY_LOG_MS` | 아니오 | 기본 `200`. 이보다 오래 걸린 SQL을 `org.hibernate.SQL_SLOW`로 남긴다(값이 아니라 `?`로 찍힌다). `0`이면 끈다 |
+| `SENTRY_DSN` · `SENTRY_ENVIRONMENT` | 아니오 | 오류를 Sentry로 보낸다. DSN이 없으면 꺼진 채로 동작한다(로컬·CI). 운영은 `/opt/allargando/app.env`로만 주입하고 저장소에는 두지 않는다. 환경 이름은 `production`. 사용자 정보와 쿼리 문자열은 `application.properties`에서 보내지 않도록 고정했다 |
+| `MAX_REQUEST_BODY_BYTES` | 아니오 | 기본 `65536`(64KB). `/api/**` 요청 본문이 이보다 크면 파싱 전에 413으로 거절한다. 정상 요청 중 가장 큰 가입·수정이 20KB 안이다. `0`이면 끈다 |
+| `SLOW_REQUEST_MS` | 아니오 | 기본 `1000`. 이보다 오래 걸린 `/api/**` 요청을 `[느린 요청] 메서드 경로 ms status` WARN으로 남긴다(쿼리 문자열은 남기지 않는다). `0`이면 끈다 |
 
 ## 운영 배포
 

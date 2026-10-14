@@ -37,9 +37,9 @@ public class AppResponseDTO {
     // Application 엔티티 + 지원자 + 배치 조회된 careers → 응답 DTO 변환
     // 목록 조회(지원자 목록/내 지원 목록) 전용 — N+1 방지를 위해 careers를 미리 배치 조회해 전달(BACKLOG.md #21)
     public static AppResponseDTO from(Application application, User user, List<CareerDTO> careers) {
-        // 종료된 지원(거절·취소·철회)은 전화번호를 마스킹한다(D13). 지원자 본인의 "내 지원" 목록에도 같은 규칙이 적용되지만
+        // 수락되지 않았거나 제3자 제공 동의 기록이 없는 지원은 이름·전화번호를 마스킹한다(D13). 지원자 본인의 "내 지원" 목록에도 같은 규칙이 적용되지만
         // 그 화면은 전화번호를 쓰지 않는다
-        boolean maskContact = !application.getStatus().exposesApplicantContact();
+        boolean maskContact = !application.exposesApplicantContact();
         ApplicantResponseDTO applicant = ApplicantResponseDTO.from(user,
                 careers != null ? careers : careersOf(user), maskContact);
         return AppResponseDTO.builder()

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View, FlatList, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -30,6 +30,8 @@ export default function PracticeLogScreen() {
   const [selectedLog, setSelectedLog] = useState<PracticeLogDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // 마지막으로 보낸 상세 조회의 번호 — 늦게 도착한 이전 응답을 가려내는 데 쓴다(handleSelect)
+  const detailRequestRef = useRef(0);
   // 오류 화면의 "다시 시도"가 올리는 번호. 올라가면 아래 포커스 효과가 처음부터 다시 조회한다
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -88,19 +90,33 @@ export default function PracticeLogScreen() {
   // 여기서 GET /api/practice-logs/{id}로 전체 필드를 채워 모달에 넘긴다.
   // selectedId를 먼저 세팅해 모달을 즉시 열고, 조회가 끝날 때까지는 selectedLog가 null이라
   // 모달이 detailLoading을 보고 스피너를 보여준다.
+  // 응답이 늦게 도착해도 지금 보고 있는 카드의 결과만 반영한다: A를 열었다 닫고 B를 열었을 때 A의 늦은 응답이
+  // 모달에 A를 띄우면 삭제 대상(selectedId=B)과 보이는 내용(A)이 어긋나기 때문이다. 요청마다 번호를 매겨
+  // 마지막 요청이 아닌 응답(성공·실패 모두)은 버린다.
   const handleSelect = async (id: number) => {
+    const requestId = ++detailRequestRef.current;
     setSelectedId(id);
     setSelectedLog(null);
     setDetailLoading(true);
     try {
       const detail = await getPracticeLog(id);
+      if (requestId !== detailRequestRef.current) return;
       setSelectedLog(detail);
     } catch {
+      if (requestId !== detailRequestRef.current) return;
       // 상세 조회 실패 시 모달을 열어둔 채 빈 상태로 방치하지 않도록 바로 닫는다
       setSelectedId(null);
     } finally {
-      setDetailLoading(false);
+      if (requestId === detailRequestRef.current) setDetailLoading(false);
     }
+  };
+
+  // 상세 모달을 닫는다. 진행 중이던 상세 조회는 번호를 올려 무효로 만들고 로딩 표시도 함께 푼다
+  const closeDetail = () => {
+    detailRequestRef.current += 1;
+    setSelectedId(null);
+    setSelectedLog(null);
+    setDetailLoading(false);
   };
 
   // 수정 화면으로 이동 — 모달을 먼저 닫아, 돌아왔을 때(useFocusEffect 재조회) 이전 모달이
@@ -108,7 +124,7 @@ export default function PracticeLogScreen() {
   const handleEdit = () => {
     if (selectedId === null) return;
     const id = selectedId;
-    setSelectedId(null);
+    closeDetail();
     router.push({ pathname: "/practice-log/[id]/edit", params: { id: String(id) } });
   };
 
@@ -127,7 +143,7 @@ export default function PracticeLogScreen() {
           try {
             await deletePracticeLog(id);
             setLogs((prev) => prev.filter((log) => log.id !== id));
-            setSelectedId(null);
+            closeDetail();
           } catch (err) {
             Alert.alert(
               "삭제 실패",
@@ -198,7 +214,7 @@ export default function PracticeLogScreen() {
         visible={selectedId !== null}
         log={selectedLog}
         loading={detailLoading}
-        onClose={() => setSelectedId(null)}
+        onClose={closeDetail}
         onEdit={handleEdit}
         onDelete={handleDelete}
         deleting={deleting}
