@@ -106,13 +106,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 내 프로필 조회. 404는 "Firebase엔 계정이 있는데 서버에 가입이 안 된" 상태(unregistered)로 구분하고,
   // 그 밖의 실패(네트워크 등)는 앱을 막지 않고 에러 메시지만 남겨 프로필이 필요한 화면이 재시도 UI를 보여줄 수 있게 한다.
   // 가입 제출 중에는 가입 흐름이 끝난 뒤 직접 부르므로 건너뛴다(가입 중 도착한 낡은 404가 상태를 덮지 않도록)
+  // 요청을 보낸 계정과 응답이 도착했을 때의 로그인 계정이 다르면 그 응답은 버린다 — 계정 A의 늦은 응답(프로필·
+  // 404·오류)이 전환한 계정 B의 상태에 들어오면 B 화면에 A의 프로필이 비치거나 B가 가입 미완료로 오판된다
   const refreshProfile = useCallback(async () => {
     if (registeringRef.current) return;
+    const requestedUid = auth.currentUser?.uid;
+    const isStale = () => auth.currentUser?.uid !== requestedUid;
     setProfileError(null);
     try {
-      setProfile(await getMyInfo());
+      const myInfo = await getMyInfo();
+      if (isStale()) return;
+      setProfile(myInfo);
       setUnregistered(false);
     } catch (err) {
+      if (isStale()) return;
       if (err instanceof ApiError && err.status === 404) {
         setProfile(null);
         setUnregistered(true);
