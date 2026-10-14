@@ -1,5 +1,6 @@
 package com.wangnu.allargando.application.dto;
 
+import com.wangnu.allargando.application.entity.Application;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
@@ -24,11 +25,20 @@ public class AppRequestDTO {
     @Size(max = 255, message = "어필 문구는 255자 이내여야 합니다")
     private String additionalInfo;
 
-    // 필드로부터 요청 DTO 생성 (주로 테스트 편의용)
+    // 개인정보 제3자 제공 동의(필수) — 지원자가 동의 화면에서 체크했는지. true가 아니면 서비스가 400으로 거절한다
+    private Boolean agreedToThirdPartyProvision;
+
+    // 동의 화면의 문안 버전. Application.CONSENT_VERSION과 같아야 한다(다르면 400)
+    @Size(max = 20, message = "동의 문안 버전이 올바르지 않습니다")
+    private String consentVersion;
+
+    // 필드로부터 요청 DTO 생성 (주로 테스트 편의용) — 현재 문안에 동의한 요청을 만든다
     public static AppRequestDTO from(Long postId, String additionalInfo) {
         return AppRequestDTO.builder()
                 .postId(postId)
                 .additionalInfo(additionalInfo)
+                .agreedToThirdPartyProvision(true)
+                .consentVersion(Application.CONSENT_VERSION)
                 .build();
     }
 }

@@ -444,7 +444,8 @@ class ApplicationServiceTest {
         given(userService.getManagedUserById(applicant.getId())).willReturn(applicant);
 
         applicationService.submitApplication(applicant,
-                AppRequestDTO.builder().postId(10L).instrument(" 첼로 ").build());
+                AppRequestDTO.builder().postId(10L).instrument(" 첼로 ").agreedToThirdPartyProvision(true)
+                        .consentVersion(Application.CONSENT_VERSION).build());
 
         org.mockito.ArgumentCaptor<Application> captor = org.mockito.ArgumentCaptor.forClass(Application.class);
         verify(applicationRepository).save(captor.capture());
@@ -473,7 +474,8 @@ class ApplicationServiceTest {
                 .when(post).requireAcceptingInstrument("트럼펫");
 
         assertThatThrownBy(() -> applicationService.submitApplication(applicant,
-                AppRequestDTO.builder().postId(10L).instrument("트럼펫").build()))
+                AppRequestDTO.builder().postId(10L).instrument("트럼펫").agreedToThirdPartyProvision(true)
+                        .consentVersion(Application.CONSENT_VERSION).build()))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("이 모집글에서 모집하지 않는 악기입니다");
 
@@ -561,6 +563,72 @@ class ApplicationServiceTest {
         assertThat(app.getStatus()).isEqualTo(ApplicationStatus.CANCELLED);
     }
 
+    // ── 개인정보 제3자 제공 동의 ───────────────────────────────────────────────────────────
+
+    // 동의하지 않은(false·누락) 요청은 글을 조회하기도 전에 400으로 거절되고 아무것도 저장되지 않는다
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.NullSource
+    @org.junit.jupiter.params.provider.ValueSource(booleans = false)
+    void submitApplication_rejectsWhenThirdPartyProvisionNotAgreed(Boolean agreed) {
+        AppRequestDTO request = AppRequestDTO.builder().postId(10L).agreedToThirdPartyProvision(agreed)
+                .consentVersion(Application.CONSENT_VERSION).build();
+
+        assertThatThrownBy(() -> applicationService.submitApplication(applicant, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("제3자 제공");
+
+        verifyNoInteractions(postRepository);
+        verify(applicationRepository, never()).save(any());
+    }
+
+    // 앱이 보여 준 문안이 현재 버전이 아니거나(옛 문안·누락·임의 값) 버전이 없으면 400
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.NullSource
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"2026-10-14", "v1", ""})
+    void submitApplication_rejectsWhenConsentVersionIsNotCurrent(String version) {
+        AppRequestDTO request = AppRequestDTO.builder().postId(10L).agreedToThirdPartyProvision(true)
+                .consentVersion(version).build();
+
+        assertThatThrownBy(() -> applicationService.submitApplication(applicant, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("동의 문안");
+
+        verifyNoInteractions(postRepository);
+        verify(applicationRepository, never()).save(any());
+    }
+
+    // 동의한 지원은 서버가 정한 시각과 문안 버전이 지원 행에 저장된다
+    @Test
+    void submitApplication_storesConsentTimeAndVersion() {
+        stubOpenPostForSubmit();
+        given(applicationRepository.save(any(Application.class))).willAnswer(inv -> inv.getArgument(0));
+        given(userService.getManagedUserById(applicant.getId())).willReturn(applicant);
+        LocalDateTime before = LocalDateTime.now();
+
+        applicationService.submitApplication(applicant, AppRequestDTO.from(10L, null));
+
+        org.mockito.ArgumentCaptor<Application> captor = org.mockito.ArgumentCaptor.forClass(Application.class);
+        verify(applicationRepository).save(captor.capture());
+        assertThat(captor.getValue().getConsentVersion()).isEqualTo(Application.CONSENT_VERSION);
+        assertThat(captor.getValue().getThirdPartyConsentedAt()).isAfterOrEqualTo(before);
+    }
+
+    // 취소했던 지원을 복구할 때도 새로 받은 동의로 기록을 갱신한다(이전 동의가 남지 않는다)
+    @Test
+    void submitApplication_refreshesConsentWhenReapplyingCancelledApplication() {
+        stubOpenPostForSubmit();
+        Application cancelled = Application.builder().id(100L).user(applicant).post(post).instrument("바이올린")
+                .status(ApplicationStatus.CANCELLED).consentVersion("2026-01-01")
+                .thirdPartyConsentedAt(LocalDateTime.of(2026, 1, 1, 0, 0)).build();
+        given(applicationRepository.findByPostIdAndUserId(10L, applicant.getId())).willReturn(Optional.of(cancelled));
+        given(userService.getManagedUserById(applicant.getId())).willReturn(applicant);
+
+        applicationService.submitApplication(applicant, AppRequestDTO.from(10L, null));
+
+        assertThat(cancelled.getConsentVersion()).isEqualTo(Application.CONSENT_VERSION);
+        assertThat(cancelled.getThirdPartyConsentedAt()).isAfter(LocalDateTime.of(2026, 10, 1, 0, 0));
+    }
+
     // ── D7 취소한 지원의 재지원 ─────────────────────────────────────────────────────────
 
     // 취소했던 지원은 새 행 없이 같은 행이 PENDING으로 복구되고, 악기·어필 문구가 새 값으로 바뀌며, 모집자에게 다시 알린다
@@ -572,7 +640,8 @@ class ApplicationServiceTest {
         given(userService.getManagedUserById(applicant.getId())).willReturn(applicant);
 
         applicationService.submitApplication(applicant,
-                AppRequestDTO.builder().postId(10L).instrument("첼로").additionalInfo("다시 지원해요").build());
+                AppRequestDTO.builder().postId(10L).instrument("첼로").additionalInfo("다시 지원해요")
+                        .agreedToThirdPartyProvision(true).consentVersion(Application.CONSENT_VERSION).build());
 
         assertThat(cancelled.getStatus()).isEqualTo(ApplicationStatus.PENDING);
         assertThat(cancelled.getInstrument()).isEqualTo("첼로");

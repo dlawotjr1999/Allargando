@@ -68,6 +68,9 @@ public class ApplicationService {
     // 지원서 제출
     @Transactional
     public AppResponseDTO submitApplication(User user, AppRequestDTO requestDto) {
+        // 이름·전화번호가 수락 시 모집자에게 공개되므로 지원 자체에 제3자 제공 동의가 필요하다(동의 문안 버전까지 확인)
+        requireThirdPartyConsent(requestDto);
+
         Post post = postRepository.findById(requestDto.getPostId())
             .orElseThrow(() -> new NotFoundException("모집글을 찾을 수 없습니다"));
 
@@ -106,7 +109,8 @@ public class ApplicationService {
         if (previous.isPresent()) {
             // 취소했던 지원 복구 — 같은 행을 PENDING으로 되돌리고 악기·어필 문구를 새 값으로 갱신(변경 감지로 저장)
             application = previous.get();
-            application.reapply(instrument, requestDto.getAdditionalInfo());
+            application.reapply(instrument, requestDto.getAdditionalInfo(),
+                    requestDto.getConsentVersion(), LocalDateTime.now());
         } else {
             // 지원 악기를 저장한다(수락 시 모집 악기 정원과 매칭에 사용)
             application = applicationRepository.save(Application.builder()
@@ -114,6 +118,8 @@ public class ApplicationService {
                 .post(post)
                 .instrument(instrument)
                 .additionalInfo(requestDto.getAdditionalInfo())
+                .thirdPartyConsentedAt(LocalDateTime.now())
+                .consentVersion(requestDto.getConsentVersion())
                 .status(ApplicationStatus.PENDING)
                 .build());
         }
@@ -129,6 +135,17 @@ public class ApplicationService {
         User managedUser = userService.getManagedUserById(user.getId());
 
         return AppResponseDTO.from(application, managedUser);
+    }
+
+    // 개인정보 제3자 제공 동의 검사 — 동의하지 않았거나(null 포함) 앱이 보여 준 문안이 현재 버전이 아니면 400.
+    // 동의 일시는 요청으로 받지 않고 서버가 처리 시각을 기록한다
+    private void requireThirdPartyConsent(AppRequestDTO requestDto) {
+        if (!Boolean.TRUE.equals(requestDto.getAgreedToThirdPartyProvision())) {
+            throw new BadRequestException("개인정보 제3자 제공에 동의해야 지원할 수 있습니다");
+        }
+        if (!Application.CONSENT_VERSION.equals(requestDto.getConsentVersion())) {
+            throw new BadRequestException("동의 문안이 변경되었습니다. 앱을 최신 버전으로 업데이트해 주세요");
+        }
     }
 
     // 지원 악기 결정 — 요청에 있으면 그 값(앞뒤 공백 제거), 없으면 프로필 악기
