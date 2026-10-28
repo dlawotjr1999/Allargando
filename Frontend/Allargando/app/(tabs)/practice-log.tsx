@@ -1,18 +1,18 @@
 import React, { useCallback, useRef, useState } from "react";
-import { View, FlatList, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Alert } from "react-native";
+import { View, FlatList, StyleSheet, Text, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { deletePracticeLog, getPracticeLog, getPracticeLogs } from "@/api/practiceLog";
 import { ApiError } from "@/lib/apiClient";
 import { PracticeLogDetail, PracticeLogSummary } from "@/types/practiceLog";
 import AppHeader from "@/components/common/AppHeader";
 import EmptyState from "@/components/common/EmptyState";
+import FloatingAddButton from "@/components/common/FloatingAddButton";
 import PracticeLogCard from "@/components/practiceLog/PracticeLogCard";
 import PracticeLogDetailModal from "@/components/practiceLog/PracticeLogDetailModal";
 
-// 연습일지 목록 화면 — 무한스크롤 목록 + 상세 모달.
+// 연습일지 목록 화면 — 무한스크롤 목록 + 상세 모달 + 작성 버튼(모집글 목록과 같은 떠 있는 +).
 // 목록 API가 요약 필드만 주기 때문에, 상세는 카드 선택 시 별도 조회로 채운다(아래 handleSelect).
 export default function PracticeLogScreen() {
   const router = useRouter();
@@ -163,14 +163,6 @@ export default function PracticeLogScreen() {
 
       <View style={styles.pageHeader}>
         <Text style={styles.pageTitle}>연습일지</Text>
-        <TouchableOpacity
-          style={styles.writeButton}
-          onPress={() => router.push("/practice-log/create")}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={16} color={colors.background} />
-          <Text style={styles.writeButtonText}>작성하기</Text>
-        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -219,6 +211,8 @@ export default function PracticeLogScreen() {
         onDelete={handleDelete}
         deleting={deleting}
       />
+
+      <FloatingAddButton onPress={() => router.push("/practice-log/create")} accessibilityLabel="연습일지 작성" />
     </SafeAreaView>
   );
 }
@@ -226,9 +220,6 @@ export default function PracticeLogScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   pageHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
@@ -240,21 +231,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.primary,
   },
-  writeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  writeButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.background,
-  },
-  listContent: { flexGrow: 1, padding: 16 },
+  // 아래쪽 여백은 마지막 카드가 떠 있는 작성 버튼(52px)에 가리지 않게 하려는 것
+  listContent: { flexGrow: 1, padding: 16, paddingBottom: 88 },
   separator: { height: 12 },
   centerFill: { flex: 1, alignItems: "center", justifyContent: "center" },
   footerSpinner: { marginVertical: 16 },

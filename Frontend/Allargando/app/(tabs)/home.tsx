@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, FlatList, StyleSheet, TouchableOpacity, Text, ActivityIndicator, RefreshControl } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { View, FlatList, StyleSheet, Text, ActivityIndicator, RefreshControl } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { colors } from "@/constants/theme";
 import { getPosts } from "@/api/post";
@@ -10,6 +10,7 @@ import { PostSummary } from "@/types/post";
 import { PostFilter, DEFAULT_FILTER } from "@/types/filter";
 import AppHeader from "@/components/common/AppHeader";
 import EmptyState from "@/components/common/EmptyState";
+import FloatingAddButton from "@/components/common/FloatingAddButton";
 import PostCard from "@/components/post/PostCard";
 import FilterBar from "@/components/post/FilterBar";
 import FilterSheet from "@/components/post/FilterSheet";
@@ -18,7 +19,6 @@ import FilterSheet from "@/components/post/FilterSheet";
 // 필터가 바뀌면 loadFirstPage가 재실행되어 0페이지부터 다시 조회한다(아래 useEffect 의존성 참고).
 export default function HomeScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   const [filter, setFilter] = useState<PostFilter>(DEFAULT_FILTER);
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -159,14 +159,7 @@ export default function HomeScreen() {
         onClose={() => setSheetVisible(false)}
       />
 
-      {/* FAB */}
-      <TouchableOpacity
-        style={[styles.fab, { bottom: insets.bottom }]}
-        onPress={() => router.push("/post/create")}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      <FloatingAddButton onPress={() => router.push("/post/create")} accessibilityLabel="모집글 작성" />
     </SafeAreaView>
   );
 }
@@ -185,34 +178,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
   },
+  // 아래쪽 여백은 마지막 카드가 떠 있는 작성 버튼(52px)에 가리지 않게 하려는 것
   listContent: {
     flexGrow: 1,
     padding: 16,
+    paddingBottom: 88,
   },
   separator: {
     height: 12,
   },
   centerFill: { flex: 1, alignItems: "center", justifyContent: "center" },
   footerSpinner: { marginVertical: 16 },
-  fab: {
-    position: "absolute",
-    right: 24,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    opacity: 0.8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  fabText: {
-    fontSize: 26,
-    color: colors.background,
-    lineHeight: 30,
-  },
 });
