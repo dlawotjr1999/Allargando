@@ -1,14 +1,11 @@
 import React, { useCallback, useState } from "react";
-import { View, ScrollView, Text, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { View, ScrollView, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { getMyPosts } from "@/api/post";
 import { cancelApplication, getMyApplications } from "@/api/application";
-import Constants from "expo-constants";
-import { discardDeviceToken, releasePush, syncPush } from "@/lib/push";
-import { usePushSetting } from "@/lib/usePushSetting";
-import { deleteMyAccount } from "@/api/user";
 import { ApiError } from "@/lib/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { PostSummary } from "@/types/post";
@@ -18,7 +15,6 @@ import PostCard from "@/components/post/PostCard";
 import ProfileSection from "@/components/myPage/ProfileSection";
 import TabbedPager from "@/components/myPage/TabbedPager";
 import ApplicationCard from "@/components/myPage/ApplicationCard";
-import SettingsSection from "@/components/myPage/SettingsSection";
 import ThemedButton from "@/components/common/ThemedButton";
 
 const TABS = [
@@ -36,8 +32,7 @@ const withMoreMark = (count: number, hasMore: boolean) => (hasMore ? `${count}+`
 
 export default function MyPageScreen() {
   const router = useRouter();
-  const { profile, profileError, refreshProfile, signOut } = useAuth();
-  const push = usePushSetting();
+  const { profile, profileError, refreshProfile } = useAuth();
 
   const [myPosts, setMyPosts] = useState<PostSummary[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
@@ -114,43 +109,8 @@ export default function MyPageScreen() {
     ]);
   };
 
-  // 로그아웃 — 이 기기의 푸시 연결(토큰·새 모집글 토픽)을 먼저 풀어 이전 계정의 알림이 이 기기로 오지 않게 한 뒤,
-  // Firebase 세션을 끊으면 RootNavigator가 로그인 화면으로 자동 이동시킨다. 푸시 해제는 실패해도 로그아웃을 막지 않는다
-  const handleLogout = async () => {
-    await releasePush();
-    try {
-      await signOut();
-    } catch {
-      // 로그아웃이 안 됐으면 이 계정이 그대로 쓰이므로 방금 푼 푸시 연결을 되살린다(알림을 끄지 않은 사용자만)
-      await syncPush().catch(() => {});
-      Alert.alert("로그아웃 실패", "잠시 후 다시 시도해주세요.");
-    }
-  };
-
-  // 회원탈퇴 — 푸시 토큰 해제 → 서버에서 계정 삭제 → 로그아웃 순서. 서버 삭제에 실패하면(예: 연관 데이터 충돌)
-  // 로그인 상태를 유지한다. 서버 삭제가 끝난 뒤의 로그아웃 실패는 탈퇴가 이미 끝난 것이므로 "탈퇴 실패"로 보이지 않게 따로 안내한다.
-  const handleWithdraw = async () => {
-    await releasePush();
-    try {
-      await deleteMyAccount();
-    } catch (err) {
-      if (__DEV__) console.warn("[탈퇴] 서버 삭제 실패", err);
-      // 계정이 남아 있으므로 방금 푼 푸시 연결(서버 토큰·새 모집글 토픽)을 되살린다. 사용자가 알림을 꺼 둔 경우는 syncPush가 건너뛴다
-      await syncPush().catch(() => {});
-      Alert.alert("탈퇴 실패", err instanceof ApiError ? err.message : "잠시 후 다시 시도해주세요.");
-      return;
-    }
-    // 서버 삭제가 끝났으므로 이 기기의 FCM 토큰도 폐기한다(실패해도 탈퇴는 이미 끝났다)
-    await discardDeviceToken();
-    try {
-      await signOut();
-    } catch {
-      Alert.alert("탈퇴가 완료되었어요", "계정과 데이터가 삭제되었어요. 앱을 다시 실행하면 로그인 화면으로 돌아갑니다.");
-    }
-  };
-
   // 프로필이 없으면 이 화면의 나머지(통계·탭)도 의미가 없어 조회 중/실패 상태만 보여준다.
-  // 로그아웃·탈퇴 버튼은 실패 상태에서도 쓸 수 있어야 하므로 설정 섹션은 항상 렌더한다.
+  // 로그아웃·탈퇴는 실패 상태에서도 쓸 수 있어야 하므로 설정 버튼은 프로필과 무관한 상단 줄에 둔다.
   const profileBlock = profile ? (
     <ProfileSection
       user={profile}
@@ -171,6 +131,17 @@ export default function MyPageScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <AppHeader />
+      <View style={styles.pageHeader}>
+        <Text style={styles.pageTitle}>마이페이지</Text>
+        <TouchableOpacity
+          onPress={() => router.push("/my-page/settings")}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="설정"
+        >
+          <Ionicons name="settings-outline" size={22} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
       <ScrollView showsVerticalScrollIndicator={false}>
         {profileBlock}
 
@@ -230,16 +201,6 @@ export default function MyPageScreen() {
           ]}
         />
 
-        <SettingsSection
-          pushEnabled={push.enabled}
-          pushBusy={push.busy}
-          onTogglePush={push.toggle}
-          onBlocksPress={() => router.push("/my-page/blocks")}
-          onLogout={handleLogout}
-          onWithdraw={handleWithdraw}
-        />
-
-        <Text style={styles.versionText}>v{Constants.expoConfig?.version ?? ""}</Text>
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -268,10 +229,20 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 32,
   },
-  versionText: {
-    textAlign: "center",
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 16,
+  // 연습일지 탭의 제목 줄과 같은 모양 — 오른쪽 끝에 설정 버튼
+  pageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  pageTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.primary,
   },
 });

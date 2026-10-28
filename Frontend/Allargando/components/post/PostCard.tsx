@@ -131,7 +131,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
+  // 제목이 줄의 남은 폭만 차지하고 넘치면 말줄임(…)으로 끝나게 한다. flex가 없으면 Text가 줄어들지 않아
+  // 긴 제목이 오른쪽의 D-day를 카드 밖으로 밀어낸다. D-day는 늘 줄 오른쪽 끝에 붙는다
   title: {
+    flex: 1,
     fontSize: 15,
     fontWeight: "600",
     color: colors.textPrimary,

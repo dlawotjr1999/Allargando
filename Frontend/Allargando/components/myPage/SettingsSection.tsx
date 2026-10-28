@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { openLegalDocument, PRIVACY_URL, TERMS_URL } from "@/lib/legal";
 
-// 마이페이지의 설정 목록. 맨 위의 푸시 알림 스위치는 새 모집글·지원 결과 같은 알림을 이 기기에서 받을지를 정한다
+// 설정 화면(my-page/settings)의 설정 목록. 맨 위의 푸시 알림 스위치는 새 모집글·지원 결과 같은 알림을 이 기기에서 받을지를 정한다
 // (켜면 알림 권한을 요청하고 서버에 이 기기를 등록, 끄면 등록을 풀고 이 선택을 기기에 저장한다)
 interface SettingsSectionProps {
   pushEnabled: boolean;
