@@ -28,6 +28,13 @@ export const CONCERT_REGIONS = [
 // 백엔드가 실제 응답으로 확인했다(KopisSyncService). 국악은 "국악"이 아니라 "한국음악(국악)"으로 내려온다
 export const CONCERT_CATEGORIES = ["서양음악(클래식)", "한국음악(국악)", "대중음악"];
 
+// 장르 탭에 보일 짧은 이름 — 서버로 보내는 값은 위 원본 표기 그대로다
+export const CONCERT_CATEGORY_LABELS: Record<string, string> = {
+  "서양음악(클래식)": "클래식",
+  "한국음악(국악)": "국악",
+  "대중음악": "대중음악",
+};
+
 // 모집글 목록 정렬 3종(D15) — 값은 서버 PostSort와 같다. 순서대로 눌러 바꾼다
 export const POST_SORTS: { value: PostSort; label: string }[] = [
   { value: "LATEST", label: "최신순" },

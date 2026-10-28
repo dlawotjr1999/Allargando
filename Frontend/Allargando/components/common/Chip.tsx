@@ -7,12 +7,14 @@ interface ChipProps {
   active?: boolean;
   onPress: () => void;
   leftIcon?: React.ReactNode;
+  // 글자 뒤에 붙는 아이콘(예: 눌러서 선택지를 여는 칩의 ▾)
+  rightIcon?: React.ReactNode;
   style?: ViewStyle;
   // 고를 수 없는 항목(예: 정원이 찬 악기) — 흐리게 보이고 눌러도 반응하지 않는다
   disabled?: boolean;
 }
 
-export default function Chip({ label, active = false, onPress, leftIcon, style, disabled = false }: ChipProps) {
+export default function Chip({ label, active = false, onPress, leftIcon, rightIcon, style, disabled = false }: ChipProps) {
   return (
     <TouchableOpacity
       style={[styles.chip, active && styles.chipActive, disabled && styles.chipDisabled, style]}
@@ -22,6 +24,7 @@ export default function Chip({ label, active = false, onPress, leftIcon, style, 
     >
       {leftIcon}
       <Text style={[styles.text, active && styles.textActive]}>{label}</Text>
+      {rightIcon}
     </TouchableOpacity>
   );
 }

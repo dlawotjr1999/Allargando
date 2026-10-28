@@ -47,6 +47,55 @@ export function toDateOnly(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+// "YYYY-MM-DD" → "MM.DD" (필터 칩처럼 좁은 자리에 기간을 보일 때)
+export function formatShortDate(iso: string): string {
+  const date = parseDate(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return `${pad(date.getMonth() + 1)}.${pad(date.getDate())}`;
+}
+
+// 기간 빠른 선택. 기간은 시작·끝 날짜를 모두 포함한다
+export type DatePreset = "today" | "weekend" | "month";
+
+export const DATE_PRESET_LABELS: Record<DatePreset, string> = {
+  today: "오늘",
+  weekend: "이번 주말",
+  month: "이번 달",
+};
+
+// 오늘 기준 빠른 선택 기간을 "YYYY-MM-DD"로 계산한다. 주말은 토·일 — 토요일이면 오늘~내일, 일요일이면 오늘 하루.
+// 이번 달은 오늘부터 말일까지(지난 날짜는 볼 필요가 없다)
+export function presetRange(preset: DatePreset, now: Date = new Date()): { fromDate: string; toDate: string } {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const offset = (days: number) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
+  switch (preset) {
+    case "today":
+      return { fromDate: toDateOnly(today), toDate: toDateOnly(today) };
+    case "weekend": {
+      const day = today.getDay(); // 0=일 … 6=토
+      if (day === 0) return { fromDate: toDateOnly(today), toDate: toDateOnly(today) };
+      return { fromDate: toDateOnly(offset(6 - day)), toDate: toDateOnly(offset(7 - day)) };
+    }
+    case "month":
+      return {
+        fromDate: toDateOnly(today),
+        toDate: toDateOnly(new Date(today.getFullYear(), today.getMonth() + 1, 0)),
+      };
+  }
+}
+
+// 고른 기간이 오늘 기준 빠른 선택 중 하나와 같으면 그 이름을, 아니면 null (칩·시트에 어떤 선택인지 다시 보여 줄 때)
+export function matchPreset(fromDate?: string, toDate?: string): DatePreset | null {
+  if (!fromDate || !toDate) return null;
+  const presets: DatePreset[] = ["today", "weekend", "month"];
+  return (
+    presets.find((preset) => {
+      const range = presetRange(preset);
+      return range.fromDate === fromDate && range.toDate === toDate;
+    }) ?? null
+  );
+}
+
 export function formatDate(iso: string): string {
   const date = parseDate(iso);
   if (Number.isNaN(date.getTime())) return iso;
