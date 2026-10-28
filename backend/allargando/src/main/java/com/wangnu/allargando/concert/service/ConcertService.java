@@ -4,6 +4,7 @@ import com.wangnu.allargando.concert.dto.ConcertResponseDTO;
 import com.wangnu.allargando.concert.entity.Concert;
 import com.wangnu.allargando.concert.repository.ConcertRepository;
 import com.wangnu.allargando.concert.repository.ConcertSpecification;
+import com.wangnu.allargando.global.common.KeywordSearch;
 import com.wangnu.allargando.global.exception.NotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -27,11 +28,13 @@ public class ConcertService {
 
     private final ConcertRepository concertRepository;
 
-    // 연주회 전체 조회 — Specification 동적 필터 적용 후 DTO로 반환
+    // 연주회 전체 조회 — Specification 동적 필터·정렬 적용 후 DTO로 반환(running이면 진행 중인 공연만,
+    // keyword가 있으면 제목·공연장 부분 검색). pageable은 정렬 없이 받는다 — 정렬은 Specification이 쿼리에 직접 건다
     @Transactional(readOnly = true)
     public Page<ConcertResponseDTO> getConcertList(List<String> categories, List<String> regions,
-            LocalDate fromDate, LocalDate toDate, Pageable pageable) {
-        Specification<Concert> spec = ConcertSpecification.filter(categories, regions, fromDate, toDate);
+            LocalDate fromDate, LocalDate toDate, boolean running, String keyword, Pageable pageable) {
+        Specification<Concert> spec = ConcertSpecification.filter(
+                categories, regions, fromDate, toDate, running, KeywordSearch.normalize(keyword));
         return concertRepository.findAll(spec, pageable).map(ConcertResponseDTO::from);
     }
 
