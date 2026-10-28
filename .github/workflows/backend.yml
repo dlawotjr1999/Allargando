@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - develop
       - "feat/**" # feature 브랜치도 포함
     paths:
       - "backend/**" # backend 폴더 변경 시에만 실행
@@ -13,6 +14,7 @@ on:
   pull_request:
     branches:
       - main
+      - develop
     paths:
       - "backend/**"
       - ".github/workflows/backend.yml"

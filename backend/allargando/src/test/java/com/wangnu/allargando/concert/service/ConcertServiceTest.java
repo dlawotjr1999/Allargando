@@ -43,7 +43,7 @@ class ConcertServiceTest {
         when(concertRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(page);
 
         Page<ConcertResponseDTO> result = concertService.getConcertList(
-                null, null, null, null, PageRequest.of(0, 10));
+                null, null, null, null, false, null, PageRequest.of(0, 10));
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getTitle()).isEqualTo("제92회 코리아나 챔버 뮤직 소사이어티 정기연주회");

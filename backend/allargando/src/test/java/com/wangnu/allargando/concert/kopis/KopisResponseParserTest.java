@@ -73,7 +73,7 @@ class KopisResponseParserTest {
         assertThat(first.endDate()).isEqualTo(LocalDate.of(2026, 12, 11));
         assertThat(first.venue()).isEqualTo("반포심산아트홀");
         assertThat(first.region()).isEqualTo("서울특별시");
-        assertThat(first.posterUrl()).isEqualTo("http://www.kopis.or.kr/upload/pfmPoster/PF_PF300640_260910_151118.gif");
+        assertThat(first.posterUrl()).isEqualTo("https://kopis.or.kr/upload/pfmPoster/PF_PF300640_260910_151118.gif");
         assertThat(first.url()).isEqualTo(
                 "https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id=PF300640");
     }
@@ -120,6 +120,19 @@ class KopisResponseParserTest {
             assertThat(item.startDate()).isNull();
             assertThat(item.venue()).isNull();
         });
+    }
+
+    // 앱(Android)은 평문 http 이미지를 막으므로 KOPIS 포스터는 https 주소로 바꿔 저장한다. KOPIS가 아닌 주소·빈 값은 그대로
+    @Test
+    void toHttpsPosterUrl_rewritesKopisHttpToHttps() {
+        assertThat(KopisResponseParser.toHttpsPosterUrl("http://www.kopis.or.kr/upload/pfmPoster/A.png"))
+                .isEqualTo("https://kopis.or.kr/upload/pfmPoster/A.png");
+        assertThat(KopisResponseParser.toHttpsPosterUrl("http://kopis.or.kr/upload/pfmPoster/B.jpg"))
+                .isEqualTo("https://kopis.or.kr/upload/pfmPoster/B.jpg");
+        assertThat(KopisResponseParser.toHttpsPosterUrl("https://kopis.or.kr/upload/pfmPoster/C.gif"))
+                .isEqualTo("https://kopis.or.kr/upload/pfmPoster/C.gif");
+        assertThat(KopisResponseParser.toHttpsPosterUrl("http://example.com/D.png")).isEqualTo("http://example.com/D.png");
+        assertThat(KopisResponseParser.toHttpsPosterUrl(null)).isNull();
     }
 
     // KOPIS는 오류도 HTTP 200으로 준다(실제 응답) — 빈 목록(=정상 종료)으로 오해하지 않고 실패로 올린다

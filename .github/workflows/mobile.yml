@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - develop
       - "feat/**" # feature 브랜치도 포함
     paths:
       - "Frontend/**"
@@ -13,6 +14,7 @@ on:
   pull_request:
     branches:
       - main
+      - develop
     paths:
       - "Frontend/**"
       - ".github/workflows/mobile.yml"
