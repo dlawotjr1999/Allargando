@@ -27,6 +27,10 @@ public class KopisResponseParser {
             "https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id=%s";
     // KOPIS 오류 응답의 returncode가 아닌 정상 코드 — 정상 목록 응답에는 returncode 자체가 없다(실제 호출로 확인)
     private static final String RETURN_CODE_OK = "00";
+    // 포스터는 http://www.kopis.or.kr/… 로 내려오는데, 앱(Android)은 평문 http 이미지를 막아 빈 칸이 된다.
+    // 같은 파일이 https://kopis.or.kr/… 에 있다(https://www 는 301로 이 주소로 보낸다 — 실제 호출로 확인)
+    private static final List<String> KOPIS_HTTP_PREFIXES = List.of("http://www.kopis.or.kr/", "http://kopis.or.kr/");
+    private static final String KOPIS_HTTPS_PREFIX = "https://kopis.or.kr/";
 
     /*
      * 목록 응답 문서 → 항목 목록. <db> 태그가 하나도 없으면(빈 <dbs/>) 빈 리스트 반환 — 마지막 페이지 판단 기준
@@ -55,7 +59,7 @@ public class KopisResponseParser {
                         parseDate(text(row, "prfpdto")),
                         text(row, "fcltynm"),
                         text(row, "area"),
-                        text(row, "poster"),
+                        toHttpsPosterUrl(text(row, "poster")),
                         String.format(DETAIL_URL_TEMPLATE, externalId)
                 ));
             } catch (DateTimeParseException e) {
@@ -84,6 +88,19 @@ public class KopisResponseParser {
     private static String text(Element row, String tag) {
         Element el = row.selectFirst(tag);
         return el != null ? el.text().trim() : null;
+    }
+
+    // KOPIS 포스터 주소를 https로 바꾼다. KOPIS가 아닌 주소는 https 제공 여부를 알 수 없어 그대로 둔다
+    static String toHttpsPosterUrl(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        for (String prefix : KOPIS_HTTP_PREFIXES) {
+            if (raw.startsWith(prefix)) {
+                return KOPIS_HTTPS_PREFIX + raw.substring(prefix.length());
+            }
+        }
+        return raw;
     }
 
     private static LocalDate parseDate(String raw) {

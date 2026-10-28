@@ -30,6 +30,7 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -87,7 +88,7 @@ class ConcertControllerTest {
 
     @Test
     void getConcertList_returns200WithPagedList() throws Exception {
-        when(concertService.getConcertList(any(), any(), any(), any(), any()))
+        when(concertService.getConcertList(any(), any(), any(), any(), anyBoolean(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(sampleDto()), PageRequest.of(0, 10), 1));
 
         mockMvc.perform(get("/api/concerts").with(authentication(auth)))
@@ -96,6 +97,21 @@ class ConcertControllerTest {
                 .andExpect(jsonPath("$.data.content[0].title").value("제92회 코리아나 챔버 뮤직 소사이어티 정기연주회"))
                 .andExpect(jsonPath("$.data.hasNext").exists())
                 .andExpect(jsonPath("$.data.currentPage").exists());
+        // running·keyword를 보내지 않으면 기본 목록(진행 중만이 아님, 검색 없음)
+        verify(concertService).getConcertList(any(), any(), any(), any(), eq(false), isNull(), any());
+    }
+
+    // running·keyword는 그대로 서비스에 넘긴다(검색어 정리·검증은 서비스의 KeywordSearch 몫)
+    @Test
+    void getConcertList_passesRunningFlagAndKeyword() throws Exception {
+        when(concertService.getConcertList(any(), any(), any(), any(), anyBoolean(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(sampleDto()), PageRequest.of(0, 10), 1));
+
+        mockMvc.perform(get("/api/concerts").param("running", "true").param("keyword", "재즈")
+                        .with(authentication(auth)))
+                .andExpect(status().isOk());
+
+        verify(concertService).getConcertList(any(), any(), any(), any(), eq(true), eq("재즈"), any());
     }
 
     @Test

@@ -27,7 +27,7 @@ import java.util.Map;
 
 /**
  * 연주회 관련 API 컨트롤러
- * GET  /api/concerts        — 연주회 전체 조회 (카테고리·지역·기간 필터·페이지네이션)
+ * GET  /api/concerts        — 연주회 전체 조회 (카테고리·지역·기간·진행 중 필터, 제목·공연장 검색, 페이지네이션)
  * GET  /api/concerts/{id}   — 연주회 단건 조회
  * POST /api/concerts/sync   — KOPIS 동기화 수동 트리거 (개발/검증용, 운영에서는 비활성. 정기 실행은 스케줄러가 담당)
  */
@@ -43,18 +43,22 @@ public class ConcertController {
     @Value("${kopis.sync.manual-trigger-enabled:false}")
     private boolean manualSyncEnabled;
 
-    // 연주회 전체 조회 (카테고리·지역 필터 + 기간 + 페이지네이션, 정렬은 공연 임박순 고정)
+    // 연주회 전체 조회 (카테고리·지역 필터 + 기간 + 진행 중 여부 + 검색어(제목·공연장) + 페이지네이션).
+    // 정렬은 서버 고정 — 기본은 시작 전 공연(시작일 순) 다음 진행 중 공연(종료일 순), running=true면 진행 중 공연만 종료 임박순.
+    // 정렬은 ConcertSpecification이 쿼리에 걸므로 Pageable의 정렬은 비운다
     @GetMapping
     public ResponseEntity<APIResponse<PageResponse<ConcertResponseDTO>>> getConcertList(
             @RequestParam(required = false) List<String> category,
             @RequestParam(required = false) List<String> region,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(defaultValue = "false") boolean running,
+            @RequestParam(required = false) String keyword,
             @PageableDefault(size = 10) Pageable pageable) {
 
         Page<ConcertResponseDTO> response =
-                concertService.getConcertList(category, region, fromDate, toDate,
-                        PageSupport.withSort(pageable, Sort.by(Sort.Direction.ASC, "startDate")));
+                concertService.getConcertList(category, region, fromDate, toDate, running, keyword,
+                        PageSupport.withSort(pageable, Sort.unsorted()));
         return ResponseEntity.ok(APIResponse.ok("연주회 목록 조회 성공", PageResponse.from(response)));
     }
 
