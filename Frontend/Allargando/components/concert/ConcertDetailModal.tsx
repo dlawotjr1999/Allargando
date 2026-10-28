@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Linking, Alert, Image } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Linking, Alert } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { Concert } from "@/types/concert";
@@ -47,7 +48,14 @@ export default function ConcertDetailModal({ concert, onClose }: ConcertDetailMo
             {/* 흰색 카드 프레임 */}
             <View style={styles.card}>
               {concert?.posterUrl && (
-                <Image source={{ uri: concert.posterUrl }} style={styles.poster} resizeMode="cover" />
+                // 목록 카드와 같은 주소·캐시를 써서, 카드에서 이미 받은 포스터는 다시 받지 않고 바로 보인다
+                <Image
+                  source={concert.posterUrl}
+                  style={styles.poster}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                  transition={150}
+                />
               )}
 
               <Text style={styles.title} numberOfLines={2}>
@@ -69,7 +77,7 @@ export default function ConcertDetailModal({ concert, onClose }: ConcertDetailMo
                   icon="calendar-outline"
                   text={
                     concert
-                      ? `공연 기간 ${formatDate(concert.startDate)} ~ ${formatDate(concert.endDate)}`
+                      ? `${formatDate(concert.startDate)} ~ ${formatDate(concert.endDate)}`
                       : ""
                   }
                 />
@@ -127,10 +135,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     gap: 14,
   },
+  // 포스터는 대부분 세로형이라 잘라 채우면(cover) 제목·날짜가 잘린다. 높이를 고정하고 전체가 보이게(contain) 줄여
+  // 비율이 제각각이어도 상자 크기는 같게 두고, 남는 좌우는 배경색으로 채운다.
+  // 모달에 스크롤이 없어 작은 화면(높이 약 640)에서도 버튼까지 들어오도록 높이를 280으로 둔다
   poster: {
     width: "100%",
-    height: 160,
+    height: 280,
     borderRadius: 10,
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 16,

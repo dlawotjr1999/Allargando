@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { Concert } from "@/types/concert";
@@ -12,15 +13,24 @@ interface ConcertCardProps {
   onPress?: () => void;
 }
 
-// D-day는 콩쿠르 때의 접수마감(deadline) 대신 공연 시작일(startDate) 기준 — "공연이 며칠 남았는가"
+// D-day는 공연 시작일(startDate) 기준 — "공연이 며칠 남았는가". 시작일이 지났어도 종료일(endDate)이 남은 장기 공연은
+// D+n으로 보이면 지난 공연으로 오해하므로 "공연중"으로 표시한다(목록은 종료된 공연을 이미 빼고 내려준다)
 export default function ConcertCard({ concert, onPress }: ConcertCardProps) {
   const dday = getDday(concert.startDate);
+  const running = dday.expired && !getDday(concert.endDate).expired;
 
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.8} onPress={onPress}>
       <View style={styles.thumbnail}>
+        {/* 포스터(장당 수백 KB)는 expo-image로 디스크에 캐시해 스크롤·재방문 때 다시 받지 않는다 */}
         {concert.posterUrl ? (
-          <Image source={{ uri: concert.posterUrl }} style={styles.posterImage} resizeMode="cover" />
+          <Image
+            source={concert.posterUrl}
+            style={styles.posterImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
         ) : (
           <Ionicons name="musical-notes" size={26} color={colors.primaryLight} />
         )}
@@ -31,7 +41,9 @@ export default function ConcertCard({ concert, onPress }: ConcertCardProps) {
           <Text style={styles.title} numberOfLines={1}>
             {concert.title}
           </Text>
-          {dday.label ? (
+          {running ? (
+            <Text style={[styles.dday, styles.ddayRunning]}>공연중</Text>
+          ) : dday.label ? (
             <Text
               style={[
                 styles.dday,
@@ -105,6 +117,9 @@ const styles = StyleSheet.create({
   },
   ddayExpired: {
     color: colors.placeholder,
+  },
+  ddayRunning: {
+    color: colors.primary,
   },
   badgeRow: {
     flexDirection: "row",
