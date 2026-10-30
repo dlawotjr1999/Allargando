@@ -20,7 +20,8 @@ export default function FilterBar({ filter, onChange, onOpenSheet, onReset }: Fi
     filter.statuses.length +
     (filter.startDate || filter.endDate ? 1 : 0);
   const sortChanged = filter.sort !== "LATEST";
-  const hasAnyFilter = sortChanged || filter.categories.length > 0 || advancedCount > 0;
+  // 초기화 버튼은 검색어까지 함께 지우므로 검색 중일 때도 보인다
+  const hasAnyFilter = sortChanged || filter.categories.length > 0 || advancedCount > 0 || filter.keyword.length > 0;
 
   // 정렬 칩을 누를 때마다 최신순 → 공연 임박순 → 마감 임박순 순으로 바뀐다. 칩에 지금 정렬 이름이 보인다
   const currentSortIndex = POST_SORTS.findIndex((s) => s.value === filter.sort);

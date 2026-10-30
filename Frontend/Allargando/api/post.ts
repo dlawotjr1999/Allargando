@@ -20,6 +20,7 @@ function buildQuery(filter: PostFilter, page: number): string {
   filter.regions.forEach((region) => params.append("region", region));
   if (filter.startDate) params.append("startDate", filter.startDate);
   if (filter.endDate) params.append("endDate", filter.endDate);
+  if (filter.keyword) params.append("keyword", filter.keyword);
   params.append("page", String(page));
   return params.toString();
 }

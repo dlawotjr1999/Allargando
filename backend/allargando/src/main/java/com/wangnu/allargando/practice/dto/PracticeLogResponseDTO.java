@@ -24,6 +24,7 @@ public class PracticeLogResponseDTO {
     private LocalDate logDate;
     private Integer duration;
     private String content;
+    private String category;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -35,6 +36,7 @@ public class PracticeLogResponseDTO {
                 .logDate(log.getLogDate())
                 .duration(log.getDuration())
                 .content(log.getContent())
+                .category(log.getCategory())
                 .createdAt(log.getCreatedAt())
                 .updatedAt(log.getUpdatedAt())
                 .build();
