@@ -1,18 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { colors } from "@/constants/theme";
-import {
-  DATE_PRESET_LABELS,
-  DatePreset,
-  formatDate,
-  matchPreset,
-  parseDate,
-  presetRange,
-  toDateOnly,
-} from "@/utils/datetime";
+import { View, StyleSheet } from "react-native";
+import { DATE_PRESET_LABELS, DatePreset, matchPreset, parseDate, presetRange } from "@/utils/datetime";
 import BottomSheet from "@/components/common/BottomSheet";
 import Chip from "@/components/common/Chip";
+import DateTimeField from "@/components/common/DateTimeField";
 
 interface DateRange {
   fromDate?: string;
@@ -35,8 +26,6 @@ const PRESETS: DatePreset[] = ["today", "weekend", "month"];
 export default function ConcertDateSheet({ visible, fromDate, toDate, onApply, onClose }: ConcertDateSheetProps) {
   const [draft, setDraft] = useState<DateRange>({ fromDate, toDate });
   const [mode, setMode] = useState<Mode>(null);
-  const [showFromPicker, setShowFromPicker] = useState(false);
-  const [showToPicker, setShowToPicker] = useState(false);
 
   // 열릴 때 적용된 기간으로 맞추고, 그 기간이 빠른 선택과 같으면 그 칩을, 아니면 직접 선택을 켠다
   function handleShow() {
@@ -78,45 +67,27 @@ export default function ConcertDateSheet({ visible, fromDate, toDate, onApply, o
       </View>
 
       {mode === "custom" && (
-        <View style={styles.customArea}>
-          <View style={styles.row}>
-            <TouchableOpacity style={styles.field} onPress={() => setShowFromPicker(true)}>
-              <Text style={styles.fieldLabel}>시작일</Text>
-              <Text style={[styles.fieldValue, !draft.fromDate && styles.fieldPlaceholder]}>
-                {draft.fromDate ? formatDate(draft.fromDate) : "선택 안 함"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.field} onPress={() => setShowToPicker(true)}>
-              <Text style={styles.fieldLabel}>종료일</Text>
-              <Text style={[styles.fieldValue, !draft.toDate && styles.fieldPlaceholder]}>
-                {draft.toDate ? formatDate(draft.toDate) : "선택 안 함"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+        <View style={[styles.customArea, styles.row]}>
           {/* 이미 끝난 공연은 목록에 없으므로 오늘 이전은 고를 필요가 없다 */}
-          {showFromPicker && (
-            <DateTimePicker
-              value={draft.fromDate ? parseDate(draft.fromDate) : new Date()}
-              mode="date"
-              minimumDate={new Date()}
-              maximumDate={draft.toDate ? parseDate(draft.toDate) : undefined}
-              onChange={(event, selected) => {
-                setShowFromPicker(false);
-                if (event.type === "set" && selected) setDraft((prev) => ({ ...prev, fromDate: toDateOnly(selected) }));
-              }}
-            />
-          )}
-          {showToPicker && (
-            <DateTimePicker
-              value={draft.toDate ? parseDate(draft.toDate) : draft.fromDate ? parseDate(draft.fromDate) : new Date()}
-              mode="date"
-              minimumDate={draft.fromDate ? parseDate(draft.fromDate) : new Date()}
-              onChange={(event, selected) => {
-                setShowToPicker(false);
-                if (event.type === "set" && selected) setDraft((prev) => ({ ...prev, toDate: toDateOnly(selected) }));
-              }}
-            />
-          )}
+          <DateTimeField
+            mode="date"
+            label="시작일"
+            value={draft.fromDate ?? ""}
+            onChange={(value) => setDraft((prev) => ({ ...prev, fromDate: value }))}
+            placeholder="선택 안 함"
+            minimumDate={new Date()}
+            maximumDate={draft.toDate ? parseDate(draft.toDate) : undefined}
+            style={styles.rowField}
+          />
+          <DateTimeField
+            mode="date"
+            label="종료일"
+            value={draft.toDate ?? ""}
+            onChange={(value) => setDraft((prev) => ({ ...prev, toDate: value }))}
+            placeholder="선택 안 함"
+            minimumDate={draft.fromDate ? parseDate(draft.fromDate) : new Date()}
+            style={styles.rowField}
+          />
         </View>
       )}
     </BottomSheet>
@@ -137,25 +108,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
   },
-  field: {
+  rowField: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 4,
-  },
-  fieldLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  fieldValue: {
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  fieldPlaceholder: {
-    color: colors.placeholder,
   },
 });
