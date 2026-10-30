@@ -52,18 +52,18 @@ export function validatePostForm(values: PostFormValues, now: Date = new Date())
   if (!values.title.trim()) return "제목을 입력해 주세요.";
   if (values.title.length > POST_TITLE_MAX) return `제목은 ${POST_TITLE_MAX}자 이내로 입력해 주세요.`;
 
-  if (!DATE_RE.test(values.eventDate)) return "공연 날짜를 선택해 주세요.";
-  if (!TIME_RE.test(values.eventTime)) return "공연 시간을 선택해 주세요.";
+  if (!DATE_RE.test(values.eventDate)) return "첫 공연 날짜를 선택해 주세요.";
+  if (!TIME_RE.test(values.eventTime)) return "첫 공연 시간을 선택해 주세요.";
   const eventAt = parseEventDateTime(values.eventDate, values.eventTime);
   if (!eventAt) return "존재하지 않는 날짜 또는 시간이에요. 다시 확인해 주세요.";
-  if (eventAt <= now) return "공연 일시는 현재 이후여야 해요.";
+  if (eventAt <= now) return "첫 공연 일시는 현재 이후여야 해요.";
 
   if (!values.location.trim()) return "장소를 입력해 주세요.";
   if (values.location.length > POST_LOCATION_MAX) return `장소는 ${POST_LOCATION_MAX}자 이내로 입력해 주세요.`;
   if (!values.region) return "지역을 선택해 주세요.";
-  if (!values.timetable.trim()) return "시간표를 입력해 주세요.";
+  if (!values.timetable.trim()) return "연습 일정을 입력해 주세요.";
   if (values.timetable.length > POST_TIMETABLE_MAX) {
-    return `시간표는 ${POST_TIMETABLE_MAX}자 이내로 입력해 주세요.`;
+    return `연습 일정은 ${POST_TIMETABLE_MAX}자 이내로 입력해 주세요.`;
   }
 
   // 악기는 칩으로 고르므로 이름이 비거나 겹치지 않는다. 직접 입력한 인원만 범위를 확인한다

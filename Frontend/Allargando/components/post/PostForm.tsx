@@ -145,7 +145,7 @@ export default function PostForm({ mode, initial, confirmedByInstrument, onSubmi
             {/* 지난 날짜는 서버도 받지 않으므로 달력에서 오늘 이전을 막는다. 오늘의 지난 시각은 제출할 때 검증한다 */}
             <DateTimeField
               mode="date"
-              label="공연 날짜"
+              label="첫 공연 날짜"
               value={eventDate}
               onChange={setEventDate}
               minimumDate={new Date()}
@@ -153,7 +153,7 @@ export default function PostForm({ mode, initial, confirmedByInstrument, onSubmi
             />
             <DateTimeField
               mode="time"
-              label="공연 시간"
+              label="첫 공연 시간"
               value={eventTime}
               onChange={setEventTime}
               style={styles.rowField}
@@ -180,7 +180,7 @@ export default function PostForm({ mode, initial, confirmedByInstrument, onSubmi
           />
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>시간표</Text>
+            <Text style={styles.label}>연습 일정</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="예: 매주 토요일 오후 2시 합주"
@@ -198,7 +198,7 @@ export default function PostForm({ mode, initial, confirmedByInstrument, onSubmi
             <Text style={styles.label}>설명 (선택)</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="모집 목적, 분위기, 준비물 등을 자유롭게 적어주세요"
+              placeholder="모집 목적, 분위기, 준비물 등을 자유롭게 적어주세요. 공연이 여러 번이면 전체 일정도 함께 적어주세요."
               placeholderTextColor={colors.placeholder}
               value={description}
               onChangeText={setDescription}

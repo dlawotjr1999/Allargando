@@ -345,8 +345,8 @@ export default function PostDetailScreen() {
           </View>
         </Section>
 
-        {/* 시간표 */}
-        <Section title="시간표">
+        {/* 연습 일정 */}
+        <Section title="연습 일정">
           <Text style={styles.bodyText}>{post.timetable}</Text>
         </Section>
 
