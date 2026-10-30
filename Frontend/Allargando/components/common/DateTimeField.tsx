@@ -69,9 +69,9 @@ export default function DateTimeField({
 }
 
 const styles = StyleSheet.create({
+  // 바깥 여백은 화면마다 달라 호출하는 쪽이 style로 정한다
   container: {
     gap: 8,
-    marginBottom: 16,
   },
   label: {
     fontSize: 12,

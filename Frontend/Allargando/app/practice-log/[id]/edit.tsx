@@ -14,11 +14,10 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { colors } from "@/constants/theme";
-import { formatDate, parseDate, toDateOnly } from "@/utils/datetime";
 import { getPracticeLog, updatePracticeLog } from "@/api/practiceLog";
 import { ApiError } from "@/lib/apiClient";
+import DateTimeField from "@/components/common/DateTimeField";
 import ThemedButton from "@/components/common/ThemedButton";
 
 // 연습일지 수정 화면 — create.tsx와 같은 입력 폼을 쓰되, 진입 시 기존 값을 불러와 채워둔다.
@@ -36,7 +35,6 @@ export default function PracticeLogEditScreen() {
   const [date, setDate] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [content, setContent] = useState("");
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 진입 시 기존 값을 조회해 폼을 채운다. 목록에서 이미 받은 값을 재사용하지 않는 이유는
@@ -147,18 +145,15 @@ export default function PracticeLogEditScreen() {
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.fieldGroup, styles.rowField]}>
-              <Text style={styles.label}>날짜</Text>
-              <TouchableOpacity
-                style={styles.input}
-                onPress={() => setShowDatePicker(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.inputText, !date && styles.inputPlaceholder]}>
-                  {date ? formatDate(date) : "날짜 선택"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            {/* 연습일지는 지난 기록을 남기는 곳이라 미래 날짜는 고를 수 없다 */}
+            <DateTimeField
+              mode="date"
+              label="날짜"
+              value={date}
+              onChange={setDate}
+              maximumDate={new Date()}
+              style={styles.rowField}
+            />
             <View style={[styles.fieldGroup, styles.rowField]}>
               <Text style={styles.label}>연습 시간(분)</Text>
               <TextInput
@@ -171,20 +166,6 @@ export default function PracticeLogEditScreen() {
               />
             </View>
           </View>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={date ? parseDate(date) : new Date()}
-              mode="date"
-              maximumDate={new Date()}
-              onChange={(event, selected) => {
-                setShowDatePicker(false);
-                if (event.type === "set" && selected) {
-                  setDate(toDateOnly(selected));
-                }
-              }}
-            />
-          )}
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>내용</Text>
@@ -261,13 +242,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 14,
     color: colors.textPrimary,
-  },
-  inputText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  inputPlaceholder: {
-    color: colors.placeholder,
   },
   textArea: {
     height: 220,

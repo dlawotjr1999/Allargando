@@ -149,14 +149,14 @@ export default function PostForm({ mode, initial, confirmedByInstrument, onSubmi
               value={eventDate}
               onChange={setEventDate}
               minimumDate={new Date()}
-              style={styles.rowField}
+              style={[styles.fieldGroup, styles.rowField]}
             />
             <DateTimeField
               mode="time"
               label="첫 공연 시간"
               value={eventTime}
               onChange={setEventTime}
-              style={styles.rowField}
+              style={[styles.fieldGroup, styles.rowField]}
             />
           </View>
 
