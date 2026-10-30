@@ -15,13 +15,18 @@ import java.util.List;
  */
 public class PracticeLogSpecification {
 
-    // 작성자 + 검색어 조건을 조합한 Specification 생성.
-    // keyword는 제목·내용 부분 검색(KeywordSearch 규칙). null이면 조건 없음 — 정리·검증은 서비스가 한다
-    public static Specification<PracticeLog> filter(Long userId, String keyword) {
+    // 작성자 + 분류 + 검색어 조건을 조합한 Specification 생성.
+    // category가 비어 있으면 전체(분류하지 않은 일지 포함). keyword는 제목·내용 부분 검색(KeywordSearch 규칙)이고
+    // null이면 조건 없음 — 정리·검증은 서비스가 한다
+    public static Specification<PracticeLog> filter(Long userId, String category, String keyword) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
             predicates.add(cb.equal(root.get("user").get("id"), userId));
+
+            if (category != null && !category.isBlank()) {
+                predicates.add(cb.equal(root.get("category"), category));
+            }
 
             if (keyword != null) {
                 predicates.add(KeywordSearch.containsAny(cb, keyword, root.get("title"), root.get("content")));

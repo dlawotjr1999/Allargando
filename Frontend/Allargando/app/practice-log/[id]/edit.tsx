@@ -15,8 +15,10 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
+import { PRACTICE_CATEGORIES } from "@/constants/filterOptions";
 import { getPracticeLog, updatePracticeLog } from "@/api/practiceLog";
 import { ApiError } from "@/lib/apiClient";
+import ChipSelect from "@/components/common/ChipSelect";
 import DateTimeField from "@/components/common/DateTimeField";
 import ThemedButton from "@/components/common/ThemedButton";
 
@@ -35,6 +37,7 @@ export default function PracticeLogEditScreen() {
   const [date, setDate] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [content, setContent] = useState("");
+  const [category, setCategory] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 진입 시 기존 값을 조회해 폼을 채운다. 목록에서 이미 받은 값을 재사용하지 않는 이유는
@@ -51,6 +54,7 @@ export default function PracticeLogEditScreen() {
         setDate(log.logDate);
         setDurationMinutes(String(log.duration));
         setContent(log.content ?? "");
+        setCategory(log.category ?? "");
       } catch {
         if (cancelled) return;
         setLoadError(true);
@@ -76,6 +80,7 @@ export default function PracticeLogEditScreen() {
         logDate: date,
         duration: Number(durationMinutes),
         content: content.trim() || undefined,
+        category: category || undefined,
       });
       router.back();
     } catch (err) {
@@ -166,6 +171,14 @@ export default function PracticeLogEditScreen() {
               />
             </View>
           </View>
+
+          {/* 선택 입력 — 고른 칩을 다시 누르면 선택이 풀린다 */}
+          <ChipSelect
+            label="분류 (선택)"
+            options={PRACTICE_CATEGORIES}
+            selected={category}
+            onSelect={(value) => setCategory((prev) => (prev === value ? "" : value))}
+          />
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>내용</Text>

@@ -88,6 +88,12 @@ export default function PracticeLogDetailModal({
                       <Ionicons name="time-outline" size={14} color={colors.textMuted} />
                       <Text style={styles.metaText}>{formatDuration(log.duration)}</Text>
                     </View>
+                    {log.category ? (
+                      <View style={styles.metaItem}>
+                        <Ionicons name="pricetag-outline" size={14} color={colors.textMuted} />
+                        <Text style={styles.metaText}>{log.category}</Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <View style={styles.divider} />

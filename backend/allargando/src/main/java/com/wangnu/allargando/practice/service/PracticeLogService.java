@@ -32,16 +32,17 @@ public class PracticeLogService {
     @Transactional
     public PracticeLogResponseDTO createPracticeLog(User user, PracticeLogCreateRequestDTO request) {
         PracticeLog log = PracticeLog.create(user, request.getTitle(), request.getLogDate(),
-                request.getDuration(), request.getContent());
+                request.getDuration(), request.getContent(), request.getCategory());
         PracticeLog saved = practiceLogRepository.save(log);
         return PracticeLogResponseDTO.from(saved);
     }
 
-    // 내 연습 일지 목록 조회 — 카드 리스트용 요약. keyword가 있으면 제목·내용에서 찾는다. 정렬은 컨트롤러 Pageable에서 결정
+    // 내 연습 일지 목록 조회 — 카드 리스트용 요약. category로 거르고 keyword가 있으면 제목·내용에서 찾는다. 정렬은 컨트롤러 Pageable에서 결정
     @Transactional(readOnly = true)
-    public Page<PracticeLogSummaryResponseDTO> getMyPracticeLogs(Long userId, String keyword, Pageable pageable) {
+    public Page<PracticeLogSummaryResponseDTO> getMyPracticeLogs(Long userId, String category, String keyword,
+            Pageable pageable) {
         return practiceLogRepository
-                .findAll(PracticeLogSpecification.filter(userId, KeywordSearch.normalize(keyword)), pageable)
+                .findAll(PracticeLogSpecification.filter(userId, category, KeywordSearch.normalize(keyword)), pageable)
                 .map(PracticeLogSummaryResponseDTO::from);
     }
 
@@ -59,7 +60,8 @@ public class PracticeLogService {
         PracticeLog log = findLogOrThrow(logId);
         requireOwner(log, user);
 
-        log.update(request.getTitle(), request.getLogDate(), request.getDuration(), request.getContent());
+        log.update(request.getTitle(), request.getLogDate(), request.getDuration(), request.getContent(),
+                request.getCategory());
 
         return PracticeLogResponseDTO.from(log);
     }

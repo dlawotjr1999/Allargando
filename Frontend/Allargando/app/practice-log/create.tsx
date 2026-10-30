@@ -14,8 +14,10 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
+import { PRACTICE_CATEGORIES } from "@/constants/filterOptions";
 import { createPracticeLog } from "@/api/practiceLog";
 import { ApiError } from "@/lib/apiClient";
+import ChipSelect from "@/components/common/ChipSelect";
 import DateTimeField from "@/components/common/DateTimeField";
 import ThemedButton from "@/components/common/ThemedButton";
 
@@ -28,6 +30,7 @@ export default function PracticeLogCreateScreen() {
   const [date, setDate] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [content, setContent] = useState("");
+  const [category, setCategory] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 필수값: 제목·날짜·연습 시간. 내용은 선택
@@ -46,6 +49,7 @@ export default function PracticeLogCreateScreen() {
         logDate: date,
         duration: Number(durationMinutes),
         content: content.trim() || undefined,
+        category: category || undefined,
       });
       router.back();
     } catch (err) {
@@ -114,6 +118,14 @@ export default function PracticeLogCreateScreen() {
               />
             </View>
           </View>
+
+          {/* 선택 입력 — 고른 칩을 다시 누르면 선택이 풀린다 */}
+          <ChipSelect
+            label="분류 (선택)"
+            options={PRACTICE_CATEGORIES}
+            selected={category}
+            onSelect={(value) => setCategory((prev) => (prev === value ? "" : value))}
+          />
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>내용</Text>

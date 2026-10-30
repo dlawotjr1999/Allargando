@@ -3,6 +3,9 @@ import { PostStatus } from "@/types/post";
 
 export const CATEGORIES = ["앙상블", "오케스트라", "마칭", "버스킹", "기타"];
 
+// 연습일지 분류 — 선택 입력이라 고르지 않은 일지는 값이 없다
+export const PRACTICE_CATEGORIES = ["기본기", "곡 연습", "레슨", "기타"];
+
 // 악기 목록의 단일 소스 — 모집글·필터·지원·가입·프로필 수정이 모두 이 목록을 쓴다.
 // 백엔드는 악기명을 문자열 그대로 비교하므로(Post.requireAcceptingInstrument) 화면마다 목록이 다르면
 // 가입자의 프로필 악기가 모집 악기에 없어 지원할 수 없게 된다. 항목을 바꾸면 기존 데이터와 어긋나니 추가만 한다.

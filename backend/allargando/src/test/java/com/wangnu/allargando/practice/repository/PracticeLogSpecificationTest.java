@@ -50,7 +50,11 @@ class PracticeLogSpecificationTest {
     }
 
     private void persistLog(User user, String title, String content) {
-        entityManager.persist(PracticeLog.create(user, title, LocalDate.of(2026, 10, 1), 30, content));
+        persistLog(user, title, content, null);
+    }
+
+    private void persistLog(User user, String title, String content, String category) {
+        entityManager.persist(PracticeLog.create(user, title, LocalDate.of(2026, 10, 1), 30, content, category));
     }
 
     // 검색어가 없어도 내 일지만 나온다
@@ -59,7 +63,7 @@ class PracticeLogSpecificationTest {
         persistLog(owner, "내 일지", null);
         persistLog(other, "남의 일지", null);
 
-        List<PracticeLog> result = practiceLogRepository.findAll(PracticeLogSpecification.filter(owner.getId(), null));
+        List<PracticeLog> result = practiceLogRepository.findAll(PracticeLogSpecification.filter(owner.getId(), null, null));
 
         assertThat(result).extracting(PracticeLog::getTitle).containsExactly("내 일지");
     }
@@ -72,8 +76,21 @@ class PracticeLogSpecificationTest {
         persistLog(owner, "모차르트", "활 배분 연습");
         persistLog(other, "Bach 파르티타", null);
 
-        List<PracticeLog> result = practiceLogRepository.findAll(PracticeLogSpecification.filter(owner.getId(), "BACH"));
+        List<PracticeLog> result = practiceLogRepository.findAll(PracticeLogSpecification.filter(owner.getId(), null, "BACH"));
 
         assertThat(result).extracting(PracticeLog::getTitle).containsExactlyInAnyOrder("Bach 샤콘느", "스케일");
+    }
+
+    // 분류를 고르면 그 분류의 일지만, 고르지 않으면 분류하지 않은 일지까지 모두 나온다
+    @Test
+    void filter_categoryNarrowsLogsAndEmptyMeansAll() {
+        persistLog(owner, "스케일", null, "기본기");
+        persistLog(owner, "샤콘느", null, "곡 연습");
+        persistLog(owner, "분류 없음", null, null);
+
+        assertThat(practiceLogRepository.findAll(PracticeLogSpecification.filter(owner.getId(), "기본기", null)))
+                .extracting(PracticeLog::getTitle).containsExactly("스케일");
+        assertThat(practiceLogRepository.findAll(PracticeLogSpecification.filter(owner.getId(), "", null)))
+                .extracting(PracticeLog::getTitle).containsExactlyInAnyOrder("스케일", "샤콘느", "분류 없음");
     }
 }

@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 연습 일지 관련 API 컨트롤러
  * POST   /api/practice-logs      — 연습 일지 등록
- * GET    /api/practice-logs      — 내 연습 일지 목록 조회 (제목·내용 검색, 무한스크롤, 본인 것만)
+ * GET    /api/practice-logs      — 내 연습 일지 목록 조회 (분류 필터, 제목·내용 검색, 무한스크롤, 본인 것만)
  * GET    /api/practice-logs/{id} — 연습 일지 단건 조회 (본인만)
  * PUT    /api/practice-logs/{id} — 연습 일지 수정 (본인만)
  * DELETE /api/practice-logs/{id} — 연습 일지 삭제 (본인만)
@@ -46,10 +46,11 @@ public class PracticeLogController {
     @GetMapping
     public ResponseEntity<APIResponse<PageResponse<PracticeLogSummaryResponseDTO>>> getPracticeLogs(
             @AuthenticationPrincipal User user,
+            @RequestParam(required = false) String category,
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 10) Pageable pageable) {
         Page<PracticeLogSummaryResponseDTO> response = practiceLogService.getMyPracticeLogs(
-                user.getId(), keyword, PageSupport.withSort(pageable, Sort.by(Sort.Direction.DESC, "logDate")));
+                user.getId(), category, keyword, PageSupport.withSort(pageable, Sort.by(Sort.Direction.DESC, "logDate")));
         return ResponseEntity.ok(APIResponse.ok("연습 일지 목록 조회 성공", PageResponse.from(response)));
     }
 

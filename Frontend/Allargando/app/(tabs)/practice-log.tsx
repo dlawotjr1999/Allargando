@@ -3,6 +3,7 @@ import { View, FlatList, StyleSheet, Text, ActivityIndicator, Alert } from "reac
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { colors } from "@/constants/theme";
+import { PRACTICE_CATEGORIES } from "@/constants/filterOptions";
 import { deletePracticeLog, getPracticeLog, getPracticeLogs } from "@/api/practiceLog";
 import { ApiError } from "@/lib/apiClient";
 import {
@@ -13,12 +14,13 @@ import {
 } from "@/types/practiceLog";
 import AppHeader from "@/components/common/AppHeader";
 import EmptyState from "@/components/common/EmptyState";
+import Chip from "@/components/common/Chip";
 import FloatingAddButton from "@/components/common/FloatingAddButton";
 import SearchBar from "@/components/common/SearchBar";
 import PracticeLogCard from "@/components/practiceLog/PracticeLogCard";
 import PracticeLogDetailModal from "@/components/practiceLog/PracticeLogDetailModal";
 
-// 연습일지 목록 화면 — 검색(제목·내용) + 무한스크롤 목록 + 상세 모달 + 작성 버튼(모집글 목록과 같은 떠 있는 +).
+// 연습일지 목록 화면 — 검색(제목·내용) + 분류 필터 + 무한스크롤 목록 + 상세 모달 + 작성 버튼(모집글 목록과 같은 떠 있는 +).
 // 목록 API가 요약 필드만 주기 때문에, 상세는 카드 선택 시 별도 조회로 채운다(아래 handleSelect).
 export default function PracticeLogScreen() {
   const router = useRouter();
@@ -169,6 +171,8 @@ export default function PracticeLogScreen() {
     ]);
   };
 
+  const hasFilter = !!filter.keyword || !!filter.category;
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <AppHeader />
@@ -182,6 +186,22 @@ export default function PracticeLogScreen() {
         onSearch={(keyword) => setFilter((prev) => ({ ...prev, keyword }))}
         placeholder="제목·내용 검색"
       />
+
+      <View style={styles.categoryRow}>
+        <Chip
+          label="전체"
+          active={!filter.category}
+          onPress={() => setFilter((prev) => ({ ...prev, category: "" }))}
+        />
+        {PRACTICE_CATEGORIES.map((category) => (
+          <Chip
+            key={category}
+            label={category}
+            active={filter.category === category}
+            onPress={() => setFilter((prev) => ({ ...prev, category }))}
+          />
+        ))}
+      </View>
 
       {loading ? (
         <View style={styles.centerFill}>
@@ -213,8 +233,8 @@ export default function PracticeLogScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="musical-notes-outline"
-              title={filter.keyword ? "검색 결과가 없어요" : "아직 연습 기록이 없어요"}
-              description={filter.keyword ? "다른 검색어로 찾아보세요." : "오늘의 연습을 기록해 보세요."}
+              title={hasFilter ? "조건에 맞는 일지가 없어요" : "아직 연습 기록이 없어요"}
+              description={hasFilter ? "검색어나 분류를 바꿔 보세요." : "오늘의 연습을 기록해 보세요."}
             />
           }
         />
@@ -248,6 +268,13 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: colors.primary,
+  },
+  categoryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 10,
   },
   // 아래쪽 여백은 마지막 카드가 떠 있는 작성 버튼(52px)에 가리지 않게 하려는 것
   listContent: { flexGrow: 1, padding: 16, paddingBottom: 88 },

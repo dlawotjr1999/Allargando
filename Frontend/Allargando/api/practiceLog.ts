@@ -14,6 +14,7 @@ import {
 export function getPracticeLogs(filter: PracticeLogFilter, page: number) {
   const params = new URLSearchParams();
   if (filter.keyword) params.append("keyword", filter.keyword);
+  if (filter.category) params.append("category", filter.category);
   params.append("page", String(page));
   return apiRequest<PageResponse<PracticeLogSummary>>(`/api/practice-logs?${params.toString()}`);
 }

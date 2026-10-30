@@ -67,7 +67,7 @@ class PracticeLogServiceTest {
 
     private PracticeLog buildLog(User user) {
         return PracticeLog.create(user, request.getTitle(), request.getLogDate(),
-                request.getDuration(), request.getContent());
+                request.getDuration(), request.getContent(), request.getCategory());
     }
 
     @Test
@@ -91,7 +91,7 @@ class PracticeLogServiceTest {
                 .willReturn(new PageImpl<>(List.of(log), PageRequest.of(0, 10), 1));
 
         Page<PracticeLogSummaryResponseDTO> result =
-                practiceLogService.getMyPracticeLogs(1L, null, PageRequest.of(0, 10));
+                practiceLogService.getMyPracticeLogs(1L, null, null, PageRequest.of(0, 10));
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getTitle()).isEqualTo("Bach 무반주 파르티타 1번 연습");

@@ -110,7 +110,7 @@ class UserWithdrawalFlowTest {
 
         // 탈퇴자의 경력·연습일지
         em.persist(Career.of(leaver, "서울시향", "객원"));
-        PracticeLog log = em.persist(PracticeLog.create(leaver, "연습", LocalDate.now(), 30, "내용"));
+        PracticeLog log = em.persist(PracticeLog.create(leaver, "연습", LocalDate.now(), 30, "내용", null));
 
         Long leaverId = leaver.getId();
         Long leaversPostId = leaversPost.getId();
