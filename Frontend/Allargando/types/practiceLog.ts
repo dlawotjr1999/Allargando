@@ -10,6 +10,15 @@ export interface PracticeLogSummary {
   duration: number; // 연습 시간(분)
 }
 
+// 목록 검색 조건. keyword는 제목·내용 검색어이고 빈 문자열이면 검색하지 않는다(백엔드 keyword 파라미터)
+export interface PracticeLogFilter {
+  keyword: string;
+}
+
+export const DEFAULT_PRACTICE_LOG_FILTER: PracticeLogFilter = {
+  keyword: "",
+};
+
 // 단건 조회·등록·수정 응답 (PracticeLogResponseDTO).
 export interface PracticeLogDetail extends PracticeLogSummary {
   content: string;

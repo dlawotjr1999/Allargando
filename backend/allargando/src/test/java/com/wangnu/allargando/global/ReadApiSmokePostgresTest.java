@@ -105,6 +105,7 @@ class ReadApiSmokePostgresTest {
         mockMvc.perform(get("/api/users/me").with(as("owner"))).andExpect(status().isOk());
         mockMvc.perform(get("/api/blocks").with(as("owner"))).andExpect(status().isOk());
         mockMvc.perform(get("/api/practice-logs").with(as("owner"))).andExpect(status().isOk());
+        mockMvc.perform(get("/api/practice-logs").param("keyword", "바흐").with(as("owner"))).andExpect(status().isOk());
         mockMvc.perform(get("/api/concerts").with(as("owner"))).andExpect(status().isOk());
         // 정렬식(날짜 비교 결과·CASE)이 PostgreSQL에서도 실행되는지 — H2만으로는 확인되지 않는다
         mockMvc.perform(get("/api/concerts").param("running", "true").with(as("owner"))).andExpect(status().isOk());

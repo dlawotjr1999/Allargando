@@ -5,18 +5,25 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { colors } from "@/constants/theme";
 import { deletePracticeLog, getPracticeLog, getPracticeLogs } from "@/api/practiceLog";
 import { ApiError } from "@/lib/apiClient";
-import { PracticeLogDetail, PracticeLogSummary } from "@/types/practiceLog";
+import {
+  DEFAULT_PRACTICE_LOG_FILTER,
+  PracticeLogDetail,
+  PracticeLogFilter,
+  PracticeLogSummary,
+} from "@/types/practiceLog";
 import AppHeader from "@/components/common/AppHeader";
 import EmptyState from "@/components/common/EmptyState";
 import FloatingAddButton from "@/components/common/FloatingAddButton";
+import SearchBar from "@/components/common/SearchBar";
 import PracticeLogCard from "@/components/practiceLog/PracticeLogCard";
 import PracticeLogDetailModal from "@/components/practiceLog/PracticeLogDetailModal";
 
-// 연습일지 목록 화면 — 무한스크롤 목록 + 상세 모달 + 작성 버튼(모집글 목록과 같은 떠 있는 +).
+// 연습일지 목록 화면 — 검색(제목·내용) + 무한스크롤 목록 + 상세 모달 + 작성 버튼(모집글 목록과 같은 떠 있는 +).
 // 목록 API가 요약 필드만 주기 때문에, 상세는 카드 선택 시 별도 조회로 채운다(아래 handleSelect).
 export default function PracticeLogScreen() {
   const router = useRouter();
 
+  const [filter, setFilter] = useState<PracticeLogFilter>(DEFAULT_PRACTICE_LOG_FILTER);
   const [logs, setLogs] = useState<PracticeLogSummary[]>([]);
   const [currentPage, setCurrentPage] = useState(0); // 마지막으로 불러온 페이지 번호(0-base)
   const [hasNext, setHasNext] = useState(false); // 다음 페이지 존재 여부 — 무한스크롤 종료 판단
@@ -34,6 +41,8 @@ export default function PracticeLogScreen() {
   const detailRequestRef = useRef(0);
   // 오류 화면의 "다시 시도"가 올리는 번호. 올라가면 아래 포커스 효과가 처음부터 다시 조회한다
   const [reloadKey, setReloadKey] = useState(0);
+  // 첫 페이지를 새로 조회할 때마다 올리는 번호 — 그 전에 보낸 다음 페이지 요청의 늦은 응답(예: 이전 검색어의 결과)을 버린다
+  const listRequestRef = useRef(0);
 
   // 이 탭이 포커스될 때마다 0페이지부터 다시 조회한다(currentPage/hasNext도 그 응답 기준으로 리셋).
   // 최초 진입은 물론, "작성하기"에서 등록을 마치고 router.back()으로 돌아왔을 때도
@@ -43,12 +52,13 @@ export default function PracticeLogScreen() {
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      listRequestRef.current += 1;
 
       (async () => {
         setLoading(true);
         setError(null);
         try {
-          const page = await getPracticeLogs(0);
+          const page = await getPracticeLogs(filter, 0);
           if (cancelled) return;
           setLogs(page.content);
           setCurrentPage(page.currentPage);
@@ -66,16 +76,18 @@ export default function PracticeLogScreen() {
       };
       // reloadKey는 콜백 안에서 읽지 않지만 값이 바뀌면 포커스 효과를 다시 돌리려고 의존성에 둔다("다시 시도" 버튼)
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [reloadKey])
+    }, [reloadKey, filter])
   );
 
   // 무한스크롤 다음 페이지 — FlatList의 onEndReached에서 호출된다.
   // 이미 로딩 중이거나 다음 페이지가 없으면 중복 호출을 막고 바로 반환.
   const loadNextPage = async () => {
     if (loadingMore || !hasNext) return;
+    const requestId = listRequestRef.current;
     setLoadingMore(true);
     try {
-      const page = await getPracticeLogs(currentPage + 1);
+      const page = await getPracticeLogs(filter, currentPage + 1);
+      if (requestId !== listRequestRef.current) return; // 그 사이 목록을 새로 조회함 — 이어붙이지 않는다
       setLogs((prev) => [...prev, ...page.content]); // 기존 목록 뒤에 이어붙임(교체 아님)
       setCurrentPage(page.currentPage);
       setHasNext(page.hasNext);
@@ -165,6 +177,12 @@ export default function PracticeLogScreen() {
         <Text style={styles.pageTitle}>연습일지</Text>
       </View>
 
+      <SearchBar
+        value={filter.keyword}
+        onSearch={(keyword) => setFilter((prev) => ({ ...prev, keyword }))}
+        placeholder="제목·내용 검색"
+      />
+
       {loading ? (
         <View style={styles.centerFill}>
           <ActivityIndicator color={colors.primary} />
@@ -195,8 +213,8 @@ export default function PracticeLogScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="musical-notes-outline"
-              title="아직 연습 기록이 없어요"
-              description="오늘의 연습을 기록해 보세요."
+              title={filter.keyword ? "검색 결과가 없어요" : "아직 연습 기록이 없어요"}
+              description={filter.keyword ? "다른 검색어로 찾아보세요." : "오늘의 연습을 기록해 보세요."}
             />
           }
         />
