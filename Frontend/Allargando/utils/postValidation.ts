@@ -66,18 +66,13 @@ export function validatePostForm(values: PostFormValues, now: Date = new Date())
     return `시간표는 ${POST_TIMETABLE_MAX}자 이내로 입력해 주세요.`;
   }
 
-  // 악기·인원이 모두 빈 행은 아직 안 채운 줄로 보고 무시하고, 하나만 채운 행은 오류로 안내한다
-  const filled = values.instruments.filter((it) => it.instrument || it.people);
-  if (filled.length === 0) return "모집 악기를 1개 이상 입력해 주세요.";
-  for (const it of filled) {
-    if (!it.instrument) return "모집 인원을 입력한 악기를 선택해 주세요.";
+  // 악기는 칩으로 고르므로 이름이 비거나 겹치지 않는다. 직접 입력한 인원만 범위를 확인한다
+  if (values.instruments.length === 0) return "모집 악기를 1개 이상 선택해 주세요.";
+  for (const it of values.instruments) {
     const people = Number(it.people);
     if (!it.people || !Number.isInteger(people) || people < POST_PEOPLE_MIN || people > POST_PEOPLE_MAX) {
       return `${it.instrument}의 모집 인원은 ${POST_PEOPLE_MIN}~${POST_PEOPLE_MAX}명으로 입력해 주세요.`;
     }
-  }
-  if (new Set(filled.map((it) => it.instrument)).size !== filled.length) {
-    return "같은 악기를 두 번 넣을 수 없어요.";
   }
 
   return null;

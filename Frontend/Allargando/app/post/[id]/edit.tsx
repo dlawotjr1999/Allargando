@@ -74,6 +74,7 @@ export default function PostEditScreen() {
     <PostForm
       mode="edit"
       initial={toFormValues(post)}
+      confirmedByInstrument={Object.fromEntries(post.instruments.map((it) => [it.instrument, it.confirmed]))}
       onSubmit={async (payload) => {
         await updatePost(post.id, payload);
         markPostListStale();
