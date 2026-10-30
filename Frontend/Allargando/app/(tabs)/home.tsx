@@ -11,11 +11,12 @@ import { PostFilter, DEFAULT_FILTER } from "@/types/filter";
 import AppHeader from "@/components/common/AppHeader";
 import EmptyState from "@/components/common/EmptyState";
 import FloatingAddButton from "@/components/common/FloatingAddButton";
+import SearchBar from "@/components/common/SearchBar";
 import PostCard from "@/components/post/PostCard";
 import FilterBar from "@/components/post/FilterBar";
 import FilterSheet from "@/components/post/FilterSheet";
 
-// 모집글 목록 화면 — 필터(카테고리·악기·지역·기간) + 무한스크롤 목록 + FAB(등록).
+// 모집글 목록 화면 — 검색(제목·장소·내용) + 필터(카테고리·악기·지역·기간) + 무한스크롤 목록 + FAB(등록).
 // 필터가 바뀌면 loadFirstPage가 재실행되어 0페이지부터 다시 조회한다(아래 useEffect 의존성 참고).
 export default function HomeScreen() {
   const router = useRouter();
@@ -94,6 +95,12 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <AppHeader />
+
+      <SearchBar
+        value={filter.keyword}
+        onSearch={(keyword) => setFilter((prev) => ({ ...prev, keyword }))}
+        placeholder="제목·장소·내용 검색"
+      />
 
       <FilterBar
         filter={filter}

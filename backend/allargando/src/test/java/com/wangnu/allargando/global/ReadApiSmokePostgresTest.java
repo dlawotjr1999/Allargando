@@ -95,6 +95,8 @@ class ReadApiSmokePostgresTest {
 
         mockMvc.perform(get("/api/posts").with(as("owner"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].instruments").isArray());
+        // 검색(설명처럼 비어 있을 수 있는 필드 포함)이 PostgreSQL에서도 실행되는지
+        mockMvc.perform(get("/api/posts").param("keyword", "금관 100%_").with(as("owner"))).andExpect(status().isOk());
         mockMvc.perform(get("/api/posts/me").with(as("owner"))).andExpect(status().isOk());
         mockMvc.perform(get("/api/posts/" + postId).with(as("owner"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.isMine").value(true));
