@@ -1,7 +1,7 @@
 import { PostSort } from "@/types/filter";
 import { PostStatus } from "@/types/post";
 
-export const CATEGORIES = ["앙상블", "버스킹", "합주", "연주회", "기타"];
+export const CATEGORIES = ["앙상블", "오케스트라", "마칭", "버스킹", "기타"];
 
 // 악기 목록의 단일 소스 — 모집글·필터·지원·가입·프로필 수정이 모두 이 목록을 쓴다.
 // 백엔드는 악기명을 문자열 그대로 비교하므로(Post.requireAcceptingInstrument) 화면마다 목록이 다르면

@@ -5,7 +5,8 @@ import { colors } from "@/constants/theme";
 interface ChipSelectProps {
   label: string;
   options: string[];
-  selected: string;
+  // 하나만 고르면 문자열, 여러 개를 고르는 화면(예: 모집 악기)은 배열로 넘긴다
+  selected: string | string[];
   onSelect: (value: string) => void;
 }
 
@@ -15,6 +16,9 @@ export default function ChipSelect({
   selected,
   onSelect,
 }: ChipSelectProps) {
+  const isSelected = (option: string) =>
+    Array.isArray(selected) ? selected.includes(option) : selected === option;
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
@@ -22,13 +26,13 @@ export default function ChipSelect({
         {options.map((option) => (
           <TouchableOpacity
             key={option}
-            style={[styles.chip, selected === option && styles.chipSelected]}
+            style={[styles.chip, isSelected(option) && styles.chipSelected]}
             onPress={() => onSelect(option)}
           >
             <Text
               style={[
                 styles.chipText,
-                selected === option && styles.chipTextSelected,
+                isSelected(option) && styles.chipTextSelected,
               ]}
             >
               {option}
