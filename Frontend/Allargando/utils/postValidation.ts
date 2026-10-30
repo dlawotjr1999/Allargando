@@ -52,8 +52,8 @@ export function validatePostForm(values: PostFormValues, now: Date = new Date())
   if (!values.title.trim()) return "제목을 입력해 주세요.";
   if (values.title.length > POST_TITLE_MAX) return `제목은 ${POST_TITLE_MAX}자 이내로 입력해 주세요.`;
 
-  if (!DATE_RE.test(values.eventDate)) return "공연 날짜를 2026-08-01 형식으로 입력해 주세요.";
-  if (!TIME_RE.test(values.eventTime)) return "공연 시간을 14:00 형식(24시간)으로 입력해 주세요.";
+  if (!DATE_RE.test(values.eventDate)) return "공연 날짜를 선택해 주세요.";
+  if (!TIME_RE.test(values.eventTime)) return "공연 시간을 선택해 주세요.";
   const eventAt = parseEventDateTime(values.eventDate, values.eventTime);
   if (!eventAt) return "존재하지 않는 날짜 또는 시간이에요. 다시 확인해 주세요.";
   if (eventAt <= now) return "공연 일시는 현재 이후여야 해요.";

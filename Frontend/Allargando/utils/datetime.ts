@@ -47,6 +47,19 @@ export function toDateOnly(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+// Date → "HH:mm" (시간 선택 UI에서 사용)
+export function toTimeOnly(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// "HH:mm" → 오늘 날짜의 그 시각 Date (toTimeOnly의 역변환, 시간 선택기의 시작 값)
+export function parseTime(time: string): Date {
+  const [hours, minutes] = time.split(":").map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+}
+
 // "YYYY-MM-DD" → "MM.DD" (필터 칩처럼 좁은 자리에 기간을 보일 때)
 export function formatShortDate(iso: string): string {
   const date = parseDate(iso);

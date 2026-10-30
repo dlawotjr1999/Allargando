@@ -27,6 +27,7 @@ import {
 } from "@/utils/postValidation";
 import ThemedButton from "@/components/common/ThemedButton";
 import ChipSelect from "@/components/common/ChipSelect";
+import DateTimeField from "@/components/common/DateTimeField";
 import PostInstrumentFormItem, {
   PostInstrumentDraft,
 } from "@/components/post/PostInstrumentFormItem";
@@ -168,30 +169,22 @@ export default function PostForm({ mode, initial, onSubmit }: PostFormProps) {
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.fieldGroup, styles.rowField]}>
-              <Text style={styles.label}>공연 날짜</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="2026-08-01"
-                placeholderTextColor={colors.placeholder}
-                value={eventDate}
-                onChangeText={setEventDate}
-                maxLength={10}
-                keyboardType="numbers-and-punctuation"
-              />
-            </View>
-            <View style={[styles.fieldGroup, styles.rowField]}>
-              <Text style={styles.label}>공연 시간</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="14:00"
-                placeholderTextColor={colors.placeholder}
-                value={eventTime}
-                onChangeText={setEventTime}
-                maxLength={5}
-                keyboardType="numbers-and-punctuation"
-              />
-            </View>
+            {/* 지난 날짜는 서버도 받지 않으므로 달력에서 오늘 이전을 막는다. 오늘의 지난 시각은 제출할 때 검증한다 */}
+            <DateTimeField
+              mode="date"
+              label="공연 날짜"
+              value={eventDate}
+              onChange={setEventDate}
+              minimumDate={new Date()}
+              style={styles.rowField}
+            />
+            <DateTimeField
+              mode="time"
+              label="공연 시간"
+              value={eventTime}
+              onChange={setEventTime}
+              style={styles.rowField}
+            />
           </View>
 
           <View style={styles.fieldGroup}>
