@@ -41,7 +41,7 @@ export function describeAuthError(err: unknown, context: AuthErrorContext): stri
     case "auth/weak-password":
       return "비밀번호가 너무 약해요. 8자 이상으로 입력해 주세요.";
     case "auth/invalid-phone-number":
-      return "휴대폰 번호를 010-0000-0000 형식으로 입력해 주세요.";
+      return "휴대폰 번호를 정확히 입력해 주세요.";
     case "auth/invalid-verification-code":
       return "인증번호가 올바르지 않아요. 다시 확인해 주세요.";
     case "auth/code-expired":

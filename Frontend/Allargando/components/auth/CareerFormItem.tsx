@@ -33,7 +33,7 @@ export default function CareerFormItem({
       )}
       <TextInput
         style={styles.input}
-        placeholder="예: 서울시립교향악단"
+        placeholder="예: OO 오케스트라"
         placeholderTextColor={colors.placeholder}
         value={value.organization}
         onChangeText={(text) =>
@@ -43,7 +43,7 @@ export default function CareerFormItem({
       />
       <TextInput
         style={[styles.input, styles.textArea]}
-        placeholder="예: 2023-2024 객원 연주자"
+        placeholder="예: 퍼스트 바이올린 3년"
         placeholderTextColor={colors.placeholder}
         value={value.contexts}
         onChangeText={(text) =>
