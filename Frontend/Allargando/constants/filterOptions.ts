@@ -1,7 +1,10 @@
 import { PostSort } from "@/types/filter";
 import { PostStatus } from "@/types/post";
 
-export const CATEGORIES = ["앙상블", "버스킹", "합주", "연주회", "기타"];
+export const CATEGORIES = ["앙상블", "오케스트라", "마칭", "버스킹", "기타"];
+
+// 연습일지 분류 — 선택 입력이라 고르지 않은 일지는 값이 없다
+export const PRACTICE_CATEGORIES = ["기본기", "곡 연습", "레슨", "기타"];
 
 // 악기 목록의 단일 소스 — 모집글·필터·지원·가입·프로필 수정이 모두 이 목록을 쓴다.
 // 백엔드는 악기명을 문자열 그대로 비교하므로(Post.requireAcceptingInstrument) 화면마다 목록이 다르면
@@ -27,6 +30,13 @@ export const CONCERT_REGIONS = [
 // KOPIS genrenm 원본 표기 — 백엔드가 이 문자열과 완전 일치로 비교한다. 세 장르(CCCA·CCCC·CCCD) 모두
 // 백엔드가 실제 응답으로 확인했다(KopisSyncService). 국악은 "국악"이 아니라 "한국음악(국악)"으로 내려온다
 export const CONCERT_CATEGORIES = ["서양음악(클래식)", "한국음악(국악)", "대중음악"];
+
+// 장르 탭에 보일 짧은 이름 — 서버로 보내는 값은 위 원본 표기 그대로다
+export const CONCERT_CATEGORY_LABELS: Record<string, string> = {
+  "서양음악(클래식)": "클래식",
+  "한국음악(국악)": "국악",
+  "대중음악": "대중음악",
+};
 
 // 모집글 목록 정렬 3종(D15) — 값은 서버 PostSort와 같다. 순서대로 눌러 바꾼다
 export const POST_SORTS: { value: PostSort; label: string }[] = [

@@ -1,5 +1,6 @@
 package com.wangnu.allargando.practice.service;
 
+import com.wangnu.allargando.global.common.KeywordSearch;
 import com.wangnu.allargando.global.exception.ForbiddenException;
 import com.wangnu.allargando.global.exception.NotFoundException;
 import com.wangnu.allargando.practice.dto.PracticeLogCreateRequestDTO;
@@ -7,6 +8,7 @@ import com.wangnu.allargando.practice.dto.PracticeLogResponseDTO;
 import com.wangnu.allargando.practice.dto.PracticeLogSummaryResponseDTO;
 import com.wangnu.allargando.practice.entity.PracticeLog;
 import com.wangnu.allargando.practice.repository.PracticeLogRepository;
+import com.wangnu.allargando.practice.repository.PracticeLogSpecification;
 import com.wangnu.allargando.user.entity.User;
 import com.wangnu.allargando.user.event.UserWithdrawalEvent;
 import lombok.RequiredArgsConstructor;
@@ -30,15 +32,18 @@ public class PracticeLogService {
     @Transactional
     public PracticeLogResponseDTO createPracticeLog(User user, PracticeLogCreateRequestDTO request) {
         PracticeLog log = PracticeLog.create(user, request.getTitle(), request.getLogDate(),
-                request.getDuration(), request.getContent());
+                request.getDuration(), request.getContent(), request.getCategory());
         PracticeLog saved = practiceLogRepository.save(log);
         return PracticeLogResponseDTO.from(saved);
     }
 
-    // 내 연습 일지 목록 조회 — 카드 리스트용 요약. 정렬은 컨트롤러 Pageable에서 결정
+    // 내 연습 일지 목록 조회 — 카드 리스트용 요약. category로 거르고 keyword가 있으면 제목·내용에서 찾는다. 정렬은 컨트롤러 Pageable에서 결정
     @Transactional(readOnly = true)
-    public Page<PracticeLogSummaryResponseDTO> getMyPracticeLogs(Long userId, Pageable pageable) {
-        return practiceLogRepository.findByUserId(userId, pageable).map(PracticeLogSummaryResponseDTO::from);
+    public Page<PracticeLogSummaryResponseDTO> getMyPracticeLogs(Long userId, String category, String keyword,
+            Pageable pageable) {
+        return practiceLogRepository
+                .findAll(PracticeLogSpecification.filter(userId, category, KeywordSearch.normalize(keyword)), pageable)
+                .map(PracticeLogSummaryResponseDTO::from);
     }
 
     // 연습 일지 단건 조회 (작성자 본인만)
@@ -55,7 +60,8 @@ public class PracticeLogService {
         PracticeLog log = findLogOrThrow(logId);
         requireOwner(log, user);
 
-        log.update(request.getTitle(), request.getLogDate(), request.getDuration(), request.getContent());
+        log.update(request.getTitle(), request.getLogDate(), request.getDuration(), request.getContent(),
+                request.getCategory());
 
         return PracticeLogResponseDTO.from(log);
     }

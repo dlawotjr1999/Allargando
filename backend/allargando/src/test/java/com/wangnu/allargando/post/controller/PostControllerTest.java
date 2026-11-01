@@ -163,7 +163,7 @@ class PostControllerTest {
     // 페이지 크기는 설정한 상한(50)으로 잘리고, Pageable에는 정렬이 없다(정렬은 sort 파라미터로 Specification이 건다)
     @Test
     void getPosts_capsPageSizeAndLeavesPageableUnsorted() throws Exception {
-        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         mockMvc.perform(get("/api/posts?size=100000")
@@ -171,7 +171,7 @@ class PostControllerTest {
                 .andExpect(status().isOk());
 
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), any(), any(), captor.capture());
+        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any(), captor.capture());
         assertThat(captor.getValue().getSort()).isEqualTo(Sort.unsorted());
         assertThat(captor.getValue().getPageSize()).isEqualTo(50);
     }
@@ -187,7 +187,7 @@ class PostControllerTest {
                         .with(authentication(auth)))
                 .andExpect(status().isBadRequest());
 
-        verify(postService, never()).getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(postService, never()).getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -196,26 +196,26 @@ class PostControllerTest {
                         .with(authentication(auth)))
                 .andExpect(status().isBadRequest());
 
-        verify(postService, never()).getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(postService, never()).getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
     void getPosts_defaultsToLatestSortAndNoStatus() throws Exception {
-        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         mockMvc.perform(get("/api/posts").with(authentication(auth)))
                 .andExpect(status().isOk());
 
         ArgumentCaptor<PostSort> sort = ArgumentCaptor.forClass(PostSort.class);
-        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), isNull(), sort.capture(), any());
+        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), isNull(), sort.capture(), any(), any());
         assertThat(sort.getValue()).isEqualTo(PostSort.LATEST);
     }
 
     // sort와 복수 status가 그대로 서비스에 전달된다
     @Test
     void getPosts_forwardsSortAndStatusesToService() throws Exception {
-        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         mockMvc.perform(get("/api/posts?sort=CLOSING_SOON&status=OPEN&status=CLOSED")
@@ -225,9 +225,23 @@ class PostControllerTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<PostStatus>> statuses = ArgumentCaptor.forClass(List.class);
         ArgumentCaptor<PostSort> sort = ArgumentCaptor.forClass(PostSort.class);
-        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), statuses.capture(), sort.capture(), any());
+        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), statuses.capture(), sort.capture(), any(), any());
         assertThat(sort.getValue()).isEqualTo(PostSort.CLOSING_SOON);
         assertThat(statuses.getValue()).containsExactly(PostStatus.OPEN, PostStatus.CLOSED);
+    }
+
+    // 검색어는 그대로 서비스에 넘긴다(정리·검증은 서비스의 KeywordSearch 몫)
+    @Test
+    void getPosts_forwardsKeywordToService() throws Exception {
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        mockMvc.perform(get("/api/posts").param("keyword", "금관").with(authentication(auth)))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<String> keyword = ArgumentCaptor.forClass(String.class);
+        verify(postService).getPosts(any(), any(), any(), any(), any(), any(), any(), any(), keyword.capture(), any());
+        assertThat(keyword.getValue()).isEqualTo("금관");
     }
 
     @Test
@@ -245,7 +259,7 @@ class PostControllerTest {
                 .status(PostStatus.OPEN)
                 .build();
 
-        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        when(postService.getPosts(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(summary), PageRequest.of(0, 10), 1));
 
         mockMvc.perform(get("/api/posts")

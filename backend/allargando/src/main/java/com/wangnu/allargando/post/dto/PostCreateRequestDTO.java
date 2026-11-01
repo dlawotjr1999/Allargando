@@ -48,8 +48,8 @@ public class PostCreateRequestDTO {
     @Size(max = 255, message = "지역은 255자 이내여야 합니다")
     private String region;
 
-    @NotBlank(message = "시간표를 입력해 주세요")
-    @Size(max = 255, message = "시간표는 255자 이내여야 합니다")
+    @NotBlank(message = "연습 일정을 입력해 주세요")
+    @Size(max = 255, message = "연습 일정은 255자 이내여야 합니다")
     private String timetable;
 
     // 모집글 상세 설명 (선택 입력) — BACKLOG.md #34

@@ -2,6 +2,7 @@ package com.wangnu.allargando.post.service;
 
 import com.wangnu.allargando.application.entity.ApplicationStatus;
 import com.wangnu.allargando.application.service.ApplicationService;
+import com.wangnu.allargando.global.common.KeywordSearch;
 import com.wangnu.allargando.global.exception.BadRequestException;
 import com.wangnu.allargando.global.exception.ForbiddenException;
 import com.wangnu.allargando.global.exception.NotFoundException;
@@ -69,13 +70,13 @@ public class PostService {
     // 모집글 전체 조회 — Specification 동적 필터·정렬 적용 후 요약 DTO로 반환
     // statuses가 비면 모집 중인 글(OPEN·PARTIALLY_CLOSED)만, CLOSED를 고르면 마감된 글도 보인다(D15)
     // sort(LATEST·EVENT_SOON·CLOSING_SOON)는 Specification이 쿼리에 직접 건다 — pageable은 정렬이 없어야 한다
-    // viewerId(조회하는 유저)가 차단한 작성자의 글은 목록에서 제외된다
+    // viewerId(조회하는 유저)가 차단한 작성자의 글은 목록에서 제외된다. keyword가 있으면 제목·장소·설명에서 찾는다
     @Transactional(readOnly = true)
     public Page<PostSummaryResponseDTO> getPosts(Long viewerId, List<String> categories, List<String> instruments,
             List<String> regions, LocalDate startDate, LocalDate endDate, List<PostStatus> statuses, PostSort sort,
-            Pageable pageable) {
-        Specification<Post> spec = PostSpecification.filter(
-                viewerId, categories, instruments, regions, startDate, endDate, statuses, sort);
+            String keyword, Pageable pageable) {
+        Specification<Post> spec = PostSpecification.filter(viewerId, categories, instruments, regions, startDate, endDate,
+                statuses, sort, KeywordSearch.normalize(keyword));
         return postRepository.findAll(spec, pageable).map(PostSummaryResponseDTO::from);
     }
 

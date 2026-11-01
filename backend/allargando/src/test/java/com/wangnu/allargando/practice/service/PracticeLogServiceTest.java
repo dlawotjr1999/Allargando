@@ -14,10 +14,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -65,7 +67,7 @@ class PracticeLogServiceTest {
 
     private PracticeLog buildLog(User user) {
         return PracticeLog.create(user, request.getTitle(), request.getLogDate(),
-                request.getDuration(), request.getContent());
+                request.getDuration(), request.getContent(), request.getCategory());
     }
 
     @Test
@@ -85,11 +87,11 @@ class PracticeLogServiceTest {
     @Test
     void getMyPracticeLogs_returnsSummariesForUser() {
         PracticeLog log = buildLog(owner);
-        given(practiceLogRepository.findByUserId(1L, PageRequest.of(0, 10)))
+        given(practiceLogRepository.findAll(ArgumentMatchers.<Specification<PracticeLog>>any(), eq(PageRequest.of(0, 10))))
                 .willReturn(new PageImpl<>(List.of(log), PageRequest.of(0, 10), 1));
 
         Page<PracticeLogSummaryResponseDTO> result =
-                practiceLogService.getMyPracticeLogs(1L, PageRequest.of(0, 10));
+                practiceLogService.getMyPracticeLogs(1L, null, null, PageRequest.of(0, 10));
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getTitle()).isEqualTo("Bach 무반주 파르티타 1번 연습");

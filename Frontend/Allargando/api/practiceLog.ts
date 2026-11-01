@@ -2,12 +2,21 @@
 // 항상 로그인한 본인 것만 대상이라 apiClient가 기본으로 붙이는 인증 헤더 외에 별도 파라미터가 없다.
 import { apiRequest } from "@/lib/apiClient";
 import { PageResponse } from "@/types/api";
-import { PracticeLogCreateRequest, PracticeLogDetail, PracticeLogSummary } from "@/types/practiceLog";
+import {
+  PracticeLogCreateRequest,
+  PracticeLogDetail,
+  PracticeLogFilter,
+  PracticeLogSummary,
+} from "@/types/practiceLog";
 
 // 내 연습일지 목록을 페이지 단위(무한스크롤)로 조회. 정렬(logDate DESC)은 백엔드
 // @PageableDefault가 고정하므로 프론트에서 별도 정렬 파라미터를 넘기지 않는다.
-export function getPracticeLogs(page: number) {
-  return apiRequest<PageResponse<PracticeLogSummary>>(`/api/practice-logs?page=${page}`);
+export function getPracticeLogs(filter: PracticeLogFilter, page: number) {
+  const params = new URLSearchParams();
+  if (filter.keyword) params.append("keyword", filter.keyword);
+  if (filter.category) params.append("category", filter.category);
+  params.append("page", String(page));
+  return apiRequest<PageResponse<PracticeLogSummary>>(`/api/practice-logs?${params.toString()}`);
 }
 
 // 연습일지 단건 상세 조회. 목록 응답(PracticeLogSummary)에는 content가 없어서

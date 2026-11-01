@@ -1,6 +1,7 @@
 package com.wangnu.allargando.post.repository;
 
 import com.wangnu.allargando.block.entity.UserBlock;
+import com.wangnu.allargando.global.common.KeywordSearch;
 import com.wangnu.allargando.post.entity.Post;
 import com.wangnu.allargando.post.entity.PostInstrument;
 import com.wangnu.allargando.post.entity.PostStatus;
@@ -25,6 +26,7 @@ import java.util.List;
  * eventAt이 지난 글은 항상 제외(공연 종료 후 목록 노출 방지) — status로도 우회 불가
  * status(복수)는 기본 OPEN·PARTIALLY_CLOSED이고, CLOSED를 고르면 마감된 글도 보인다(D15)
  * 조회하는 유저(viewerId)가 차단한 유저의 글은 항상 제외 — viewerId가 null이면 이 조건을 건너뛴다
+ * keyword는 제목·장소·설명 부분 검색(KeywordSearch 규칙) — 작성자 닉네임 등 다른 필드는 찾지 않는다
  * 악기 필터는 JOIN+DISTINCT 대신 EXISTS 서브쿼리를 쓴다 — 정렬식(마감 임박순의 서브쿼리)이 SELECT DISTINCT와
  * 충돌하고 count(distinct) 비용도 줄어든다. 마감된 악기도 매칭한다(D14 4b)
  */
@@ -36,13 +38,15 @@ public class PostSpecification {
     // 기본 상태·정렬 없음으로 필터만 적용(정렬은 호출부가 정한다). 기존 호출부 호환용
     public static Specification<Post> filter(Long viewerId, List<String> categories, List<String> instruments,
             List<String> regions, LocalDate startDate, LocalDate endDate) {
-        return filter(viewerId, categories, instruments, regions, startDate, endDate, null, null);
+        return filter(viewerId, categories, instruments, regions, startDate, endDate, null, null, null);
     }
 
-    // 카테고리·악기·지역·기간·상태 조건을 조합하고 sort가 있으면 정렬까지 지정한 Specification 생성.
+    // 카테고리·악기·지역·기간·상태·검색어 조건을 조합하고 sort가 있으면 정렬까지 지정한 Specification 생성.
+    // keyword가 null이면 검색 조건 없음 — 정리·검증은 서비스가 KeywordSearch.normalize로 한다.
     // 정렬은 쿼리에 직접 건다(count 쿼리에는 걸지 않는다) — 호출부는 정렬 없는 Pageable을 넘겨야 이 정렬이 유지된다
     public static Specification<Post> filter(Long viewerId, List<String> categories, List<String> instruments,
-            List<String> regions, LocalDate startDate, LocalDate endDate, List<PostStatus> statuses, PostSort sort) {
+            List<String> regions, LocalDate startDate, LocalDate endDate, List<PostStatus> statuses, PostSort sort,
+            String keyword) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -58,6 +62,11 @@ public class PostSpecification {
 
             // 공연 날짜가 지난 글은 항상 제외 — status 필터로도 우회 불가
             predicates.add(cb.greaterThanOrEqualTo(root.get("eventAt"), LocalDateTime.now()));
+
+            if (keyword != null) {
+                predicates.add(KeywordSearch.containsAny(
+                        cb, keyword, root.get("title"), root.get("location"), root.get("description")));
+            }
 
             if (categories != null && !categories.isEmpty()) {
                 predicates.add(root.get("category").in(categories));

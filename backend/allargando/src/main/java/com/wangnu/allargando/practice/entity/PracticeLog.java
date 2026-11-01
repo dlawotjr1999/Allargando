@@ -50,6 +50,9 @@ public class PracticeLog {
     @Column(name = "content", length = 4000)
     private String content; // 연습 내용 (선택 입력)
 
+    @Column(name = "category")
+    private String category; // 연습 분류 (선택 입력) — 목록은 앱의 PRACTICE_CATEGORIES, 고르지 않으면 null
+
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -59,22 +62,25 @@ public class PracticeLog {
     private LocalDateTime updatedAt;
 
     // 연습 일지 생성
-    public static PracticeLog create(User user, String title, LocalDate logDate, Integer duration, String content) {
+    public static PracticeLog create(User user, String title, LocalDate logDate, Integer duration, String content,
+            String category) {
         PracticeLog log = new PracticeLog();
         log.user = user;
         log.title = title;
         log.logDate = logDate;
         log.duration = duration;
         log.content = content;
+        log.category = category;
         return log;
     }
 
     // 연습 일지 수정 (전체 필드 교체)
-    public void update(String title, LocalDate logDate, Integer duration, String content) {
+    public void update(String title, LocalDate logDate, Integer duration, String content, String category) {
         this.title = title;
         this.logDate = logDate;
         this.duration = duration;
         this.content = content;
+        this.category = category;
     }
 
     // 이 일지의 작성자가 user인지 확인 — 호출부가 getUser().getId().equals(...) 체인을 직접 다루지 않도록 함(Post.isOwnedBy와 동일 패턴)

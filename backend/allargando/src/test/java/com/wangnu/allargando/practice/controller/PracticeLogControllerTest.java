@@ -120,7 +120,7 @@ class PracticeLogControllerTest {
                 .duration(90)
                 .build();
 
-        when(practiceLogService.getMyPracticeLogs(anyLong(), any()))
+        when(practiceLogService.getMyPracticeLogs(anyLong(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(summary), PageRequest.of(0, 10), 1));
 
         mockMvc.perform(get("/api/practice-logs")

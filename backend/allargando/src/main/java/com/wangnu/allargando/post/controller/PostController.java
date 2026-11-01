@@ -53,7 +53,7 @@ public class PostController {
         return ResponseEntity.ok(APIResponse.ok("모집글이 등록되었습니다", response));
     }
 
-    // 모집글 전체 조회 (카테고리·악기·지역·기간·상태 필터 + 정렬 + 무한스크롤, 내가 차단한 유저의 글은 제외)
+    // 모집글 전체 조회 (카테고리·악기·지역·기간·상태 필터 + 제목·장소·설명 검색 + 정렬 + 무한스크롤, 내가 차단한 유저의 글은 제외)
     // status(복수): 기본은 OPEN·PARTIALLY_CLOSED만, CLOSED를 고르면 마감된 글도 보인다(공연일이 지난 글은 계속 제외)
     // sort: LATEST(기본)·EVENT_SOON·CLOSING_SOON 화이트리스트 — 목록 밖의 값은 400. Pageable의 sort 파라미터와
     // 이름이 같지만 여기서는 항상 정렬을 덮어쓰므로(클라이언트의 ?sort=는 속성명으로 쓰이지 않는다) 충돌하지 않는다
@@ -67,11 +67,12 @@ public class PostController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) List<PostStatus> status,
             @RequestParam(defaultValue = "LATEST") PostSort sort,
+            @RequestParam(required = false) String keyword,
             @PageableDefault(size = 10) Pageable pageable) {
 
         // 정렬은 PostSpecification이 쿼리에 직접 건다 — Pageable은 정렬 없이 페이지 번호·크기만 쓴다
         Page<PostSummaryResponseDTO> response =
-                postService.getPosts(user.getId(), category, instrument, region, startDate, endDate, status, sort,
+                postService.getPosts(user.getId(), category, instrument, region, startDate, endDate, status, sort, keyword,
                         PageSupport.withSort(pageable, Sort.unsorted()));
         return ResponseEntity.ok(APIResponse.ok("모집글 목록 조회 성공", PageResponse.from(response)));
     }

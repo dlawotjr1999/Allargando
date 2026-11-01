@@ -13,6 +13,8 @@ function buildQuery(filter: ConcertFilter, page: number): string {
   filter.regions.forEach((region) => params.append("region", region));
   if (filter.fromDate) params.append("fromDate", filter.fromDate);
   if (filter.toDate) params.append("toDate", filter.toDate);
+  if (filter.running) params.append("running", "true");
+  if (filter.keyword) params.append("keyword", filter.keyword);
   params.append("page", String(page));
   return params.toString();
 }

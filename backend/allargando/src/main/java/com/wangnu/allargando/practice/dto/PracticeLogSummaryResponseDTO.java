@@ -21,6 +21,7 @@ public class PracticeLogSummaryResponseDTO {
     private String title;
     private LocalDate logDate;
     private Integer duration;
+    private String category;
 
     // PracticeLog 엔티티 → 요약 DTO 변환
     public static PracticeLogSummaryResponseDTO from(PracticeLog log) {
@@ -29,6 +30,7 @@ public class PracticeLogSummaryResponseDTO {
                 .title(log.getTitle())
                 .logDate(log.getLogDate())
                 .duration(log.getDuration())
+                .category(log.getCategory())
                 .build();
     }
 }

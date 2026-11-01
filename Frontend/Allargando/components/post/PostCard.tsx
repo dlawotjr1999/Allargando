@@ -1,11 +1,12 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { PostStatus, PostSummary } from "@/types/post";
 import { STATUS_LABELS } from "@/constants/filterOptions";
-import { formatEventDateTime, getDday } from "@/utils/datetime";
+import { formatEventDateTime } from "@/utils/datetime";
+import DdayText from "@/components/common/DdayText";
 import IconText from "@/components/common/IconText";
+import PostCategoryIcon from "@/components/post/PostCategoryIcon";
 
 interface PostCardProps {
   post: PostSummary;
@@ -22,7 +23,6 @@ const STATUS_COLOR: Record<PostStatus, string> = {
 };
 
 export default function PostCard({ post, onPress, showStatus = false }: PostCardProps) {
-  const dday = getDday(post.eventAt);
   const statusBadgeVisible = showStatus || post.status !== "OPEN";
 
   return (
@@ -31,10 +31,7 @@ export default function PostCard({ post, onPress, showStatus = false }: PostCard
       activeOpacity={0.8}
       onPress={() => onPress?.(post.id)}
     >
-      {/* 좌측 썸네일 (추후 이미지로 교체할 자리) */}
-      <View style={styles.thumbnail}>
-        <Ionicons name="musical-note" size={26} color={colors.primaryLight} />
-      </View>
+      <PostCategoryIcon category={post.category} />
 
       {/* 우측 정보 */}
       <View style={styles.info}>
@@ -49,17 +46,7 @@ export default function PostCard({ post, onPress, showStatus = false }: PostCard
           <Text style={styles.title} numberOfLines={1}>
             {post.title}
           </Text>
-          {dday.label ? (
-            <Text
-              style={[
-                styles.dday,
-                dday.urgent && styles.ddayUrgent,
-                dday.expired && styles.ddayExpired,
-              ]}
-            >
-              {dday.label}
-            </Text>
-          ) : null}
+          <DdayText date={post.eventAt} />
         </View>
         <View style={styles.metaList}>
           <IconText icon="calendar-outline" text={formatEventDateTime(post.eventAt)} />
@@ -96,18 +83,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
   },
-  dday: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.textMuted,
-    flexShrink: 0,
-  },
-  ddayUrgent: {
-    color: colors.danger,
-  },
-  ddayExpired: {
-    color: colors.placeholder,
-  },
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -118,20 +93,15 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 14,
   },
-  thumbnail: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   info: {
     flex: 1,
     justifyContent: "center",
     gap: 8,
   },
+  // 제목이 줄의 남은 폭만 차지하고 넘치면 말줄임(…)으로 끝나게 한다. flex가 없으면 Text가 줄어들지 않아
+  // 긴 제목이 오른쪽의 D-day를 카드 밖으로 밀어낸다. D-day는 늘 줄 오른쪽 끝에 붙는다
   title: {
+    flex: 1,
     fontSize: 15,
     fontWeight: "600",
     color: colors.textPrimary,

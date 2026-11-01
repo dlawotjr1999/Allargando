@@ -192,7 +192,7 @@ class PostSpecificationTest {
     private org.springframework.data.domain.Page<Post> query(
             List<String> instruments, List<PostStatus> statuses, PostSort sort) {
         return postRepository.findAll(
-                PostSpecification.filter(null, null, instruments, null, null, null, statuses, sort),
+                PostSpecification.filter(null, null, instruments, null, null, null, statuses, sort, null),
                 org.springframework.data.domain.PageRequest.of(0, 10));
     }
 
@@ -237,7 +237,7 @@ class PostSpecificationTest {
         persistDetailed("C", LocalDateTime.now().plusDays(3), false, violin(2, 0));
 
         org.springframework.data.domain.Page<Post> page = postRepository.findAll(
-                PostSpecification.filter(null, null, null, null, null, null, null, PostSort.CLOSING_SOON),
+                PostSpecification.filter(null, null, null, null, null, null, null, PostSort.CLOSING_SOON, null),
                 org.springframework.data.domain.PageRequest.of(0, 2));
 
         assertThat(page.getTotalElements()).isEqualTo(3);
@@ -300,6 +300,36 @@ class PostSpecificationTest {
 
         assertThat(titlesOf(query(List.of("바이올린"), null, PostSort.LATEST)))
                 .containsExactly("바이올린 마감, 첼로 모집");
+    }
+
+    // 검색 테스트용 — 제목·장소·설명을 직접 지정
+    private void persistSearchablePost(String title, String location, String description) {
+        Post post = Post.create(owner, PostInfo.builder()
+                .category("앙상블")
+                .title(title)
+                .eventAt(LocalDateTime.now().plusDays(7))
+                .location(location)
+                .region("서울")
+                .timetable("13:00")
+                .description(description)
+                .build());
+        post.addInstrument(PostInstrument.of(post, "바이올린", 1));
+        entityManager.persist(post);
+    }
+
+    // 검색어는 제목·장소·설명 중 하나에 들어 있으면 일치하고, 영문 대소문자는 가리지 않는다. 설명이 없는 글도 다른 필드로 찾힌다
+    @Test
+    void keyword_matchesTitleLocationOrDescriptionIgnoringCase() {
+        persistSearchablePost("Brass 앙상블 모집", "서울 강남구", null);
+        persistSearchablePost("가을 공연", "brass 스튜디오", "소개");
+        persistSearchablePost("겨울 공연", "서울 마포구", "BRASS 파트 구함");
+        persistSearchablePost("현악 사중주", "서울 서초구", "바이올린 구함");
+
+        List<Post> result = postRepository.findAll(PostSpecification.filter(
+                null, null, null, null, null, null, null, null, "brass"));
+
+        assertThat(result).extracting(Post::getTitle)
+                .containsExactlyInAnyOrder("Brass 앙상블 모집", "가을 공연", "겨울 공연");
     }
 
     private void persistPostBy(User author, String title) {

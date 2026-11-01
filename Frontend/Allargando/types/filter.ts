@@ -12,6 +12,8 @@ export interface PostFilter {
   statuses: PostStatus[];
   startDate?: string; // "YYYY-MM-DD", 백엔드 GET /api/posts의 startDate 파라미터와 동일
   endDate?: string; // "YYYY-MM-DD", 백엔드 GET /api/posts의 endDate 파라미터와 동일
+  // 제목·장소·설명 검색어. 빈 문자열이면 검색하지 않는다(백엔드 keyword 파라미터)
+  keyword: string;
 }
 
 export const DEFAULT_FILTER: PostFilter = {
@@ -22,4 +24,5 @@ export const DEFAULT_FILTER: PostFilter = {
   statuses: [],
   startDate: undefined,
   endDate: undefined,
+  keyword: "",
 };

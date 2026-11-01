@@ -8,17 +8,20 @@ import { Concert } from "@/types/concert";
 import { ConcertFilter, DEFAULT_CONCERT_FILTER } from "@/types/concertFilter";
 import AppHeader from "@/components/common/AppHeader";
 import EmptyState from "@/components/common/EmptyState";
+import SearchBar from "@/components/common/SearchBar";
 import ConcertCard from "@/components/concert/ConcertCard";
 import ConcertDetailModal from "@/components/concert/ConcertDetailModal";
 import ConcertFilterBar from "@/components/concert/ConcertFilterBar";
-import ConcertFilterSheet from "@/components/concert/ConcertFilterSheet";
+import ConcertRegionSheet from "@/components/concert/ConcertRegionSheet";
+import ConcertDateSheet from "@/components/concert/ConcertDateSheet";
 
-// 연주회 목록 화면 — 필터(카테고리·지역·기간) + 무한스크롤 목록 + 상세 모달.
+// 연주회 목록 화면 — 검색(제목·공연장) + 필터(장르·지역·날짜·공연중) + 무한스크롤 목록 + 상세 모달.
 // 필터가 바뀌면 loadFirstPage가 재실행되어 0페이지부터 다시 조회한다(아래 useEffect 의존성 참고).
 export default function ConcertsScreen() {
   const [selected, setSelected] = useState<Concert | null>(null);
   const [filter, setFilter] = useState<ConcertFilter>(DEFAULT_CONCERT_FILTER);
-  const [sheetVisible, setSheetVisible] = useState(false);
+  // 열려 있는 선택 시트(지역·날짜 중 하나, 없으면 null)
+  const [openSheet, setOpenSheet] = useState<"region" | "date" | null>(null);
 
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -88,10 +91,17 @@ export default function ConcertsScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <AppHeader />
 
+      <SearchBar
+        value={filter.keyword}
+        onSearch={(keyword) => setFilter((prev) => ({ ...prev, keyword }))}
+        placeholder="공연 제목·공연장 검색"
+      />
+
       <ConcertFilterBar
         filter={filter}
         onChange={setFilter}
-        onOpenSheet={() => setSheetVisible(true)}
+        onOpenRegion={() => setOpenSheet("region")}
+        onOpenDate={() => setOpenSheet("date")}
         onReset={() => setFilter(DEFAULT_CONCERT_FILTER)}
       />
 
@@ -144,11 +154,19 @@ export default function ConcertsScreen() {
         />
       )}
 
-      <ConcertFilterSheet
-        visible={sheetVisible}
-        filter={filter}
-        onApply={setFilter}
-        onClose={() => setSheetVisible(false)}
+      <ConcertRegionSheet
+        visible={openSheet === "region"}
+        regions={filter.regions}
+        onApply={(regions) => setFilter((prev) => ({ ...prev, regions }))}
+        onClose={() => setOpenSheet(null)}
+      />
+      <ConcertDateSheet
+        visible={openSheet === "date"}
+        fromDate={filter.fromDate}
+        toDate={filter.toDate}
+        // 초기화 후 적용하면 range가 비어 있으므로, 펼쳐 넣지 않고 두 값을 직접 넣어 기간을 지운다
+        onApply={(range) => setFilter((prev) => ({ ...prev, fromDate: range.fromDate, toDate: range.toDate }))}
+        onClose={() => setOpenSheet(null)}
       />
 
       <ConcertDetailModal concert={selected} onClose={() => setSelected(null)} />

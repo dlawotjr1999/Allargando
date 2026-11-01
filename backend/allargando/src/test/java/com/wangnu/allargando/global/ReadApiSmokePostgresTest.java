@@ -95,6 +95,8 @@ class ReadApiSmokePostgresTest {
 
         mockMvc.perform(get("/api/posts").with(as("owner"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].instruments").isArray());
+        // 검색(설명처럼 비어 있을 수 있는 필드 포함)이 PostgreSQL에서도 실행되는지
+        mockMvc.perform(get("/api/posts").param("keyword", "금관 100%_").with(as("owner"))).andExpect(status().isOk());
         mockMvc.perform(get("/api/posts/me").with(as("owner"))).andExpect(status().isOk());
         mockMvc.perform(get("/api/posts/" + postId).with(as("owner"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.isMine").value(true));
@@ -103,6 +105,7 @@ class ReadApiSmokePostgresTest {
         mockMvc.perform(get("/api/users/me").with(as("owner"))).andExpect(status().isOk());
         mockMvc.perform(get("/api/blocks").with(as("owner"))).andExpect(status().isOk());
         mockMvc.perform(get("/api/practice-logs").with(as("owner"))).andExpect(status().isOk());
+        mockMvc.perform(get("/api/practice-logs").param("keyword", "바흐").param("category", "레슨").with(as("owner"))).andExpect(status().isOk());
         mockMvc.perform(get("/api/concerts").with(as("owner"))).andExpect(status().isOk());
         // 정렬식(날짜 비교 결과·CASE)이 PostgreSQL에서도 실행되는지 — H2만으로는 확인되지 않는다
         mockMvc.perform(get("/api/concerts").param("running", "true").with(as("owner"))).andExpect(status().isOk());

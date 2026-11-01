@@ -13,11 +13,12 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { colors } from "@/constants/theme";
-import { formatDate, parseDate, toDateOnly } from "@/utils/datetime";
+import { PRACTICE_CATEGORIES } from "@/constants/filterOptions";
 import { createPracticeLog } from "@/api/practiceLog";
 import { ApiError } from "@/lib/apiClient";
+import ChipSelect from "@/components/common/ChipSelect";
+import DateTimeField from "@/components/common/DateTimeField";
 import ThemedButton from "@/components/common/ThemedButton";
 
 export default function PracticeLogCreateScreen() {
@@ -29,7 +30,7 @@ export default function PracticeLogCreateScreen() {
   const [date, setDate] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [content, setContent] = useState("");
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [category, setCategory] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 필수값: 제목·날짜·연습 시간. 내용은 선택
@@ -48,6 +49,7 @@ export default function PracticeLogCreateScreen() {
         logDate: date,
         duration: Number(durationMinutes),
         content: content.trim() || undefined,
+        category: category || undefined,
       });
       router.back();
     } catch (err) {
@@ -95,18 +97,15 @@ export default function PracticeLogCreateScreen() {
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.fieldGroup, styles.rowField]}>
-              <Text style={styles.label}>날짜</Text>
-              <TouchableOpacity
-                style={styles.input}
-                onPress={() => setShowDatePicker(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.inputText, !date && styles.inputPlaceholder]}>
-                  {date ? formatDate(date) : "날짜 선택"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            {/* 연습일지는 지난 기록을 남기는 곳이라 미래 날짜는 고를 수 없다 */}
+            <DateTimeField
+              mode="date"
+              label="날짜"
+              value={date}
+              onChange={setDate}
+              maximumDate={new Date()}
+              style={styles.rowField}
+            />
             <View style={[styles.fieldGroup, styles.rowField]}>
               <Text style={styles.label}>연습 시간(분)</Text>
               <TextInput
@@ -120,19 +119,13 @@ export default function PracticeLogCreateScreen() {
             </View>
           </View>
 
-          {showDatePicker && (
-            <DateTimePicker
-              value={date ? parseDate(date) : new Date()}
-              mode="date"
-              maximumDate={new Date()}
-              onChange={(event, selected) => {
-                setShowDatePicker(false);
-                if (event.type === "set" && selected) {
-                  setDate(toDateOnly(selected));
-                }
-              }}
-            />
-          )}
+          {/* 선택 입력 — 고른 칩을 다시 누르면 선택이 풀린다 */}
+          <ChipSelect
+            label="분류 (선택)"
+            options={PRACTICE_CATEGORIES}
+            selected={category}
+            onSelect={(value) => setCategory((prev) => (prev === value ? "" : value))}
+          />
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>내용</Text>
@@ -209,14 +202,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 14,
     color: colors.textPrimary,
-  },
-  // 날짜 필드는 TextInput이 아닌 TouchableOpacity라 내부 Text에 별도 지정
-  inputText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  inputPlaceholder: {
-    color: colors.placeholder,
   },
   textArea: {
     height: 220,
