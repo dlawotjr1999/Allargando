@@ -53,7 +53,7 @@ export default function PhoneCodeForm({
   // 인증번호 발송. 입력한 번호 형식을 먼저 확인하고, 성공하면 코드 입력칸을 연다
   const handleSend = async () => {
     if (!formatPhoneNumber(phoneNumber)) {
-      Alert.alert("전화번호 확인", "휴대폰 번호를 010-0000-0000 형식으로 입력해 주세요.");
+      Alert.alert("전화번호 확인", "휴대폰 번호를 정확히 입력해 주세요.");
       return;
     }
     setSending(true);

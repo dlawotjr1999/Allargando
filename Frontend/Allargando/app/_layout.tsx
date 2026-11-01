@@ -10,6 +10,9 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { RegisterProvider } from "@/contexts/RegisterContext";
 import { setUpgradeRequiredHandler } from "@/lib/apiClient";
 
+// 앱을 켠 뒤 로딩(스플래시) 화면을 보여 주는 최소 시간. 세션 복원과 프로필 조회가 빠르면 화면이 스치듯 지나가므로 이만큼은 유지한다
+const MIN_SPLASH_MS = 1500;
+
 export default function RootLayout() {
   // 서버가 이 앱 버전을 더 지원하지 않는다고 하면(426) 앱 전체를 업데이트 안내 화면으로 바꾼다.
   // 로그인 세션은 건드리지 않는다
@@ -63,8 +66,24 @@ function RootNavigator() {
     if (!loading && !profilePending) setBooted(true);
   }, [loading, profilePending]);
 
+  const [minSplashElapsed, setMinSplashElapsed] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setMinSplashElapsed(true), MIN_SPLASH_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   // 부팅 이후 프로필 조회 중에는 홈으로 먼저 보내지 않고(깜빡임·가입 화면 튕김 방지) 로그인 화면에 둔다
   const href = registering ? heldTarget : booted && profilePending ? "/(auth)/login" : target;
+
+  // 최소 노출 시간 안에 조회가 실패해도 연결 확인 화면보다 로딩 화면이 먼저다
+  if (loading || !minSplashElapsed || (profilePending && !booted)) {
+    return (
+      <>
+        <LoadingScreen />
+        <StatusBar style="dark" />
+      </>
+    );
+  }
 
   // 로그인했는데 내 정보를 확인하지 못했고(네트워크·서버 장애) 가입 미완료도 아니면, 홈으로 보내지 않고 연결 확인 화면을 보여 준다.
   // 가입 미완료(404)는 profileError가 아니라 unregistered로 구분돼 위에서 가입 이어하기로 간다
@@ -80,15 +99,6 @@ function RootNavigator() {
           }}
           onSwitchAccount={() => signOut().catch(() => {})}
         />
-        <StatusBar style="dark" />
-      </>
-    );
-  }
-
-  if (loading || (profilePending && !booted)) {
-    return (
-      <>
-        <LoadingScreen />
         <StatusBar style="dark" />
       </>
     );

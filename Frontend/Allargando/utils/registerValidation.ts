@@ -149,7 +149,7 @@ export function validateProfileStep(values: ProfileStepValues): string | null {
   if (!normalizeNickname(values.nickname)) return "닉네임을 입력해 주세요.";
   const nicknameError = getNicknameError(values.nickname);
   if (nicknameError) return nicknameError;
-  if (!formatPhoneNumber(values.phoneNumber)) return "휴대폰 번호를 010-0000-0000 형식으로 입력해 주세요.";
+  if (!formatPhoneNumber(values.phoneNumber)) return "휴대폰 번호를 정확히 입력해 주세요.";
   if (!values.instrument) return "악기를 선택해 주세요.";
   return null;
 }
