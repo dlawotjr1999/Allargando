@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/constants/theme";
 import { Concert } from "@/types/concert";
 import { getDday } from "@/utils/datetime";
+import DdayText from "@/components/common/DdayText";
 import Tag from "@/components/common/Tag";
 import IconText from "@/components/common/IconText";
 
@@ -16,8 +17,7 @@ interface ConcertCardProps {
 // D-day는 공연 시작일(startDate) 기준 — "공연이 며칠 남았는가". 시작일이 지났어도 종료일(endDate)이 남은 장기 공연은
 // D+n으로 보이면 지난 공연으로 오해하므로 "공연중"으로 표시한다(목록은 종료된 공연을 이미 빼고 내려준다)
 export default function ConcertCard({ concert, onPress }: ConcertCardProps) {
-  const dday = getDday(concert.startDate);
-  const running = dday.expired && !getDday(concert.endDate).expired;
+  const running = getDday(concert.startDate).expired && !getDday(concert.endDate).expired;
 
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.8} onPress={onPress}>
@@ -42,18 +42,10 @@ export default function ConcertCard({ concert, onPress }: ConcertCardProps) {
             {concert.title}
           </Text>
           {running ? (
-            <Text style={[styles.dday, styles.ddayRunning]}>공연중</Text>
-          ) : dday.label ? (
-            <Text
-              style={[
-                styles.dday,
-                dday.urgent && styles.ddayUrgent,
-                dday.expired && styles.ddayExpired,
-              ]}
-            >
-              {dday.label}
-            </Text>
-          ) : null}
+            <Text style={styles.running}>공연중</Text>
+          ) : (
+            <DdayText date={concert.startDate} />
+          )}
         </View>
 
         <View style={styles.badgeRow}>
@@ -106,20 +98,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.textPrimary,
   },
-  dday: {
+  running: {
     fontSize: 11,
     fontWeight: "600",
-    color: colors.textMuted,
-    flexShrink: 0,
-  },
-  ddayUrgent: {
-    color: colors.danger,
-  },
-  ddayExpired: {
-    color: colors.placeholder,
-  },
-  ddayRunning: {
     color: colors.primary,
+    flexShrink: 0,
   },
   badgeRow: {
     flexDirection: "row",

@@ -195,10 +195,10 @@ export default function PostForm({ mode, initial, confirmedByInstrument, onSubmi
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>설명 (선택)</Text>
+            <Text style={styles.label}>공연 정보 (선택)</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="모집 목적, 분위기, 준비물 등을 자유롭게 적어주세요. 공연이 여러 번이면 전체 일정도 함께 적어주세요."
+              placeholder="연주곡, 모집 목적, 분위기, 준비물 등을 자유롭게 적어주세요. 공연이 여러 번이면 전체 일정도 함께 적어주세요."
               placeholderTextColor={colors.placeholder}
               value={description}
               onChangeText={setDescription}

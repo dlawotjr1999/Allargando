@@ -25,11 +25,14 @@ import { confirmBlockUser } from "@/lib/safety";
 import { formatEventDateTime } from "@/utils/datetime";
 import ScreenHeader from "@/components/common/ScreenHeader";
 import EmptyState from "@/components/common/EmptyState";
-import IconText from "@/components/common/IconText";
+import DdayText from "@/components/common/DdayText";
+import InfoCard from "@/components/common/InfoCard";
+import InfoRow from "@/components/common/InfoRow";
 import Tag from "@/components/common/Tag";
 import ThemedButton from "@/components/common/ThemedButton";
 import ApplicationSubmitModal from "@/components/application/ApplicationSubmitModal";
 import ActionMenu, { ActionMenuItem } from "@/components/common/ActionMenu";
+import PostCategoryIcon from "@/components/post/PostCategoryIcon";
 import ReportDialog from "@/components/report/ReportDialog";
 
 // 이미 지원한 글의 버튼 문구(취소는 다시 지원할 수 있어 여기 없음)
@@ -39,15 +42,6 @@ const MY_STATUS_LABEL: Record<Exclude<ApplicationStatus, "CANCELLED">, string> =
   REJECTED: "거절된 지원",
   REVOKED: "수락이 철회된 지원",
 };
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -292,69 +286,68 @@ export default function PostDetailScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* 히어로: 썸네일 + 카테고리 + 제목 */}
-        <View style={styles.hero}>
-          <View style={styles.thumbnail}>
-            <Ionicons name="musical-note" size={36} color={colors.primaryLight} />
+        {/* 카테고리 아이콘 + 카테고리 + 제목 + 작성자 */}
+        <InfoCard>
+          <View style={styles.hero}>
+            <PostCategoryIcon category={post.category} />
+            <View style={styles.heroBody}>
+              <View style={styles.categoryRow}>
+                <Tag label={post.category} variant="accent" />
+                {isClosed && <Tag label="마감" />}
+              </View>
+              <Text style={styles.title}>{post.title}</Text>
+
+              {/* 작성자 — 매너 점수는 백엔드에 아직 없는 향후 기능(REVIEWS 테이블 도입 전)이라 표시하지 않음.
+                  남의 글이면 눌러서 작성자의 공개 프로필(활동 이력·신고·차단)로 들어간다 */}
+              <TouchableOpacity
+                style={styles.writerRow}
+                disabled={isMyPost}
+                activeOpacity={0.7}
+                onPress={() =>
+                  router.push({ pathname: "/user/[nickname]", params: { nickname: post.writer.nickname } })
+                }
+                accessibilityLabel={isMyPost ? undefined : `${post.writer.nickname} 프로필 보기`}
+              >
+                <Ionicons name="person-circle-outline" size={18} color={colors.textMuted} />
+                <Text style={styles.writerText}>
+                  {post.writer.nickname} · {post.writer.instrument}
+                </Text>
+                {!isMyPost && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.categoryRow}>
-            <Tag label={post.category} variant="accent" />
-            {isClosed && <Tag label="마감" />}
-          </View>
-          <Text style={styles.title}>{post.title}</Text>
+        </InfoCard>
 
-          {/* 작성자 — 매너 점수는 백엔드에 아직 없는 향후 기능(REVIEWS 테이블 도입 전)이라 표시하지 않음.
-              남의 글이면 눌러서 작성자의 공개 프로필(활동 이력·신고·차단)로 들어간다 */}
-          <TouchableOpacity
-            style={styles.writerRow}
-            disabled={isMyPost}
-            activeOpacity={0.7}
-            onPress={() =>
-              router.push({ pathname: "/user/[nickname]", params: { nickname: post.writer.nickname } })
-            }
-            accessibilityLabel={isMyPost ? undefined : `${post.writer.nickname} 프로필 보기`}
-          >
-            <Ionicons name="person-circle-outline" size={18} color={colors.textMuted} />
-            <Text style={styles.writerText}>
-              {post.writer.nickname} · {post.writer.instrument}
-            </Text>
-            {!isMyPost && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
-          </TouchableOpacity>
-        </View>
+        {/* 공연과 연습은 함께 봐야 일정이 이해되므로 한 카드에 둔다 */}
+        <InfoCard>
+          <InfoRow
+            label="공연"
+            value={formatEventDateTime(post.eventAt)}
+            emphasized
+            trailing={<DdayText date={post.eventAt} style={styles.dday} />}
+          />
+          <InfoRow label="장소" value={post.location} />
+          <InfoRow label="연습" value={post.timetable} />
+        </InfoCard>
 
-        <View style={styles.divider} />
-
-        {/* 기본 정보 */}
-        <Section title="기본 정보">
-          <View style={styles.infoList}>
-            <IconText icon="calendar-outline" text={formatEventDateTime(post.eventAt)} />
-            <IconText icon="location-outline" text={post.location} />
-          </View>
-        </Section>
-
-        {/* 모집 악기 — 내 프로필 악기와 일치하는 항목을 강조 표시 */}
-        <Section title="모집 악기">
+        {/* 모집 악기 — 내 프로필 악기와 일치하는 항목을 강조하고, 정원이 찬 악기는 흐리게 보여 준다 */}
+        <InfoCard title="모집 악기">
           <View style={styles.tagRow}>
             {post.instruments.map((it) => (
               <Tag
                 key={it.instrument}
-                label={`${it.instrument} ${it.confirmed}/${it.people}`}
-                variant={it.instrument === profile?.instrument ? "filled" : "outline"}
+                label={it.closed ? `${it.instrument} 마감` : `${it.instrument} ${it.confirmed}/${it.people}`}
+                variant={it.closed ? "muted" : it.instrument === profile?.instrument ? "filled" : "outline"}
+                large
               />
             ))}
           </View>
-        </Section>
+        </InfoCard>
 
-        {/* 연습 일정 */}
-        <Section title="연습 일정">
-          <Text style={styles.bodyText}>{post.timetable}</Text>
-        </Section>
-
-        {/* 설명 */}
         {post.description ? (
-          <Section title="설명">
+          <InfoCard title="공연 정보">
             <Text style={styles.bodyText}>{post.description}</Text>
-          </Section>
+          </InfoCard>
         ) : null}
       </ScrollView>
 
@@ -405,7 +398,8 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
+    gap: 12,
   },
   centerFill: {
     flex: 1,
@@ -413,56 +407,36 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   hero: {
+    flexDirection: "row",
     alignItems: "flex-start",
+    gap: 14,
   },
-  thumbnail: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
+  heroBody: {
+    flex: 1,
   },
   categoryRow: {
     flexDirection: "row",
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: colors.textPrimary,
-    lineHeight: 30,
+    lineHeight: 27,
   },
   writerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginTop: 12,
+    marginTop: 6,
   },
   writerText: {
     fontSize: 13,
     color: colors.textSecondary,
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginVertical: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
+  dday: {
     fontSize: 12,
-    color: colors.textMuted,
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  infoList: {
-    gap: 10,
   },
   tagRow: {
     flexDirection: "row",
@@ -471,7 +445,7 @@ const styles = StyleSheet.create({
   },
   bodyText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.textPrimary,
     lineHeight: 22,
   },
   footer: {
